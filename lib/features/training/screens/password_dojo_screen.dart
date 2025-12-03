@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/supabase_config.dart';
 import '../providers/training_provider.dart';
+import '../../../core/services/ai_service.dart';
 
 class PasswordDojoScreen extends ConsumerStatefulWidget {
   final Question question;
@@ -19,6 +20,7 @@ class _PasswordDojoScreenState extends ConsumerState<PasswordDojoScreen> {
   bool _obscurePassword = true;
   bool _showValidationResult = false;
   List<ValidationResult> _validationResults = [];
+  final AiService _aiService = AiService();
 
   // Parsed requirements
   late int minLength;
@@ -180,6 +182,62 @@ class _PasswordDojoScreenState extends ConsumerState<PasswordDojoScreen> {
     super.dispose();
   }
 
+  Future<void> _roastPassword() async {
+    final password = _passwordController.text;
+    
+    if (password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a password first!')),
+      );
+      return;
+    }
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    try {
+      final roast = await _aiService.roastPassword(password);
+      
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading dialog
+
+      // Show roast result
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Row(
+            children: [
+              Text('🔥 Password Roasted'),
+            ],
+          ),
+          content: Text(
+            roast,
+            style: const TextStyle(fontSize: 16),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading dialog
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -277,6 +335,25 @@ class _PasswordDojoScreenState extends ConsumerState<PasswordDojoScreen> {
                   label: const Text('Verify Password'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Color(0xFF4A90E2),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Roast My Password button
+              SizedBox(
+                width: double.infinity,
+                height: 55,
+                child: ElevatedButton.icon(
+                  onPressed: _roastPassword,
+                  icon: const Text('🔥', style: TextStyle(fontSize: 20)),
+                  label: const Text('Roast My Password (AI)'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFFE74C3C),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(15),

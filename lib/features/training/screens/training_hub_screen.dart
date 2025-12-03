@@ -5,6 +5,8 @@ import '../providers/training_provider.dart';
 import 'phishing_screen.dart';
 import 'password_dojo_screen.dart';
 import 'cyber_attack_screen.dart';
+import 'scam_simulator_screen.dart';
+import '../../support/screens/emergency_support_screen.dart';
 
 class TrainingHubScreen extends ConsumerWidget {
   const TrainingHubScreen({Key? key}) : super(key: key);
@@ -38,6 +40,45 @@ class TrainingHubScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Emergency Panic Button
+          Container(
+            width: double.infinity,
+            height: 60,
+            margin: const EdgeInsets.only(bottom: 16),
+            child: ElevatedButton(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const EmergencySupportScreen(),
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade700,
+                foregroundColor: Colors.white,
+                elevation: 8,
+                shadowColor: Colors.red.withOpacity(0.5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.warning_rounded, size: 28),
+                  const SizedBox(width: 12),
+                  Text(
+                    'I THINK I\'VE BEEN HACKED!',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
           // Welcome Header Card
           Container(
             padding: const EdgeInsets.all(20),
@@ -137,6 +178,51 @@ class TrainingHubScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 32.0),
+
+          // Simulation Games Section
+          Row(
+            children: [
+              Icon(Icons.psychology, color: Colors.purple, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Simulation Games (AI)',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.purple,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12.0),
+          _ModuleCard(
+            title: 'Hacker Chat: Discord Scam',
+            description: 'Interactive chat simulation - Can you spot the scammer?',
+            icon: Icons.chat_bubble_outline,
+            color: Color(0xFF5865F2),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ScamSimulatorScreen(scenario: 'discord'),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12.0),
+          _ModuleCard(
+            title: 'Hacker Chat: Bank Phishing',
+            description: 'Can you identify a fake bank representative?',
+            icon: Icons.account_balance,
+            color: Color(0xFF0066CC),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ScamSimulatorScreen(scenario: 'bank'),
+              ),
+            ),
+          ),
+          const SizedBox(height: 32.0),
+
           // Recent Activity Section
           Text(
             'Recent Activity',
