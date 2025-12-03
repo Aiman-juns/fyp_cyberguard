@@ -57,7 +57,11 @@ class NewsScreen extends ConsumerWidget {
                               errorBuilder: (context, error, stackTrace) {
                                 return Container(
                                   height: 150,
-                                  color: Colors.grey.shade100,
+                                  color:
+                                      Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? Colors.grey.shade800
+                                      : Colors.grey.shade100,
                                   child: const Center(child: Icon(Icons.image)),
                                 );
                               },

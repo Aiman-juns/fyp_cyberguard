@@ -35,7 +35,9 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
     final authState = ref.watch(authProvider);
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? Theme.of(context).scaffoldBackgroundColor
+          : Colors.grey.shade50,
       drawer: const CustomDrawer(),
       body: Builder(
         builder: (BuildContext scaffoldContext) {

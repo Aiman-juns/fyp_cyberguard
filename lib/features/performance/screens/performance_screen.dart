@@ -250,9 +250,16 @@ class _ModuleProgressCard extends StatelessWidget {
     if (stats == null) {
       return Container(
         decoration: BoxDecoration(
-          color: Colors.grey.shade100,
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.grey.shade800
+              : Colors.grey.shade100,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade300, width: 2),
+          border: Border.all(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.grey.shade700
+                : Colors.grey.shade300,
+            width: 2,
+          ),
         ),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -273,9 +280,11 @@ class _ModuleProgressCard extends StatelessWidget {
               const SizedBox(height: 12.0),
               Text(
                 'No attempts yet',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey.shade400
+                      : Colors.grey.shade600,
+                ),
               ),
             ],
           ),
@@ -285,7 +294,9 @@ class _ModuleProgressCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Colors.grey.shade800
+            : Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: color.withOpacity(0.3), width: 2),
         boxShadow: [
@@ -349,7 +360,9 @@ class _ModuleProgressCard extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: stats.completionPercentage / 100,
                 minHeight: 8.0,
-                backgroundColor: Colors.grey.shade300,
+                backgroundColor: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey.shade700
+                    : Colors.grey.shade300,
                 valueColor: AlwaysStoppedAnimation<Color>(color),
               ),
             ),
@@ -447,16 +460,20 @@ class _AchievementCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       decoration: BoxDecoration(
         color: achievement.isUnlocked
-            ? Colors.amber.shade50
-            : Colors.grey.shade100,
+            ? (isDark
+                  ? Colors.amber.shade900.withOpacity(0.3)
+                  : Colors.amber.shade50)
+            : (isDark ? Colors.grey.shade800 : Colors.grey.shade100),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: achievement.isUnlocked
-              ? Colors.amber.shade300
-              : Colors.grey.shade300,
+              ? (isDark ? Colors.amber.shade700 : Colors.amber.shade300)
+              : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
           width: 2,
         ),
         boxShadow: achievement.isUnlocked
@@ -507,7 +524,9 @@ class _AchievementCard extends StatelessWidget {
               child: Text(
                 achievement.description,
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: Colors.grey.shade600,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey.shade400
+                      : Colors.grey.shade600,
                   fontSize: 10,
                 ),
                 textAlign: TextAlign.center,

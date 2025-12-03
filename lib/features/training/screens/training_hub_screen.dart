@@ -242,7 +242,9 @@ class _ModuleCard extends StatelessWidget {
                       description,
                       style: TextStyle(
                         fontSize: 13,
-                        color: Colors.grey.shade700,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade700,
                         height: 1.3,
                       ),
                     ),
@@ -352,7 +354,11 @@ class _DefaultLevelList extends StatelessWidget {
             trailing: const Icon(Icons.arrow_forward),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
-              side: BorderSide(color: Colors.grey.shade300),
+              side: BorderSide(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey.shade700
+                    : Colors.grey.shade300,
+              ),
             ),
             onTap: () => onLevelSelected(level),
           ),
@@ -470,7 +476,11 @@ class _LevelListWithProgress extends ConsumerWidget {
         borderRadius: BorderRadius.circular(12),
         child: Container(
           decoration: BoxDecoration(
-            color: isComplete ? levelColor.withOpacity(0.1) : Colors.white,
+            color: isComplete
+                ? levelColor.withOpacity(0.1)
+                : (Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey.shade800
+                      : Colors.white),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: levelColor.withOpacity(0.3), width: 2),
             boxShadow: [
@@ -524,7 +534,9 @@ class _LevelListWithProgress extends ConsumerWidget {
                         _getLevelDescription(level),
                         style: TextStyle(
                           fontSize: 13,
-                          color: Colors.grey.shade600,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.grey.shade400
+                              : Colors.grey.shade600,
                         ),
                       ),
                     ],
@@ -659,7 +671,9 @@ class _RecentActivityWidget extends ConsumerWidget {
             return Container(
               margin: const EdgeInsets.only(bottom: 12.0),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey.shade800
+                    : Colors.white,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: isCorrect
@@ -714,7 +728,11 @@ class _RecentActivityWidget extends ConsumerWidget {
                             'Difficulty ${question?.difficulty ?? '?'} • $formattedDate',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey.shade600,
+                              color:
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade600,
                             ),
                           ),
                         ],
