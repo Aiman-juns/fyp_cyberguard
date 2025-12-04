@@ -10,6 +10,7 @@ import '../features/news/screens/news_screen.dart';
 import '../features/news/screens/news_detail_screen.dart';
 import '../features/assistant/screens/assistant_screen.dart';
 import '../features/performance/screens/performance_screen.dart';
+import '../features/profile/screens/profile_screen.dart';
 import '../features/admin/screens/admin_dashboard_screen.dart';
 import '../shared/widgets/custom_drawer.dart';
 import '../shared/widgets/custom_bottom_nav.dart';
@@ -32,6 +33,7 @@ class _UserDashboardScreenState extends ConsumerState<UserDashboardScreen> {
     AssistantScreen(),
     PerformanceScreen(),
     NewsScreen(),
+    ProfileScreen(),
   ];
 
   static const List<String> _titles = [
@@ -40,6 +42,7 @@ class _UserDashboardScreenState extends ConsumerState<UserDashboardScreen> {
     'Assistant',
     'Performance',
     'News',
+    'Profile',
   ];
 
   void _onItemTapped(int index) {

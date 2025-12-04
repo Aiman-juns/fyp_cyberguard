@@ -44,6 +44,11 @@ class CustomBottomNav extends StatelessWidget {
           title: const Text('News'),
           selectedColor: Colors.blue,
         ),
+        SalomonBottomBarItem(
+          icon: const Icon(Icons.person),
+          title: const Text('Profile'),
+          selectedColor: Colors.green,
+        ),
       ],
     );
   }

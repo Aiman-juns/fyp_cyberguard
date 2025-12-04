@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/user_model.dart';
 import '../../config/supabase_config.dart';
+import '../../core/services/avatar_service.dart';
 
 /// Auth State enum
 enum AuthState { loading, authenticated, unauthenticated, error }
@@ -95,6 +96,9 @@ class AuthProvider extends StateNotifier<AsyncValue<UserModel?>> {
 
       final user = authResponse.user;
       if (user != null) {
+        // Generate random avatar ID
+        final avatarId = AvatarService.getRandomAvatarId();
+        
         // Generate avatar URL from name
         // For Phase 1, using simple DiceBear initials
         final avatarUrl =
@@ -107,6 +111,7 @@ class AuthProvider extends StateNotifier<AsyncValue<UserModel?>> {
           fullName: fullName,
           role: 'user',
           avatarUrl: avatarUrl,
+          avatarId: avatarId,
           totalScore: 0,
           level: 1,
         );

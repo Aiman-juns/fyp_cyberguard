@@ -4,6 +4,7 @@ class UserModel {
   final String fullName;
   final String role;
   final String? avatarUrl;
+  final String avatarId;
   final int totalScore;
   final int level;
 
@@ -13,6 +14,7 @@ class UserModel {
     required this.fullName,
     required this.role,
     this.avatarUrl,
+    required this.avatarId,
     required this.totalScore,
     required this.level,
   });
@@ -25,6 +27,7 @@ class UserModel {
       fullName: json['full_name'] as String,
       role: json['role'] as String,
       avatarUrl: json['avatar_url'] as String?,
+      avatarId: json['avatar_id'] as String? ?? 'shield',
       totalScore: json['total_score'] as int? ?? 0,
       level: json['level'] as int? ?? 1,
     );
@@ -38,6 +41,7 @@ class UserModel {
       'full_name': fullName,
       'role': role,
       'avatar_url': avatarUrl,
+      'avatar_id': avatarId,
       'total_score': totalScore,
       'level': level,
     };
@@ -50,6 +54,7 @@ class UserModel {
     String? fullName,
     String? role,
     String? avatarUrl,
+    String? avatarId,
     int? totalScore,
     int? level,
   }) {
@@ -59,6 +64,7 @@ class UserModel {
       fullName: fullName ?? this.fullName,
       role: role ?? this.role,
       avatarUrl: avatarUrl ?? this.avatarUrl,
+      avatarId: avatarId ?? this.avatarId,
       totalScore: totalScore ?? this.totalScore,
       level: level ?? this.level,
     );
@@ -66,7 +72,7 @@ class UserModel {
 
   @override
   String toString() =>
-      'UserModel(id: $id, email: $email, fullName: $fullName, role: $role, avatarUrl: $avatarUrl, totalScore: $totalScore, level: $level)';
+      'UserModel(id: $id, email: $email, fullName: $fullName, role: $role, avatarUrl: $avatarUrl, avatarId: $avatarId, totalScore: $totalScore, level: $level)';
 
   @override
   bool operator ==(Object other) =>
@@ -78,6 +84,7 @@ class UserModel {
           fullName == other.fullName &&
           role == other.role &&
           avatarUrl == other.avatarUrl &&
+          avatarId == other.avatarId &&
           totalScore == other.totalScore &&
           level == other.level;
 
@@ -88,6 +95,7 @@ class UserModel {
       fullName.hashCode ^
       role.hashCode ^
       avatarUrl.hashCode ^
+      avatarId.hashCode ^
       totalScore.hashCode ^
       level.hashCode;
 }
