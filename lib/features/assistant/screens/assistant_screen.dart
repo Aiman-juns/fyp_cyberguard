@@ -206,7 +206,9 @@ class _UrlScannerTabState extends State<UrlScannerTab>
   }
 
   Future<void> _checkUrl() async {
-    if (_urlController.text.isEmpty) {
+    final inputUrl = _urlController.text.trim();
+    
+    if (inputUrl.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a URL')),
       );
@@ -222,14 +224,21 @@ class _UrlScannerTabState extends State<UrlScannerTab>
     });
 
     try {
-      final urlId = _encodeUrlToId(_urlController.text);
-      final url = Uri.parse('https://www.virustotal.com/api/v3/urls/$urlId');
+      // Encode URL for VirusTotal API
+      final urlId = _encodeUrlToId(inputUrl);
+      final apiUrl = Uri.parse('https://www.virustotal.com/api/v3/urls/$urlId');
+
+      print('Checking URL: $inputUrl');
+      print('Encoded ID: $urlId');
 
       final response = await http
-          .get(url, headers: {'x-apikey': _apiKey})
-          .timeout(const Duration(seconds: 10));
+          .get(apiUrl, headers: {'x-apikey': _apiKey})
+          .timeout(const Duration(seconds: 15));
 
       if (!mounted) return;
+
+      print('Response status: ${response.statusCode}');
+      print('Response body preview: ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -279,13 +288,20 @@ class _UrlScannerTabState extends State<UrlScannerTab>
       }
     } catch (e) {
       if (!mounted) return;
+      
+      print('Error checking URL: $e');
+      
       setState(() {
         _resultStatus = 'unknown';
-        _resultMessage = '⚠️ Unable to check this URL. Please try again.';
+        _resultMessage = '⚠️ Unable to check this URL. Error: ${e.toString()}';
       });
       _animationController.forward(from: 0);
+      
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          duration: const Duration(seconds: 5),
+        ),
       );
     } finally {
       if (mounted) {
@@ -421,9 +437,194 @@ class _UrlScannerTabState extends State<UrlScannerTab>
             ),
           ),
 
-          // Results section would go here - using existing code from original file
-          // For brevity, this is just the input section
-          // The full results rendering code remains the same as your original
+          // Results section
+          if (_resultStatus != null) ...[
+            const SizedBox(height: 24),
+            FadeTransition(
+              opacity: _fadeAnimation,
+              child: SlideTransition(
+                position: _slideAnimation,
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: _resultStatus == 'danger'
+                        ? Colors.red.withOpacity(0.1)
+                        : _resultStatus == 'safe'
+                            ? Colors.green.withOpacity(0.1)
+                            : Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: _resultStatus == 'danger'
+                          ? Colors.red
+                          : _resultStatus == 'safe'
+                              ? Colors.green
+                              : Colors.orange,
+                      width: 2,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(
+                        _resultStatus == 'danger'
+                            ? Icons.dangerous
+                            : _resultStatus == 'safe'
+                                ? Icons.check_circle
+                                : Icons.help,
+                        color: _resultStatus == 'danger'
+                            ? Colors.red
+                            : _resultStatus == 'safe'
+                                ? Colors.green
+                                : Colors.orange,
+                        size: 64,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _resultStatus == 'danger'
+                            ? 'DANGEROUS!'
+                            : _resultStatus == 'safe'
+                                ? 'SAFE'
+                                : 'UNKNOWN',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: _resultStatus == 'danger'
+                              ? Colors.red
+                              : _resultStatus == 'safe'
+                                  ? Colors.green
+                                  : Colors.orange,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        _resultMessage ?? '',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                        ),
+                      ),
+                      if (_scanStats != null) ...[
+                        const SizedBox(height: 20),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.grey.shade800 : Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                'Security Scan Results',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              _buildStatRow('Malicious', _scanStats!['malicious'] ?? 0, Colors.red),
+                              _buildStatRow('Suspicious', _scanStats!['suspicious'] ?? 0, Colors.orange),
+                              _buildStatRow('Harmless', _scanStats!['harmless'] ?? 0, Colors.green),
+                              _buildStatRow('Undetected', _scanStats!['undetected'] ?? 0, Colors.grey),
+                            ],
+                          ),
+                        ),
+                      ],
+                      if (_threatDetails != null && _threatDetails!.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.red.shade300),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.warning, color: Colors.red, size: 20),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Threat Details',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.red,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              ..._threatDetails!.take(5).map((threat) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Icon(Icons.shield, color: Colors.red, size: 16),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          '${threat['vendor']}: ${threat['result']}',
+                                          style: TextStyle(fontSize: 13),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }).toList(),
+                              if (_threatDetails!.length > 5)
+                                Text(
+                                  '+ ${_threatDetails!.length - 5} more threats detected',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontStyle: FontStyle.italic,
+                                    color: Colors.red,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatRow(String label, int count, Color color) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(label),
+            ],
+          ),
+          Text(
+            count.toString(),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
         ],
       ),
     );
