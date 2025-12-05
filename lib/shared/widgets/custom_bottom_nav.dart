@@ -20,22 +20,17 @@ class CustomBottomNav extends StatelessWidget {
       onTap: onTabChanged,
       items: [
         SalomonBottomBarItem(
-          icon: const Icon(Icons.library_books),
-          title: const Text('Resources'),
-          selectedColor: Colors.purple,
+          icon: const Icon(Icons.home_filled),
+          title: const Text('Home'),
+          selectedColor: Colors.blue,
         ),
         SalomonBottomBarItem(
-          icon: const Icon(Icons.school),
-          title: const Text('Training'),
-          selectedColor: Colors.pink,
-        ),
-        SalomonBottomBarItem(
-          icon: const Icon(Icons.security),
+          icon: const Icon(Icons.smart_toy_outlined),
           title: const Text('Assistant'),
           selectedColor: Colors.orange,
         ),
         SalomonBottomBarItem(
-          icon: const Icon(Icons.trending_up),
+          icon: const Icon(Icons.bar_chart),
           title: const Text('Performance'),
           selectedColor: Colors.teal,
         ),
@@ -45,7 +40,7 @@ class CustomBottomNav extends StatelessWidget {
           selectedColor: Colors.blue,
         ),
         SalomonBottomBarItem(
-          icon: const Icon(Icons.person),
+          icon: const Icon(Icons.person_outline),
           title: const Text('Profile'),
           selectedColor: Colors.green,
         ),

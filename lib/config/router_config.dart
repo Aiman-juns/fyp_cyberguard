@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../auth/screens/login_screen.dart';
 import '../auth/screens/register_screen.dart';
+import '../features/home/screens/home_screen.dart';
 import '../features/training/screens/training_hub_screen.dart';
 import '../features/resources/screens/resources_screen.dart';
 import '../features/resources/screens/resource_detail_screen.dart';
@@ -28,8 +29,7 @@ class _UserDashboardScreenState extends ConsumerState<UserDashboardScreen> {
   int _selectedIndex = 0;
 
   static const List<Widget> _userScreens = [
-    ResourcesScreen(),
-    TrainingHubScreen(),
+    HomeScreen(),
     AssistantScreen(),
     PerformanceScreen(),
     NewsScreen(),
@@ -37,8 +37,7 @@ class _UserDashboardScreenState extends ConsumerState<UserDashboardScreen> {
   ];
 
   static const List<String> _titles = [
-    'Resources',
-    'Training',
+    'CyberGuard HQ',
     'Assistant',
     'Performance',
     'News',
@@ -53,10 +52,10 @@ class _UserDashboardScreenState extends ConsumerState<UserDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // For Resources screen, use plain body without AppBar/Drawer wrapper
-    // (Resources has its own custom header with drawer button)
+    // Home screen (index 0) has no AppBar but includes drawer
     if (_selectedIndex == 0) {
       return Scaffold(
+        drawer: const CustomDrawer(),
         body: _userScreens[_selectedIndex],
         bottomNavigationBar: CustomBottomNav(
           currentIndex: _selectedIndex,
@@ -65,7 +64,7 @@ class _UserDashboardScreenState extends ConsumerState<UserDashboardScreen> {
       );
     }
 
-    // For other screens, keep AppBar and Drawer
+    // Other screens have AppBar and Drawer
     return Scaffold(
       appBar: AppBar(
         title: Text(_titles[_selectedIndex]),
@@ -124,6 +123,20 @@ class RouterConfig {
           key: state.pageKey,
           child: const AdminDashboardScreen(),
         ),
+      ),
+      GoRoute(
+        path: '/training',
+        builder: (context, state) => Scaffold(
+          appBar: AppBar(
+            title: const Text('Training Hub'),
+            centerTitle: true,
+          ),
+          body: const TrainingHubScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/resources',
+        builder: (context, state) => const ResourcesScreen(),
       ),
       GoRoute(
         path: '/resource/:id',
