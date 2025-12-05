@@ -90,6 +90,14 @@ class CustomDrawer extends ConsumerWidget {
                     );
                   },
                 ),
+                ListTile(
+                  leading: const Icon(Icons.newspaper),
+                  title: const Text('Cyber News'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.push('/news');
+                  },
+                ),
                 // Admin Dashboard - Only visible for admins
                 authState.maybeWhen(
                   data: (user) => user?.role == 'admin'

@@ -9,6 +9,7 @@ import '../features/resources/screens/resources_screen.dart';
 import '../features/resources/screens/resource_detail_screen.dart';
 import '../features/news/screens/news_screen.dart';
 import '../features/news/screens/news_detail_screen.dart';
+import '../features/games/screens/games_screen.dart';
 import '../features/assistant/screens/assistant_screen.dart';
 import '../features/performance/screens/performance_screen.dart';
 import '../features/profile/screens/profile_screen.dart';
@@ -32,7 +33,7 @@ class _UserDashboardScreenState extends ConsumerState<UserDashboardScreen> {
     HomeScreen(),
     AssistantScreen(),
     PerformanceScreen(),
-    NewsScreen(),
+    GamesScreen(),
     ProfileScreen(),
   ];
 
@@ -40,7 +41,7 @@ class _UserDashboardScreenState extends ConsumerState<UserDashboardScreen> {
     'CyberGuard HQ',
     'Assistant',
     'Performance',
-    'News',
+    'Games',
     'Profile',
   ];
 
@@ -137,6 +138,10 @@ class RouterConfig {
       GoRoute(
         path: '/resources',
         builder: (context, state) => const ResourcesScreen(),
+      ),
+      GoRoute(
+        path: '/news',
+        builder: (context, state) => const NewsScreen(),
       ),
       GoRoute(
         path: '/resource/:id',

@@ -35,9 +35,9 @@ class CustomBottomNav extends StatelessWidget {
           selectedColor: Colors.teal,
         ),
         SalomonBottomBarItem(
-          icon: const Icon(Icons.newspaper),
-          title: const Text('News'),
-          selectedColor: Colors.blue,
+          icon: const Icon(Icons.sports_esports),
+          title: const Text('Games'),
+          selectedColor: Colors.purple,
         ),
         SalomonBottomBarItem(
           icon: const Icon(Icons.person_outline),
