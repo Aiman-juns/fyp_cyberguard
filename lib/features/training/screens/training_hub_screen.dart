@@ -747,10 +747,8 @@ class _RecentActivityWidget extends ConsumerWidget {
           itemBuilder: (context, index) {
             final activity = activities[index];
             final question = activity.question;
-            final questionContent = question?.content ?? 'Unknown question';
-            final truncatedContent = questionContent.length > 60
-                ? '${questionContent.substring(0, 60)}...'
-                : questionContent;
+            final moduleType = question?.moduleType ?? 'Unknown';
+            final moduleName = _getModuleName(moduleType);
             final formattedDate = _formatDate(activity.attemptDate);
             final isCorrect = activity.isCorrect;
 
@@ -801,17 +799,15 @@ class _RecentActivityWidget extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            truncatedContent,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                            moduleName,
                             style: const TextStyle(
                               fontSize: 14,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Difficulty ${question?.difficulty ?? '?'} • $formattedDate',
+                            'Level ${question?.difficulty ?? '?'} • $formattedDate',
                             style: TextStyle(
                               fontSize: 12,
                               color:
@@ -846,6 +842,19 @@ class _RecentActivityWidget extends ConsumerWidget {
         );
       },
     );
+  }
+
+  String _getModuleName(String moduleType) {
+    switch (moduleType) {
+      case 'phishing':
+        return '📧 Phishing Email Detection';
+      case 'password':
+        return '🔒 Password Security';
+      case 'attack':
+        return '⚠️ Cyber Attack Recognition';
+      default:
+        return '📚 Training Module';
+    }
   }
 
   String _formatDate(DateTime date) {

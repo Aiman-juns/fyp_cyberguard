@@ -38,15 +38,19 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
       backgroundColor: Theme.of(context).brightness == Brightness.dark
           ? Theme.of(context).scaffoldBackgroundColor
           : Colors.grey.shade50,
-      drawer: const CustomDrawer(),
-      body: Builder(
-        builder: (BuildContext scaffoldContext) {
-          return Column(
-            children: [
-              // Custom Header with light blue background
-              _buildCustomHeader(scaffoldContext, authState),
-              // Learning Progress
-              resourcesAsync.when(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Text('Resources'),
+        centerTitle: true,
+        elevation: 0,
+      ),
+      body: Column(
+        children: [
+          // Learning Progress
+          resourcesAsync.when(
                 data: (resources) => _buildLearningProgress(context, resources),
                 loading: () => const SizedBox.shrink(),
                 error: (_, __) => const SizedBox.shrink(),
@@ -162,10 +166,8 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
                     );
                   },
                 ),
-              ),
-            ],
-          );
-        },
+          ),
+        ],
       ),
     );
   }

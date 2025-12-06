@@ -337,12 +337,7 @@ class _QuestionCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        question.content.length > 100
-                            ? '${question.content.substring(0, 100)}...'
-                            : question.content,
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
+                      _buildQuestionPreview(context, question),
                     ],
                   ),
                 ),
@@ -406,6 +401,118 @@ class _QuestionCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildQuestionPreview(BuildContext context, Question question) {
+    // For phishing module, parse and display email data nicely
+    if (question.moduleType == 'phishing') {
+      try {
+        final emailData = json.decode(question.content);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.person, size: 16, color: Colors.grey.shade600),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    'From: ${emailData['senderName'] ?? 'Unknown'}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(Icons.email, size: 16, color: Colors.grey.shade600),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    emailData['senderEmail'] ?? 'no-email',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(Icons.subject, size: 16, color: Colors.grey.shade600),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    'Subject: ${emailData['subject'] ?? 'No subject'}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      } catch (e) {
+        // Fallback if not JSON
+        return Text(
+          question.content.length > 100
+              ? '${question.content.substring(0, 100)}...'
+              : question.content,
+          style: Theme.of(context).textTheme.bodyMedium,
+        );
+      }
+    } else if (question.moduleType == 'password') {
+      // For password module, show password strength question
+      return Row(
+        children: [
+          Icon(Icons.lock, size: 16, color: Colors.grey.shade600),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              question.content.length > 80
+                  ? '${question.content.substring(0, 80)}...'
+                  : question.content,
+              style: Theme.of(context).textTheme.bodySmall,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      );
+    } else if (question.moduleType == 'attack') {
+      // For attack module, show scenario description
+      return Row(
+        children: [
+          Icon(Icons.security, size: 16, color: Colors.grey.shade600),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              question.content.length > 80
+                  ? '${question.content.substring(0, 80)}...'
+                  : question.content,
+              style: Theme.of(context).textTheme.bodySmall,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      );
+    }
+    
+    // For other modules, show content normally
+    return Text(
+      question.content.length > 100
+          ? '${question.content.substring(0, 100)}...'
+          : question.content,
+      style: Theme.of(context).textTheme.bodyMedium,
     );
   }
 }

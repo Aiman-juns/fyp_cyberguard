@@ -25,6 +25,11 @@ class CustomBottomNav extends StatelessWidget {
           selectedColor: Colors.blue,
         ),
         SalomonBottomBarItem(
+          icon: const Icon(Icons.sports_esports),
+          title: const Text('Games'),
+          selectedColor: Colors.purple,
+        ),
+        SalomonBottomBarItem(
           icon: const Icon(Icons.smart_toy_outlined),
           title: const Text('Assistant'),
           selectedColor: Colors.orange,
@@ -33,11 +38,6 @@ class CustomBottomNav extends StatelessWidget {
           icon: const Icon(Icons.bar_chart),
           title: const Text('Performance'),
           selectedColor: Colors.teal,
-        ),
-        SalomonBottomBarItem(
-          icon: const Icon(Icons.sports_esports),
-          title: const Text('Games'),
-          selectedColor: Colors.purple,
         ),
         SalomonBottomBarItem(
           icon: const Icon(Icons.person_outline),

@@ -1,14 +1,188 @@
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
+/// AiService - Handles all AI interactions using Google's Generative AI
+/// 
+/// IMPORTANT: API Key Security
+/// ---------------------------
+/// For DEVELOPMENT:
+/// 1. Create a .env file in the project root
+/// 2. Add: GG_AI_KEY=your_api_key_here
+/// 3. Make sure .env is in .gitignore (NEVER commit API keys!)
+/// 4. Load dotenv in main.dart before runApp()
+/// 
+/// For PRODUCTION:
+/// Use AiService.fromSecureStorage() which reads from flutter_secure_storage
+/// Store the key securely on device using:
+///   final storage = FlutterSecureStorage();
+///   await storage.write(key: 'GG_AI_KEY', value: 'your_api_key');
 class AiService {
-  static const String _apiKey = 'AIzaSyDx1DPfa1E-krs0ABg2exdBeNys0BDf0ho';
   late final GenerativeModel _model;
+  late final String _apiKey;
 
+  /// Default constructor - reads API key from .env file (for development)
   AiService() {
+    final apiKey = dotenv.env['GG_AI_KEY'];
+    
+    if (apiKey == null || apiKey.isEmpty) {
+      throw Exception(
+        'GG_AI_KEY not found in .env file!\n'
+        'Create a .env file in project root with:\n'
+        'GG_AI_KEY=your_api_key_here\n'
+        'And make sure .env is in .gitignore'
+      );
+    }
+
+    _apiKey = apiKey;
     _model = GenerativeModel(
-      model: 'gemini-2.0-flash-exp',
+      model: 'models/gemini-1.5-flash',
       apiKey: _apiKey,
     );
+  }
+
+  /// Production constructor - reads API key from secure storage
+  /// Usage:
+  ///   final aiService = await AiService.fromSecureStorage();
+  static Future<AiService> fromSecureStorage() async {
+    const storage = FlutterSecureStorage();
+    final apiKey = await storage.read(key: 'GG_AI_KEY');
+    
+    if (apiKey == null || apiKey.isEmpty) {
+      throw Exception(
+        'GG_AI_KEY not found in secure storage!\n'
+        'Store the key using:\n'
+        'await FlutterSecureStorage().write(key: "GG_AI_KEY", value: "your_key");'
+      );
+    }
+
+    return AiService._internal(apiKey);
+  }
+
+  /// Internal constructor with explicit API key
+  AiService._internal(String apiKey) {
+    _apiKey = apiKey;
+    _model = GenerativeModel(
+      model: 'models/gemini-2.5-flash',
+      apiKey: _apiKey,
+    );
+  }
+
+  /// Lists available models and their supported methods
+  /// Returns a map of model names to their supported methods
+  Future<Map<String, List<String>>> listModels() async {
+    try {
+      final url = Uri.parse(
+        'https://generativelanguage.googleapis.com/v1beta/models?key=$_apiKey'
+      );
+      
+      final response = await http.get(url);
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final models = <String, List<String>>{};
+        
+        if (data['models'] != null) {
+          for (var model in data['models']) {
+            final name = model['name'] as String;
+            final supportedMethods = (model['supportedGenerationMethods'] as List?)
+                ?.map((e) => e.toString())
+                .toList() ?? [];
+            models[name] = supportedMethods;
+          }
+        }
+        
+        return models;
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
+        throw Exception(
+          'API Key Error (${response.statusCode}): Invalid or unauthorized API key.\n'
+          'Please check your GG_AI_KEY is correct and has proper permissions.\n'
+          'Get a new key at: https://aistudio.google.com/app/apikey'
+        );
+      } else if (response.statusCode == 429) {
+        throw Exception(
+          'Quota Error (429): API quota exceeded.\n'
+          'You may have hit rate limits or daily quota.\n'
+          'Wait a few minutes or upgrade your API plan.'
+        );
+      } else {
+        throw Exception(
+          'Failed to list models (${response.statusCode}): ${response.body}'
+        );
+      }
+    } catch (e) {
+      if (e.toString().contains('API Key Error') || 
+          e.toString().contains('Quota Error')) {
+        rethrow;
+      }
+      throw Exception('Network error while listing models: $e');
+    }
+  }
+
+  /// Enhanced error handler that provides detailed error information
+  Future<String> _getDetailedErrorMessage(dynamic error) async {
+    final errorStr = error.toString().toLowerCase();
+    
+    // Check for specific error types
+    if (errorStr.contains('not found') || errorStr.contains('404')) {
+      try {
+        final models = await listModels();
+        final generateContentModels = models.entries
+            .where((e) => e.value.contains('generateContent'))
+            .map((e) => e.key)
+            .toList();
+        
+        if (generateContentModels.isNotEmpty) {
+          return 'Model Error: The specified model was not found or is not supported.\n'
+              'Try one of these models that support generateContent:\n'
+              '${generateContentModels.take(5).join('\n')}\n\n'
+              'Original error: $error';
+        } else {
+          return 'Model Error: No models supporting generateContent found.\n'
+              'This may be an API key permission issue.\n'
+              'Original error: $error';
+        }
+      } catch (listError) {
+        return 'Model Error: Model not found and could not retrieve available models.\n'
+            'Error details: $listError\n'
+            'Original error: $error';
+      }
+    } else if (errorStr.contains('quota') || errorStr.contains('429')) {
+      return 'Quota Error: API quota exceeded or rate limit hit.\n'
+          'Solutions:\n'
+          '- Wait a few minutes before trying again\n'
+          '- Check your quota at: https://console.cloud.google.com/\n'
+          '- Consider upgrading your API plan\n'
+          'Original error: $error';
+    } else if (errorStr.contains('401') || errorStr.contains('403') || 
+               errorStr.contains('unauthorized') || errorStr.contains('forbidden')) {
+      return 'API Key Error: Authentication failed.\n'
+          'Solutions:\n'
+          '- Verify your API key is correct in .env file\n'
+          '- Generate a new key at: https://aistudio.google.com/app/apikey\n'
+          '- Ensure the API key has proper permissions\n'
+          'Original error: $error';
+    } else if (errorStr.contains('not supported') || errorStr.contains('method')) {
+      try {
+        final models = await listModels();
+        final model = models.entries.firstWhere(
+          (e) => e.value.contains('generateContent'),
+          orElse: () => MapEntry('', []),
+        );
+        
+        if (model.key.isNotEmpty) {
+          return 'Method Error: The current model does not support generateContent.\n'
+              'Try using: ${model.key}\n'
+              'Original error: $error';
+        }
+      } catch (_) {}
+      return 'Method Error: The requested method is not supported by this model.\n'
+          'Original error: $error';
+    }
+    
+    return 'Error: $error';
   }
 
   /// Analyzes an SMS message for phishing/smishing indicators
@@ -44,7 +218,8 @@ Be thorough but concise. If it's clearly a scam, be witty in your sarcastic advi
       // Parse the JSON response
       return _parseResponse(response.text!);
     } catch (e) {
-      throw Exception('Failed to analyze message: $e');
+      final detailedError = await _getDetailedErrorMessage(e);
+      throw Exception('Failed to analyze message: $detailedError');
     }
   }
 
@@ -90,7 +265,7 @@ Start by sending them an urgent message about suspicious activity.
       final response = await chat.sendMessage(Content.text(userMessage));
       return response.text ?? 'No response from AI';
     } on GenerativeAIException catch (e) {
-      return 'AI Error: ${e.message ?? 'Unknown error'}';
+      return 'AI Error: ${e.message}';
     } catch (e) {
       return 'Error: $e';
     }
@@ -122,9 +297,11 @@ Respond with JUST the roast text, no JSON, no formatting.
 
       return response.text!.trim();
     } on GenerativeAIException catch (e) {
-      return "The AI couldn't roast your password because: ${e.message ?? 'Unknown error'}. Maybe it's too scared? 😅";
+      final detailedError = await _getDetailedErrorMessage(e);
+      return "The AI couldn't roast your password: $detailedError";
     } catch (e) {
-      return "Something went wrong trying to roast your password. It's probably so bad it broke the AI. 💀";
+      final detailedError = await _getDetailedErrorMessage(e);
+      return "Error roasting password: $detailedError";
     }
   }
 
@@ -183,11 +360,10 @@ Respond with JUST the roast text, no JSON, no formatting.
       );
     } on GenerativeAIException catch (e) {
       // Known API/model errors: return a friendly message
-      final msg = e.message ?? 'Unknown Generative AI error';
       return SmishAnalysisResult(
         isScam: false,
         confidenceLevel: 'Low',
-        verdict: 'AI service error: $msg',
+        verdict: 'AI service error: ${e.message}',
         redFlags: ['Model/API error while analyzing message'],
         sarcasticAdvice:
             'Our AI had a hiccup. Try again after a restart or check the API key/model.',

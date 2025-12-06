@@ -31,17 +31,17 @@ class _UserDashboardScreenState extends ConsumerState<UserDashboardScreen> {
 
   static const List<Widget> _userScreens = [
     HomeScreen(),
+    GamesScreen(),
     AssistantScreen(),
     PerformanceScreen(),
-    GamesScreen(),
     ProfileScreen(),
   ];
 
   static const List<String> _titles = [
     'CyberGuard HQ',
+    'Games',
     'Assistant',
     'Performance',
-    'Games',
     'Profile',
   ];
 
@@ -53,7 +53,7 @@ class _UserDashboardScreenState extends ConsumerState<UserDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Home screen (index 0) has no AppBar but includes drawer
+    // All screens: no AppBar, only home has drawer
     if (_selectedIndex == 0) {
       return Scaffold(
         drawer: const CustomDrawer(),
@@ -65,14 +65,8 @@ class _UserDashboardScreenState extends ConsumerState<UserDashboardScreen> {
       );
     }
 
-    // Other screens have AppBar and Drawer
+    // Other screens: no AppBar, no drawer
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_titles[_selectedIndex]),
-        centerTitle: true,
-        elevation: 0,
-      ),
-      drawer: const CustomDrawer(),
       body: _userScreens[_selectedIndex],
       bottomNavigationBar: CustomBottomNav(
         currentIndex: _selectedIndex,

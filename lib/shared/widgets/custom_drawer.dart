@@ -189,9 +189,11 @@ class CustomDrawer extends ConsumerWidget {
                   foregroundColor: Colors.white,
                 ),
                 onPressed: () async {
-                  Navigator.pop(context);
                   await ref.read(authProvider.notifier).logout();
                   if (context.mounted) {
+                    // Close drawer first
+                    Navigator.of(context).pop();
+                    // Navigate to login and clear all previous routes
                     context.go('/login');
                   }
                 },
