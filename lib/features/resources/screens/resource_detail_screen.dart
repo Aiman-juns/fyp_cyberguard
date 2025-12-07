@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:video_player/video_player.dart';
+import 'dart:io';
 import '../providers/resources_provider.dart';
 import '../providers/notes_provider.dart';
 import '../providers/progress_provider.dart';
@@ -21,8 +22,9 @@ class ResourceDetailScreen extends ConsumerStatefulWidget {
 class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  YoutubePlayerController? _youtubeController;
+  VideoPlayerController? _videoController;
   final TextEditingController _noteController = TextEditingController();
+  bool _isVideoInitialized = false;
 
   DateTime? _lastUpdateTime;
 
@@ -35,34 +37,63 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
   @override
   void dispose() {
     _tabController.dispose();
-    _youtubeController?.dispose();
+    _videoController?.dispose();
     _noteController.dispose();
     super.dispose();
   }
 
-  void _initializeYoutubePlayer(String? videoUrl) {
-    if (videoUrl == null) return;
+  Future<void> _initializeVideoPlayer(String? videoPath) async {
+    if (videoPath == null || videoPath.isEmpty) return;
 
-    // Extract video ID from YouTube URL
-    String? videoId;
-    if (videoUrl.contains('youtube.com/watch?v=')) {
-      videoId = videoUrl.split('v=')[1].split('&')[0];
-    } else if (videoUrl.contains('youtu.be/')) {
-      videoId = videoUrl.split('youtu.be/')[1].split('?')[0];
-    }
+    try {
+      // Check if file exists
+      final file = File(videoPath);
+      if (!await file.exists()) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Video file not found. Please add the video file.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
 
-    if (videoId != null) {
-      _youtubeController = YoutubePlayerController(
-        initialVideoId: videoId,
-        flags: const YoutubePlayerFlags(autoPlay: false, mute: false),
-      )..addListener(_onVideoPositionChanged);
+      _videoController = VideoPlayerController.file(file)
+        ..addListener(_onVideoPositionChanged)
+        ..initialize().then((_) {
+          if (mounted) {
+            setState(() {
+              _isVideoInitialized = true;
+            });
+          }
+        }).catchError((error) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error loading video: $error'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error initializing video: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
   void _onVideoPositionChanged() {
-    if (_youtubeController == null) return;
+    if (_videoController == null || !_videoController!.value.isInitialized) return;
 
-    final isPlaying = _youtubeController!.value.isPlaying;
+    final isPlaying = _videoController!.value.isPlaying;
 
     if (isPlaying && _lastUpdateTime != null) {
       final timeDiff = DateTime.now().difference(_lastUpdateTime!);
@@ -87,7 +118,7 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
   void _saveNote(String resourceId) {
     if (_noteController.text.trim().isEmpty) return;
 
-    final currentPosition = _youtubeController?.value.position ?? Duration.zero;
+    final currentPosition = _videoController?.value.position ?? Duration.zero;
     final note = Note(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       resourceId: resourceId,
@@ -111,11 +142,10 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
       backgroundColor: Colors.white,
       body: resourceAsync.when(
         data: (resource) {
-          // Initialize YouTube player if not already initialized
-          if (_youtubeController == null && resource.mediaUrl != null) {
+          // Initialize video player if not already initialized
+          if (_videoController == null && resource.mediaUrl != null) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              _initializeYoutubePlayer(resource.mediaUrl);
-              setState(() {});
+              _initializeVideoPlayer(resource.mediaUrl);
             });
           }
 
@@ -215,33 +245,96 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
               ),
             ),
             // Video Player
-            if (_youtubeController != null && resource.mediaUrl != null)
-              AspectRatio(
-                aspectRatio: 16 / 9,
-                child: YoutubePlayer(
-                  controller: _youtubeController!,
-                  showVideoProgressIndicator: true,
-                  progressIndicatorColor: const Color(0xFF9333EA),
-                  progressColors: const ProgressBarColors(
-                    playedColor: Color(0xFF9333EA),
-                    handleColor: Color(0xFF9333EA),
-                    bufferedColor: Colors.white24,
-                    backgroundColor: Colors.white12,
-                  ),
-                ),
-              )
-            else
-              AspectRatio(
-                aspectRatio: 16 / 9,
-                child: Container(
-                  color: Colors.grey[900],
-                  child: const Center(
-                    child: CircularProgressIndicator(color: Colors.white),
-                  ),
-                ),
-              ),
+            AspectRatio(
+              aspectRatio: 16 / 9,
+              child: _videoController != null && _isVideoInitialized
+                  ? Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        VideoPlayer(_videoController!),
+                        // Play/Pause overlay
+                        Center(
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                if (_videoController!.value.isPlaying) {
+                                  _videoController!.pause();
+                                } else {
+                                  _videoController!.play();
+                                }
+                              });
+                            },
+                            child: Container(
+                              width: 60,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.5),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                _videoController!.value.isPlaying
+                                    ? Icons.pause
+                                    : Icons.play_arrow,
+                                color: Colors.white,
+                                size: 40,
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Progress indicator
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          child: VideoProgressIndicator(
+                            _videoController!,
+                            allowScrubbing: true,
+                            colors: const VideoProgressColors(
+                              playedColor: Color(0xFF9333EA),
+                              bufferedColor: Colors.white24,
+                              backgroundColor: Colors.white12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  : Container(
+                      color: Colors.grey[900],
+                      child: Center(
+                        child: resource.mediaUrl == null || resource.mediaUrl!.isEmpty
+                            ? Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.video_library_outlined,
+                                    size: 64,
+                                    color: Colors.white54,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'No video file set',
+                                    style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Please add a video file path in the admin panel',
+                                    style: TextStyle(
+                                      color: Colors.white54,
+                                      fontSize: 12,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              )
+                            : const CircularProgressIndicator(color: Colors.white),
+                      ),
+                    ),
+            ),
             // Video Controls
-            if (_youtubeController != null)
+            if (_videoController != null && _isVideoInitialized)
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16.0,
@@ -252,59 +345,58 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
                   children: [
                     TextButton.icon(
                       onPressed: () {
-                        final currentPosition =
-                            _youtubeController!.value.position;
+                        final currentPosition = _videoController!.value.position;
                         final newPosition =
                             currentPosition - const Duration(seconds: 10);
-                        _youtubeController!.seekTo(
+                        _videoController!.seekTo(
                           newPosition < Duration.zero
                               ? Duration.zero
                               : newPosition,
                         );
                       },
                       icon: const Icon(
-                        Icons.skip_previous,
+                        Icons.replay_10,
                         color: Colors.white,
                       ),
                       label: const Text(
-                        'Previous',
+                        '-10s',
                         style: TextStyle(color: Colors.white),
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text(
-                        '1.0x',
-                        style: TextStyle(color: Colors.white, fontSize: 14),
+                    // Play/Pause button
+                    IconButton(
+                      onPressed: () {
+                        setState(() {
+                          if (_videoController!.value.isPlaying) {
+                            _videoController!.pause();
+                          } else {
+                            _videoController!.play();
+                          }
+                        });
+                      },
+                      icon: Icon(
+                        _videoController!.value.isPlaying
+                            ? Icons.pause_circle_filled
+                            : Icons.play_circle_filled,
+                        color: Colors.white,
+                        size: 40,
                       ),
                     ),
                     TextButton.icon(
                       onPressed: () {
-                        final currentPosition =
-                            _youtubeController!.value.position;
-                        final duration = _youtubeController!.metadata.duration;
+                        final currentPosition = _videoController!.value.position;
+                        final duration = _videoController!.value.duration;
                         final newPosition =
                             currentPosition + const Duration(seconds: 10);
-                        _youtubeController!.seekTo(
+                        _videoController!.seekTo(
                           newPosition > duration ? duration : newPosition,
                         );
                       },
-                      icon: const Icon(Icons.skip_next, color: Colors.white),
+                      icon: const Icon(Icons.forward_10, color: Colors.white),
                       label: const Text(
-                        'Next',
+                        '+10s',
                         style: TextStyle(color: Colors.white),
                       ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.fullscreen, color: Colors.white),
-                      onPressed: () {},
                     ),
                   ],
                 ),
@@ -652,7 +744,7 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
     Resource resource,
     List<Note> notes,
   ) {
-    final currentPosition = _youtubeController?.value.position ?? Duration.zero;
+    final currentPosition = _videoController?.value.position ?? Duration.zero;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),

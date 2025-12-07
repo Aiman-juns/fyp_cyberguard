@@ -470,41 +470,134 @@ class _QuestionCard extends StatelessWidget {
         );
       }
     } else if (question.moduleType == 'password') {
-      // For password module, show password strength question
-      return Row(
-        children: [
-          Icon(Icons.lock, size: 16, color: Colors.grey.shade600),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Text(
-              question.content.length > 80
-                  ? '${question.content.substring(0, 80)}...'
-                  : question.content,
-              style: Theme.of(context).textTheme.bodySmall,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+      // For password module, parse and display requirements nicely
+      try {
+        final passwordData = json.decode(question.content);
+        final requirements = <String>[];
+        
+        if (passwordData['minLength'] != null) {
+          requirements.add('Min ${passwordData['minLength']} characters');
+        }
+        if (passwordData['uppercase'] == true) requirements.add('Uppercase');
+        if (passwordData['lowercase'] == true) requirements.add('Lowercase');
+        if (passwordData['numbers'] == true) requirements.add('Numbers');
+        if (passwordData['special'] == true) requirements.add('Special chars');
+        
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.lock, size: 16, color: Colors.grey.shade600),
+                const SizedBox(width: 4),
+                Text(
+                  'Password Requirements',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      );
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              children: requirements.map((req) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Text(
+                  req,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.blue.shade700,
+                  ),
+                ),
+              )).toList(),
+            ),
+          ],
+        );
+      } catch (e) {
+        // Fallback if not JSON
+        return Row(
+          children: [
+            Icon(Icons.lock, size: 16, color: Colors.grey.shade600),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                question.content.length > 80
+                    ? '${question.content.substring(0, 80)}...'
+                    : question.content,
+                style: Theme.of(context).textTheme.bodySmall,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        );
+      }
     } else if (question.moduleType == 'attack') {
-      // For attack module, show scenario description
-      return Row(
-        children: [
-          Icon(Icons.security, size: 16, color: Colors.grey.shade600),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Text(
-              question.content.length > 80
-                  ? '${question.content.substring(0, 80)}...'
-                  : question.content,
-              style: Theme.of(context).textTheme.bodySmall,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+      // For attack module, parse and display scenario nicely
+      try {
+        final attackData = json.decode(question.content);
+        final description = attackData['description'] ?? '';
+        final options = attackData['options'] as List<dynamic>? ?? [];
+        
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.security, size: 16, color: Colors.grey.shade600),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    description.length > 80
+                        ? '${description.substring(0, 80)}...'
+                        : description,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      );
+            if (options.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                '${options.length} answer options',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.grey.shade600,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ],
+        );
+      } catch (e) {
+        // Fallback if not JSON
+        return Row(
+          children: [
+            Icon(Icons.security, size: 16, color: Colors.grey.shade600),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                question.content.length > 80
+                    ? '${question.content.substring(0, 80)}...'
+                    : question.content,
+                style: Theme.of(context).textTheme.bodySmall,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        );
+      }
     }
     
     // For other modules, show content normally

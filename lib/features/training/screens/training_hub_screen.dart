@@ -40,45 +40,6 @@ class TrainingHubScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Emergency Panic Button
-          Container(
-            width: double.infinity,
-            height: 60,
-            margin: const EdgeInsets.only(bottom: 16),
-            child: ElevatedButton(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const EmergencySupportScreen(),
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red.shade700,
-                foregroundColor: Colors.white,
-                elevation: 8,
-                shadowColor: Colors.red.withOpacity(0.5),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.warning_rounded, size: 28),
-                  const SizedBox(width: 12),
-                  Text(
-                    'I THINK I\'VE BEEN HACKED!',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
           // Welcome Header Card
           Container(
             padding: const EdgeInsets.all(20),

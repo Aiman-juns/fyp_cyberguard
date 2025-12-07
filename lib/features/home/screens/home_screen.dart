@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../core/services/avatar_service.dart';
 import '../../../config/supabase_config.dart';
+import '../../support/screens/emergency_support_screen.dart';
+import '../../../shared/widgets/emergency_fab.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -391,6 +393,7 @@ class HomeScreen extends ConsumerWidget {
           error: (error, _) => Center(child: Text('Error: $error')),
         ),
       ),
+      floatingActionButton: const EmergencyFAB(),
     );
   }
 }

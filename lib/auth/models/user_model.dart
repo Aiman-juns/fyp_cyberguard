@@ -7,6 +7,7 @@ class UserModel {
   final String avatarId;
   final int totalScore;
   final int level;
+  final String quote;
 
   UserModel({
     required this.id,
@@ -17,6 +18,7 @@ class UserModel {
     required this.avatarId,
     required this.totalScore,
     required this.level,
+    this.quote = 'Stay vigilant, stay secure',
   });
 
   // Convert from JSON (Supabase response)
@@ -30,6 +32,7 @@ class UserModel {
       avatarId: json['avatar_id'] as String? ?? 'shield',
       totalScore: json['total_score'] as int? ?? 0,
       level: json['level'] as int? ?? 1,
+      quote: json['quote'] as String? ?? 'Stay vigilant, stay secure',
     );
   }
 
@@ -44,6 +47,7 @@ class UserModel {
       'avatar_id': avatarId,
       'total_score': totalScore,
       'level': level,
+      'quote': quote,
     };
   }
 
@@ -57,6 +61,7 @@ class UserModel {
     String? avatarId,
     int? totalScore,
     int? level,
+    String? quote,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -67,12 +72,13 @@ class UserModel {
       avatarId: avatarId ?? this.avatarId,
       totalScore: totalScore ?? this.totalScore,
       level: level ?? this.level,
+      quote: quote ?? this.quote,
     );
   }
 
   @override
   String toString() =>
-      'UserModel(id: $id, email: $email, fullName: $fullName, role: $role, avatarUrl: $avatarUrl, avatarId: $avatarId, totalScore: $totalScore, level: $level)';
+      'UserModel(id: $id, email: $email, fullName: $fullName, role: $role, avatarUrl: $avatarUrl, avatarId: $avatarId, totalScore: $totalScore, level: $level, quote: $quote)';
 
   @override
   bool operator ==(Object other) =>
@@ -86,7 +92,8 @@ class UserModel {
           avatarUrl == other.avatarUrl &&
           avatarId == other.avatarId &&
           totalScore == other.totalScore &&
-          level == other.level;
+          level == other.level &&
+          quote == other.quote;
 
   @override
   int get hashCode =>
@@ -97,5 +104,6 @@ class UserModel {
       avatarUrl.hashCode ^
       avatarId.hashCode ^
       totalScore.hashCode ^
-      level.hashCode;
+      level.hashCode ^
+      quote.hashCode;
 }
