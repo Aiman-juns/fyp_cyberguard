@@ -38,7 +38,7 @@ class AiService {
 
     _apiKey = apiKey;
     _model = GenerativeModel(
-      model: 'models/gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
       apiKey: _apiKey,
     );
   }
@@ -65,7 +65,7 @@ class AiService {
   AiService._internal(String apiKey) {
     _apiKey = apiKey;
     _model = GenerativeModel(
-      model: 'models/gemini-2.5-flash',
+      model: 'gemini-2.5-flash',
       apiKey: _apiKey,
     );
   }

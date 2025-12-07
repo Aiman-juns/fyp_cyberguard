@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../../core/services/ai_service.dart';
 
 class AssistantScreen extends StatefulWidget {
@@ -172,7 +173,7 @@ class _UrlScannerTabState extends State<UrlScannerTab>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
-  final String _apiKey = 'b50efe0b052eee3b3981452808bae7aec0fbde0acb8e9baf103597e7e6d301bf';
+  late final String _apiKey;
 
   @override
   bool get wantKeepAlive => true;
@@ -313,6 +314,17 @@ class _UrlScannerTabState extends State<UrlScannerTab>
   @override
   void initState() {
     super.initState();
+    
+    // Load VirusTotal API key from .env
+    final virusTotalKey = dotenv.env['VIRUSTOTAL_KEY'];
+    if (virusTotalKey == null || virusTotalKey.isEmpty) {
+      throw Exception(
+        'VIRUSTOTAL_KEY not found in .env file!\n'
+        'Add VIRUSTOTAL_KEY=your_api_key to your .env file'
+      );
+    }
+    _apiKey = virusTotalKey;
+    
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 600),
       vsync: this,
