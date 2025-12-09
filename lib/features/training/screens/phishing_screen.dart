@@ -369,33 +369,34 @@ class EmailSimulationCard extends StatelessWidget {
     }
 
     return Card(
-      elevation: 4,
-      shadowColor: Colors.black.withOpacity(0.1),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 8,
+      shadowColor: Colors.black.withOpacity(0.15),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       margin: const EdgeInsets.symmetric(horizontal: 8),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: Container(
           color: Colors.white,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (isJsonFormat && emailData != null) ...[
-                // Email Header
+                // Email Header with Gradient Background
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    border: Border(
-                      bottom: BorderSide(color: Colors.grey.shade200),
+                    gradient: LinearGradient(
+                      colors: [Colors.blue.shade600, Colors.blue.shade400],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
                   ),
                   child: Row(
                     children: [
-                      // CircleAvatar with first letter
+                      // CircleAvatar with gradient background
                       CircleAvatar(
-                        radius: 20,
-                        backgroundColor: Colors.blue.shade600,
+                        radius: 24,
+                        backgroundColor: Colors.white.withOpacity(0.3),
                         child: Text(
                           (emailData['senderName'] as String? ?? '?').isNotEmpty
                               ? (emailData['senderName'] as String)[0]
@@ -404,11 +405,11 @@ class EmailSimulationCard extends StatelessWidget {
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
-                            fontSize: 18,
+                            fontSize: 20,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 16),
                       // Sender name and email
                       Expanded(
                         child: Column(
@@ -420,64 +421,91 @@ class EmailSimulationCard extends StatelessWidget {
                               style: Theme.of(context).textTheme.titleSmall
                                   ?.copyWith(
                                     fontWeight: FontWeight.bold,
-                                    fontSize: 15,
+                                    fontSize: 16,
+                                    color: Colors.white,
                                   ),
                             ),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 4),
                             Text(
                               emailData['senderEmail'] as String? ?? '',
                               style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(
-                                    color: Colors.grey.shade600,
-                                    fontSize: 12,
+                                    color: Colors.white.withOpacity(0.9),
+                                    fontSize: 13,
                                   ),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
                       ),
-                      // Timestamp (mock)
+                      // Timestamp
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            'Now',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.8),
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Icon(
+                            Icons.star_border,
+                            color: Colors.white.withOpacity(0.7),
+                            size: 20,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                // Subject Line with background
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        'Now',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey.shade500,
+                        'Subject',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
                           fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        emailData['subject'] as String? ?? 'No Subject',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 17,
+                          color: Colors.black87,
                         ),
                       ),
                     ],
                   ),
                 ),
-                // Divider
-                Divider(height: 1, color: Colors.grey.shade200),
-                // Subject Line
+                Divider(height: 1, color: Colors.grey.shade200, indent: 16, endIndent: 16),
+                // Email Body with padding
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                  child: Text(
-                    emailData['subject'] as String? ?? 'No Subject',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-                // Email Body
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         emailData['body'] as String? ?? '',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontSize: 14,
-                          height: 1.5,
+                          fontSize: 15,
+                          height: 1.6,
+                          color: Colors.black87,
                         ),
                       ),
                       // Media URL image if present
                       if (question.mediaUrl != null) ...[
                         const SizedBox(height: 16),
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(12),
                           child: Image.network(
                             question.mediaUrl!,
                             width: double.infinity,
@@ -485,7 +513,10 @@ class EmailSimulationCard extends StatelessWidget {
                             errorBuilder: (context, error, stackTrace) {
                               return Container(
                                 height: 150,
-                                color: Colors.grey.shade200,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade200,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                                 child: const Center(
                                   child: Icon(
                                     Icons.image_not_supported,
@@ -508,7 +539,7 @@ class EmailSimulationCard extends StatelessWidget {
                     children: [
                       if (question.mediaUrl != null) ...[
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(12),
                           child: Image.network(
                             question.mediaUrl!,
                             height: 200,
@@ -517,7 +548,10 @@ class EmailSimulationCard extends StatelessWidget {
                             errorBuilder: (context, error, stackTrace) {
                               return Container(
                                 height: 200,
-                                color: Colors.grey.shade200,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade200,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                                 child: const Icon(Icons.image_not_supported),
                               );
                             },

@@ -220,24 +220,47 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 16),
-                  Text(
-                    'Scenario ${_currentIndex + 1}/${questions.length}',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.labelMedium?.copyWith(color: Colors.grey),
+                  // Progress indicator
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Scenario ${_currentIndex + 1}/${questions.length}',
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.orange.shade200),
+                        ),
+                        child: Text(
+                          'Difficulty: ${question.difficulty}/5',
+                          style: TextStyle(
+                            color: Colors.orange.shade700,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  // Difficulty indicator
+                  const SizedBox(height: 12),
+                  // Difficulty indicator bars
                   Row(
                     children: List.generate(
-                      3,
-                      (i) => Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                      5,
+                      (i) => Expanded(
                         child: Container(
-                          width: 6,
-                          height: 6,
+                          height: 4,
+                          margin: EdgeInsets.only(right: i < 4 ? 6 : 0),
                           decoration: BoxDecoration(
-                            shape: BoxShape.circle,
+                            shape: BoxShape.rectangle,
+                            borderRadius: BorderRadius.circular(2),
                             color: i < question.difficulty
                                 ? Colors.deepOrange
                                 : Colors.grey.shade300,
@@ -247,11 +270,15 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  // Scenario content card
+                  // Scenario content card with enhanced styling
                   Card(
-                    elevation: 2,
+                    elevation: 4,
+                    shadowColor: Colors.black.withOpacity(0.1),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                     child: Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(20),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -262,13 +289,13 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
+                                  borderRadius: BorderRadius.circular(12),
                                   child: YoutubePlayer(
                                     controller: _youtubeController!,
                                     showVideoProgressIndicator: true,
                                   ),
                                 ),
-                                const SizedBox(height: 16),
+                                const SizedBox(height: 20),
                               ],
                             )
                           else if (mediaType == 'video' &&
@@ -277,7 +304,7 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
+                                  borderRadius: BorderRadius.circular(12),
                                   child: AspectRatio(
                                     aspectRatio: 16 / 9,
                                     child: Chewie(
@@ -330,20 +357,52 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
                               ],
                             ),
                           // Scenario description
-                          Text(
-                            'Scenario:',
-                            style: Theme.of(context).textTheme.labelMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.deepOrange,
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade50,
+                              border: Border.all(
+                                color: Colors.orange.shade200,
+                                width: 1.5,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.info_outline,
+                                      size: 20,
+                                      color: Colors.deepOrange,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      'Scenario:',
+                                      style: Theme.of(context)
+                                          .textTheme.labelMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.deepOrange,
+                                          ),
+                                    ),
+                                  ],
                                 ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            description.isNotEmpty
-                                ? description
-                                : 'Analyze this cyberattack scenario.',
-                            style: Theme.of(context).textTheme.bodyMedium,
+                                const SizedBox(height: 12),
+                                Text(
+                                  description.isNotEmpty
+                                      ? description
+                                      : 'Analyze this cyberattack scenario.',
+                                  style: Theme.of(context)
+                                      .textTheme.bodyMedium
+                                      ?.copyWith(
+                                        height: 1.5,
+                                        color: Colors.grey.shade800,
+                                      ),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
@@ -386,19 +445,85 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
                                   ? resultIsCorrect
                                         ? Colors.green.shade50
                                         : Colors.red.shade50
-                                  : Colors.grey.shade50,
+                                  : isSelected
+                                      ? Colors.blue.shade50
+                                      : Colors.white,
                               border: Border.all(
                                 color: showResult
                                     ? resultIsCorrect
-                                          ? Colors.green
-                                          : Colors.red
-                                    : Colors.grey.shade300,
-                                width: showResult ? 2 : 1,
+                                          ? Colors.green.shade400
+                                          : Colors.red.shade400
+                                    : isSelected
+                                        ? Colors.blue.shade300
+                                        : Colors.grey.shade300,
+                                width: showResult || isSelected ? 2 : 1,
                               ),
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                if (isSelected && !_isAnswered)
+                                  BoxShadow(
+                                    color: Colors.blue.withOpacity(0.2),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                if (showResult)
+                                  BoxShadow(
+                                    color: (resultIsCorrect
+                                            ? Colors.green
+                                            : Colors.red)
+                                        .withOpacity(0.15),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                              ],
                             ),
                             child: Row(
                               children: [
+                                if (!showResult && !isSelected)
+                                  Container(
+                                    width: 20,
+                                    height: 20,
+                                    margin: const EdgeInsets.only(right: 12),
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Colors.grey.shade400,
+                                        width: 2,
+                                      ),
+                                    ),
+                                  )
+                                else if (!showResult && isSelected)
+                                  Container(
+                                    width: 20,
+                                    height: 20,
+                                    margin: const EdgeInsets.only(right: 12),
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.blue,
+                                      border: Border.all(
+                                        color: Colors.blue,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child: const Icon(
+                                      Icons.check,
+                                      size: 12,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                else
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 12),
+                                    child: Icon(
+                                      resultIsCorrect
+                                          ? Icons.check_circle
+                                          : Icons.cancel,
+                                      color: resultIsCorrect
+                                          ? Colors.green.shade600
+                                          : Colors.red.shade600,
+                                      size: 24,
+                                    ),
+                                  ),
                                 Expanded(
                                   child: Text(
                                     answer,
@@ -406,26 +531,15 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
                                         .textTheme
                                         .bodyMedium
                                         ?.copyWith(
-                                          fontWeight: showResult
-                                              ? FontWeight.bold
-                                              : FontWeight.normal,
+                                          fontWeight: FontWeight.w500,
                                           color: showResult
                                               ? resultIsCorrect
-                                                    ? Colors.green
-                                                    : Colors.red
-                                              : null,
+                                                    ? Colors.green.shade700
+                                                    : Colors.red.shade700
+                                              : Colors.grey.shade800,
                                         ),
                                   ),
                                 ),
-                                if (showResult)
-                                  Icon(
-                                    resultIsCorrect
-                                        ? Icons.check_circle
-                                        : Icons.cancel,
-                                    color: resultIsCorrect
-                                        ? Colors.green
-                                        : Colors.red,
-                                  ),
                               ],
                             ),
                           ),
