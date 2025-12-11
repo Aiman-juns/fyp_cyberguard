@@ -88,7 +88,7 @@ It is the practice of defending computers, servers, mobile devices, electronic s
     category: 'Cyber Attacks',
     content:
         '''Learn about different types of cyber attacks and how to identify them.''',
-    mediaUrl: null,
+    mediaUrl: 'https://www.youtube.com/watch?v=RtNAmXDHkUs',
     description:
         'Explore various cyber attack methods and understand how they work',
     learningObjectives: [
@@ -103,36 +103,46 @@ It is the practice of defending computers, servers, mobile devices, electronic s
         title: 'Clickjacking',
         description:
             'A malicious technique where users are tricked into clicking on something different from what they perceive.',
-        mediaUrl: null,
+        mediaUrl: 'https://www.youtube.com/watch?v=RtNAmXDHkUs',
       ),
+
+
       CyberAttackType(
         id: '2',
         title: 'Phishing Email',
         description:
             'Fraudulent emails designed to trick recipients into revealing sensitive information or installing malware.',
-        mediaUrl: null,
+        mediaUrl: 'https://www.youtube.com/watch?v=iHetr8xTWIU',
       ),
+
+
       CyberAttackType(
         id: '3',
         title: 'Brute Force Attack',
         description:
             'An attack method that uses trial and error to crack passwords, login credentials, and encryption keys.',
-        mediaUrl: null,
+        mediaUrl: 'https://www.youtube.com/watch?v=OeV33Y_7t14',
       ),
+
+
       CyberAttackType(
         id: '4',
         title: 'DNS Poisoning',
         description:
             'A cyber attack that redirects users to malicious websites by corrupting DNS cache data.',
-        mediaUrl: null,
+        mediaUrl: 'https://www.youtube.com/watch?v=U_kcfIrlJ-I',
       ),
+
+
       CyberAttackType(
         id: '5',
         title: 'Credential Stuffing',
         description:
             'An attack where stolen account credentials are used to gain unauthorized access to user accounts.',
-        mediaUrl: null,
+        mediaUrl: 'https://www.youtube.com/watch?v=jhTxbWbC9vA',
       ),
+
+
     ],
     createdAt: DateTime.now().subtract(const Duration(days: 8)),
     updatedAt: DateTime.now().subtract(const Duration(days: 3)),
@@ -150,7 +160,7 @@ Topics covered:
 - Prevention strategies
 - Removal and recovery
 - Best practices for security''',
-    mediaUrl: null,
+    mediaUrl: 'https://www.youtube.com/watch?v=EHqXMxY4_Nk',
     description:
         'Learn effective strategies to prevent cyber attacks and protect your digital assets',
     learningObjectives: [

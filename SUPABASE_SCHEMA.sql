@@ -291,5 +291,39 @@ VALUES
 -- ORDER BY difficulty ASC;
 
 -- ============================================================================
+-- DAILY CHALLENGES TABLE (Run this SQL manually in Supabase Dashboard)
+-- ============================================================================
+
+/*
+-- 1. Create Table
+CREATE TABLE daily_challenges (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    question TEXT NOT NULL,
+    is_true BOOLEAN NOT NULL,
+    explanation TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 2. Enable Security
+ALTER TABLE daily_challenges ENABLE ROW LEVEL SECURITY;
+
+-- 3. Policy: Everyone can read
+CREATE POLICY "Everyone can read challenges" ON daily_challenges
+    FOR SELECT USING (true);
+
+-- 4. Policy: Only Admins can manage
+CREATE POLICY "Admins can manage challenges" ON daily_challenges
+    FOR ALL USING (auth.jwt() ->> 'role' = 'admin');
+
+-- 5. Add some starter questions
+INSERT INTO daily_challenges (question, is_true, explanation) VALUES 
+('Public Wi-Fi is safe for online banking if it requires a password.', FALSE, 'Public Wi-Fi can be intercepted. Always use a VPN or mobile data for banking.'),
+('You should use the same password for all your social media accounts.', FALSE, 'If one site is breached, hackers get access to everything. Use unique passwords!'),
+('Enabling 2FA (Two-Factor Authentication) makes your account harder to hack.', TRUE, '2FA adds a second layer of security, making it much harder for attackers to access your account.'),
+('It is safe to click on links in emails from unknown senders.', FALSE, 'Unknown sender links could be phishing attempts. Always verify the sender before clicking.'),
+('Antivirus software protects you from all cyber threats.', FALSE, 'Antivirus helps but cannot protect against all threats. Practice safe browsing habits too.');
+*/
+
+-- ============================================================================
 -- END OF SCHEMA
 -- ============================================================================

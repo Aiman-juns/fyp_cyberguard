@@ -1,0 +1,13 @@
+LOGO PLACEMENT INSTRUCTIONS
+===========================
+
+Please save your Cyber Guard logo image as:
+cyberguard_logo.png
+
+in this folder (assets/images/)
+
+The logo has been implemented in:
+1. Login Screen - Centered above the login form
+2. Sidebar (Drawer) - In the header with gradient background
+
+Once you place the logo file here, restart the app to see it!

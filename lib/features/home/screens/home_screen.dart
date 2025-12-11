@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../core/services/avatar_service.dart';
 import '../../../config/supabase_config.dart';
 import '../../support/screens/emergency_support_screen.dart';
 import '../../../shared/widgets/emergency_fab.dart';
+import '../widgets/daily_challenge_card.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -179,6 +181,14 @@ class HomeScreen extends ConsumerWidget {
                         ],
                       ),
                     ),
+                  ).animate().fade(duration: 500.ms).slideY(begin: 0.1, end: 0),
+
+                  const SizedBox(height: 32),
+
+                  // Daily Challenge Section
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16.0),
+                    child: DailyChallengeCard(),
                   ),
 
                   const SizedBox(height: 32),
@@ -271,7 +281,7 @@ class HomeScreen extends ConsumerWidget {
                         );
                       },
                     ),
-                  ),
+                  ).animate().fade(duration: 500.ms).slideY(begin: 0.1, end: 0).animate(delay: 100.ms),
 
                   const SizedBox(height: 32),
 
@@ -293,51 +303,7 @@ class HomeScreen extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: Row(
                       children: [
-                        // Card 1: Training Hub
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () {
-                              context.push('/training');
-                            },
-                            child: Container(
-                              height: 200,
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? Colors.deepPurple.shade900.withOpacity(0.3)
-                                    : Colors.deepPurple.shade200,
-                                borderRadius: BorderRadius.circular(20),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.deepPurple.withOpacity(0.2),
-                                    blurRadius: 15,
-                                    offset: const Offset(0, 5),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.model_training,
-                                    size: 64,
-                                    color: Colors.deepPurple,
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    'Training Hub',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: isDark ? Colors.white : Colors.black87,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        // Card 2: Resources
+                        // Card 1: Resources (moved first)
                         Expanded(
                           child: GestureDetector(
                             onTap: () {
@@ -378,7 +344,51 @@ class HomeScreen extends ConsumerWidget {
                                 ],
                               ),
                             ),
-                          ),
+                          ).animate().fade(duration: 500.ms).slideY(begin: 0.1, end: 0).animate(delay: 200.ms),
+                        ),
+                        const SizedBox(width: 16),
+                        // Card 2: Training Hub (moved second)
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              context.push('/training');
+                            },
+                            child: Container(
+                              height: 200,
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? Colors.deepPurple.shade900.withOpacity(0.3)
+                                    : Colors.deepPurple.shade200,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.deepPurple.withOpacity(0.2),
+                                    blurRadius: 15,
+                                    offset: const Offset(0, 5),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.model_training,
+                                    size: 64,
+                                    color: Colors.deepPurple,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Training Hub',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? Colors.white : Colors.black87,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ).animate().fade(duration: 500.ms).slideY(begin: 0.1, end: 0).animate(delay: 300.ms),
                         ),
                       ],
                     ),

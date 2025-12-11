@@ -78,8 +78,14 @@ dependencies:
   # Environment Variables
   flutter_dotenv: ^5.1.0
 
+  # Animations
+  flutter_animate: ^4.5.0
+
   # URL Launcher
   url_launcher: ^6.2.0
+
+  # Local Storage
+  shared_preferences: ^2.2.2
 
 dev_dependencies:
   flutter_test:
@@ -111,6 +117,7 @@ flutter:
   assets:
     - .env
     - assets/videos/
+    - assets/images/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

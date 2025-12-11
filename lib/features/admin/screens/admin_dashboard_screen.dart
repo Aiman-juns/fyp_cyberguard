@@ -6,6 +6,7 @@ import 'admin_questions_screen.dart';
 import 'admin_users_screen.dart';
 import 'admin_stats_screen.dart';
 import 'admin_password_dojo_screen.dart';
+import 'admin_daily_challenges_screen.dart';
 
 class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({Key? key}) : super(key: key);
@@ -22,7 +23,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     _tabController.addListener(() {
       setState(() {});
     });
@@ -78,6 +79,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
             Tab(icon: Icon(Icons.people), text: 'Users'),
             Tab(icon: Icon(Icons.bar_chart), text: 'Statistics'),
             Tab(icon: Icon(Icons.lock), text: 'Password Dojo'),
+            Tab(icon: Icon(Icons.calendar_today), text: 'Daily Challenges'),
           ],
         ),
       ),
@@ -89,6 +91,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
           const AdminUsersScreen(),
           const AdminStatsScreen(),
           const AdminPasswordDojoScreen(),
+          const AdminDailyChallengesScreen(),
         ],
       ),
     );

@@ -139,7 +139,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
                 child: Column(
                   children: [
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 20),
+                    // Logo Section
+                    Image.asset(
+                      'assets/images/cyberguard_logo1.png',
+                      width: 320,
+                      height: 320,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          width: 320,
+                          height: 320,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Color(0xFF00B4DB),
+                                Color(0xFF0083B0),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.shield_outlined,
+                            size: 150,
+                            color: Colors.white,
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 8),
                     // White card container
                     Container(
                       constraints: BoxConstraints(maxWidth: 400),
