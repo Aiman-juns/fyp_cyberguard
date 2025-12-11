@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../config/supabase_config.dart';
 import '../providers/training_provider.dart';
 import 'phishing_screen.dart';
@@ -137,6 +138,32 @@ class TrainingHubScreen extends ConsumerWidget {
               (difficulty) => CyberAttackScreen(difficulty: difficulty),
               ref,
             ),
+          ),
+          const SizedBox(height: 32.0),
+
+          // Tools Section
+          Row(
+            children: [
+              Icon(Icons.build, color: Colors.blueGrey, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Security Tools',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blueGrey,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12.0),
+          _ModuleCard(
+            title: 'Device Shield',
+            description: 'Scan your phone for vulnerabilities',
+            icon: Icons.security_update_good,
+            color: Colors.blueGrey,
+            onTap: () => context.push('/device-shield'),
           ),
           const SizedBox(height: 32.0),
 

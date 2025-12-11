@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/daily_challenge_provider.dart';
 
+// Provider to track collapse/expand state
+final challengeExpandedProvider = StateProvider<bool>((ref) => true);
+
 class DailyChallengeCard extends ConsumerWidget {
   const DailyChallengeCard({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final challengeState = ref.watch(dailyChallengeProvider);
+    final isExpanded = ref.watch(challengeExpandedProvider);
 
     return Container(
       width: double.infinity,
@@ -57,13 +61,28 @@ class DailyChallengeCard extends ConsumerWidget {
                       color: Colors.white,
                     ),
                   ),
+                const SizedBox(width: 8),
+                // Collapse/Expand button
+                IconButton(
+                  onPressed: () {
+                    ref.read(challengeExpandedProvider.notifier).state = !isExpanded;
+                  },
+                  icon: Icon(
+                    isExpanded ? Icons.expand_less : Icons.expand_more,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                  tooltip: isExpanded ? 'Collapse' : 'Expand',
+                ),
               ],
             ),
             const SizedBox(height: 12),
             // Progress Indicator (X/7 days)
             _buildProgressIndicator(challengeState),
-            const SizedBox(height: 16),
-            _buildContent(context, ref, challengeState),
+            if (isExpanded) ...[
+              const SizedBox(height: 16),
+              _buildContent(context, ref, challengeState),
+            ],
           ],
         ),
       ),
@@ -98,7 +117,9 @@ class DailyChallengeCard extends ConsumerWidget {
           ),
           const SizedBox(width: 12),
           ...List.generate(7, (index) {
-            final isCompleted = index < streakCount;
+            final isCompleted = index < state.weekAnswers.length;
+            final wasCorrect = isCompleted ? state.weekAnswers[index] : false;
+            
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 2),
               child: Container(
@@ -107,12 +128,12 @@ class DailyChallengeCard extends ConsumerWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: isCompleted 
-                      ? Colors.white 
+                      ? (wasCorrect ? Colors.greenAccent : Colors.redAccent)
                       : Colors.white.withOpacity(0.3),
                   boxShadow: isCompleted
                       ? [
                           BoxShadow(
-                            color: Colors.white.withOpacity(0.5),
+                            color: (wasCorrect ? Colors.greenAccent : Colors.redAccent).withOpacity(0.5),
                             blurRadius: 4,
                             spreadRadius: 1,
                           )

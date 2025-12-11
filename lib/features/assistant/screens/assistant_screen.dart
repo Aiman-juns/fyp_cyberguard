@@ -364,6 +364,55 @@ class _UrlScannerTabState extends State<UrlScannerTab>
               fontWeight: FontWeight.w500,
             ),
           ),
+          const SizedBox(height: 12.0),
+          
+          // Instructions Card
+          Container(
+            padding: const EdgeInsets.all(16.0),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(12.0),
+              border: Border.all(
+                color: Colors.blue.shade200,
+                width: 1.5,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 20,
+                      color: Colors.blue.shade700,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'How to use this tool:',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue.shade900,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '• Check suspicious links before clicking them\n'
+                  '• Verify links from emails, SMS, or social media\n'
+                  '• Look for misspelled domains or unusual URLs\n'
+                  '• Never click links marked as dangerous',
+                  style: TextStyle(
+                    fontSize: 13,
+                    height: 1.4,
+                    color: Colors.blue.shade900,
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 16.0),
 
           // Input Card
@@ -759,6 +808,55 @@ class _SmishDetectorTabState extends State<SmishDetectorTab>
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
                 ),
+          ),
+          const SizedBox(height: 12.0),
+
+          // Instructions Card
+          Container(
+            padding: const EdgeInsets.all(16.0),
+            decoration: BoxDecoration(
+              color: Colors.purple.shade50,
+              borderRadius: BorderRadius.circular(12.0),
+              border: Border.all(
+                color: Colors.purple.shade200,
+                width: 1.5,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.tips_and_updates,
+                      size: 20,
+                      color: Colors.purple.shade700,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'What to check:',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.purple.shade900,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '• Urgency tactics (\"Act now!\", \"Limited time\")\n'
+                  '• Requests for personal/financial information\n'
+                  '• Suspicious links or phone numbers\n'
+                  '• Claims of account problems or prizes',
+                  style: TextStyle(
+                    fontSize: 13,
+                    height: 1.4,
+                    color: Colors.purple.shade900,
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 16.0),
 

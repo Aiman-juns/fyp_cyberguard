@@ -5,6 +5,7 @@ import '../auth/screens/login_screen.dart';
 import '../auth/screens/register_screen.dart';
 import '../features/home/screens/home_screen.dart';
 import '../features/training/screens/training_hub_screen.dart';
+import '../features/training/screens/device_shield_screen.dart';
 import '../features/resources/screens/resources_screen.dart';
 import '../features/resources/screens/resource_detail_screen.dart';
 import '../features/news/screens/news_screen.dart';
@@ -128,6 +129,10 @@ class RouterConfig {
           ),
           body: const TrainingHubScreen(),
         ),
+      ),
+      GoRoute(
+        path: '/device-shield',
+        builder: (context, state) => const DeviceShieldScreen(),
       ),
       GoRoute(
         path: '/resources',

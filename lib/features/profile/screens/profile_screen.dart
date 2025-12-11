@@ -128,6 +128,76 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
+  void _showEditNameDialog(BuildContext context, WidgetRef ref, String currentName) {
+    final nameController = TextEditingController(text: currentName);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Edit Username'),
+          content: TextField(
+            controller: nameController,
+            decoration: InputDecoration(
+              labelText: 'Username',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              prefixIcon: Icon(Icons.person),
+            ),
+            maxLength: 50,
+            textCapitalization: TextCapitalization.words,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final newName = nameController.text.trim();
+                if (newName.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Name cannot be empty')),
+                  );
+                  return;
+                }
+
+                try {
+                  final userId = SupabaseConfig.client.auth.currentUser?.id;
+                  if (userId == null) return;
+
+                  // Update in Supabase
+                  await SupabaseConfig.client
+                      .from('users')
+                      .update({'full_name': newName})
+                      .eq('id', userId);
+
+                  // Refresh auth state
+                  ref.invalidate(authProvider);
+
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Username updated successfully!')),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed to update username: $e')),
+                    );
+                  }
+                }
+              },
+              child: Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
@@ -142,7 +212,6 @@ class ProfileScreen extends ConsumerWidget {
         }
 
         final avatar = AvatarService.getAvatarById(user.avatarId);
-        final performanceAsync = ref.watch(performanceProvider);
         final achievementsAsync = ref.watch(userAchievementsProvider);
 
         return SingleChildScrollView(
@@ -270,47 +339,105 @@ class ProfileScreen extends ConsumerWidget {
 
               const SizedBox(height: 24),
 
-              // Stats Row
+              // User Info Section (replacing Stats Row)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: performanceAsync.when(
-                  data: (stats) {
-                    return Row(
-                      children: [
-                        Expanded(
-                          child: _StatCard(
-                            title: 'Attempts',
-                            value: stats.totalAttempts.toString(),
-                            icon: Icons.play_circle_outline,
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.grey.shade900 : Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Username with edit button
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.person,
                             color: Colors.blue,
-                            isDark: isDark,
+                            size: 24,
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _StatCard(
-                            title: 'Accuracy',
-                            value: '${stats.accuracyPercentage.toStringAsFixed(0)}%',
-                            icon: Icons.trending_up,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Username',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  user.fullName,
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              Icons.edit,
+                              color: Colors.blue,
+                            ),
+                            onPressed: () => _showEditNameDialog(context, ref, user.fullName),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      Divider(
+                        color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+                      ),
+                      const SizedBox(height: 20),
+                      // Email (read-only)
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.email,
                             color: Colors.green,
-                            isDark: isDark,
+                            size: 24,
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _StatCard(
-                            title: 'Total Score',
-                            value: stats.totalScore.toString(),
-                            icon: Icons.star,
-                            color: Colors.orange,
-                            isDark: isDark,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Email',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  user.email,
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
-                    );
-                  },
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (e, _) => Text('Error loading stats: $e'),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
@@ -464,62 +591,6 @@ class ProfileScreen extends ConsumerWidget {
       default:
         return Colors.purple;
     }
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color color;
-  final bool isDark;
-
-  const _StatCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
-    required this.isDark,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? Colors.grey.shade900 : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 28),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 12,
-              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 

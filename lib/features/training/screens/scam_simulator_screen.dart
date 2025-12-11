@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import '../../../core/services/ai_service.dart';
+import 'package:flutter/gestures.dart';
 
 class ScamSimulatorScreen extends StatefulWidget {
   final String scenario;
@@ -109,23 +110,60 @@ class _ScamSimulatorScreenState extends State<ScamSimulatorScreen> {
       ),
       body: Column(
         children: [
-          // Warning banner
+          // Warning banner with hints
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             color: Colors.orange.shade800,
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.warning, color: Colors.white, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'SIMULATION: This is a fake scam. Try to spot the red flags!',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
+                Row(
+                  children: [
+                    const Icon(Icons.warning, color: Colors.white, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'SIMULATION: This is a fake scam. Try to spot the red flags!',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '💡 Tips to spot scams:',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        isDiscord
+                            ? '• Check for urgency & pressure\n• Real mods don\'t DM first\n• Never share passwords\n• Verify links carefully'
+                            : '• Banks never ask for full details\n• Check for spelling errors\n• No urgency for credentials\n• Verify via official channels',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],

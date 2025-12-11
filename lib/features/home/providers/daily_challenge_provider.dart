@@ -12,6 +12,7 @@ class DailyChallengeState {
   final String? errorMessage;
   final int streakCount; // Days completed in current 7-day cycle
   final int totalDays; // Total days ever played
+  final List<bool> weekAnswers; // Track correct (true) or incorrect (false) for each day
 
   DailyChallengeState({
     required this.status,
@@ -21,6 +22,7 @@ class DailyChallengeState {
     this.errorMessage,
     this.streakCount = 0,
     this.totalDays = 0,
+    this.weekAnswers = const [],
   });
 
   DailyChallengeState copyWith({
@@ -31,6 +33,7 @@ class DailyChallengeState {
     String? errorMessage,
     int? streakCount,
     int? totalDays,
+    List<bool>? weekAnswers,
   }) {
     return DailyChallengeState(
       status: status ?? this.status,
@@ -40,6 +43,7 @@ class DailyChallengeState {
       errorMessage: errorMessage ?? this.errorMessage,
       streakCount: streakCount ?? this.streakCount,
       totalDays: totalDays ?? this.totalDays,
+      weekAnswers: weekAnswers ?? this.weekAnswers,
     );
   }
 }
@@ -62,6 +66,12 @@ class DailyChallengeNotifier extends StateNotifier<DailyChallengeState> {
       // Get streak data
       int streakCount = prefs.getInt('challenge_streak_count') ?? 0;
       int totalDays = prefs.getInt('challenge_total_days') ?? 0;
+      
+      // Get week answers (comma-separated: "1,0,1,1,0" where 1=correct, 0=incorrect)
+      final weekAnswersStr = prefs.getString('challenge_week_answers') ?? '';
+      final weekAnswers = weekAnswersStr.isEmpty 
+          ? <bool>[] 
+          : weekAnswersStr.split(',').map((e) => e == '1').toList();
 
       if (lastPlayed == today) {
         // Already played today
@@ -81,6 +91,7 @@ class DailyChallengeNotifier extends StateNotifier<DailyChallengeState> {
           isCorrect: savedCorrect,
           streakCount: streakCount,
           totalDays: totalDays,
+          weekAnswers: weekAnswers,
         );
       } else {
         // Check if we need to reset streak (missed a day)
@@ -93,6 +104,8 @@ class DailyChallengeNotifier extends StateNotifier<DailyChallengeState> {
           if (daysDifference > 1) {
             streakCount = 0;
             await prefs.setInt('challenge_streak_count', 0);
+            await prefs.setString('challenge_week_answers', '');
+            weekAnswers.clear();
           }
         }
 
@@ -103,6 +116,7 @@ class DailyChallengeNotifier extends StateNotifier<DailyChallengeState> {
         state = state.copyWith(
           streakCount: streakCount,
           totalDays: totalDays,
+          weekAnswers: weekAnswers,
         );
       }
     } catch (e) {
@@ -172,6 +186,13 @@ class DailyChallengeNotifier extends StateNotifier<DailyChallengeState> {
 
       int streakCount = prefs.getInt('challenge_streak_count') ?? 0;
       int totalDays = prefs.getInt('challenge_total_days') ?? 0;
+      
+      // Get and update week answers
+      final weekAnswersStr = prefs.getString('challenge_week_answers') ?? '';
+      final weekAnswers = weekAnswersStr.isEmpty 
+          ? <bool>[] 
+          : weekAnswersStr.split(',').map((e) => e == '1').toList();
+      weekAnswers.add(isCorrect);
 
       // Increment counters
       streakCount++;
@@ -180,7 +201,12 @@ class DailyChallengeNotifier extends StateNotifier<DailyChallengeState> {
       // Reset streak after 7 days
       if (streakCount > 7) {
         streakCount = 1;
+        weekAnswers.clear();
+        weekAnswers.add(isCorrect);
       }
+      
+      // Save week answers as comma-separated string
+      final weekAnswersString = weekAnswers.map((e) => e ? '1' : '0').join(',');
 
       // Save to SharedPreferences
       await prefs.setString('last_challenge_date', today);
@@ -190,6 +216,7 @@ class DailyChallengeNotifier extends StateNotifier<DailyChallengeState> {
       await prefs.setString('last_challenge_explanation', state.challenge!['explanation']);
       await prefs.setInt('challenge_streak_count', streakCount);
       await prefs.setInt('challenge_total_days', totalDays);
+      await prefs.setString('challenge_week_answers', weekAnswersString);
 
       state = state.copyWith(
         status: ChallengeStatus.completed,
@@ -197,6 +224,7 @@ class DailyChallengeNotifier extends StateNotifier<DailyChallengeState> {
         isCorrect: isCorrect,
         streakCount: streakCount,
         totalDays: totalDays,
+        weekAnswers: weekAnswers,
       );
     } catch (e) {
       state = state.copyWith(
@@ -216,6 +244,7 @@ class DailyChallengeNotifier extends StateNotifier<DailyChallengeState> {
     await prefs.remove('last_challenge_explanation');
     await prefs.remove('challenge_streak_count');
     await prefs.remove('challenge_total_days');
+    await prefs.remove('challenge_week_answers');
     await _checkAndLoadChallenge();
   }
 }

@@ -187,9 +187,13 @@ class AiService {
 
   /// Analyzes an SMS message for phishing/smishing indicators
   /// Returns a structured analysis with verdict, red flags, and advice
-  Future<SmishAnalysisResult> analyzeSmishing(String message) async {
-    try {
-      final prompt = '''
+  /// Includes retry logic for 503 errors
+  Future<SmishAnalysisResult> analyzeSmishing(String message, {int maxRetries = 3}) async {
+    int attempt = 0;
+    
+    while (attempt < maxRetries) {
+      try {
+        final prompt = '''
 You are a cybersecurity expert analyzing SMS messages for phishing (smishing) attempts.
 
 Analyze this SMS message and provide your assessment:
@@ -208,19 +212,60 @@ Please respond in the following JSON format:
 Be thorough but concise. If it's clearly a scam, be witty in your sarcastic advice. If it seems legitimate, still point out what makes it trustworthy.
 ''';
 
-      final content = [Content.text(prompt)];
-      final response = await _model.generateContent(content);
+        final content = [Content.text(prompt)];
+        final response = await _model.generateContent(content);
 
-      if (response.text == null) {
-        throw Exception('No response from AI model');
+        if (response.text == null) {
+          throw Exception('No response from AI model');
+        }
+
+        // Parse the JSON response
+        return _parseResponse(response.text!);
+      } on GenerativeAIException catch (e) {
+        // Check if it's a 503 (overloaded) error
+        if (e.message.contains('503') || e.message.toLowerCase().contains('overloaded')) {
+          attempt++;
+          if (attempt < maxRetries) {
+            // Exponential backoff: wait 2^attempt seconds
+            final waitSeconds = (2 << attempt);
+            await Future.delayed(Duration(seconds: waitSeconds));
+            continue; // Retry
+          } else {
+            // Max retries reached - return friendly error result
+            return SmishAnalysisResult(
+              isScam: false,
+              confidenceLevel: 'Low',
+              verdict: '🤖 AI Service Currently Busy',
+              redFlags: ['Service overloaded - too many requests'],
+              sarcasticAdvice: 
+                  'The AI is overwhelmed with everyone checking their sketchy messages at once! '
+                  'Wait 30-60 seconds and try again. Meanwhile, if it looks fishy, it probably is. 🐟',
+            );
+          }
+        } else {
+          // Other errors
+          final detailedError = await _getDetailedErrorMessage(e);
+          throw Exception('Failed to analyze message: $detailedError');
+        }
+      } catch (e) {
+        if (attempt < maxRetries - 1) {
+          attempt++;
+          await Future.delayed(Duration(seconds: 2));
+          continue;
+        }
+        final detailedError = await _getDetailedErrorMessage(e);
+        throw Exception('Failed to analyze message: $detailedError');
       }
-
-      // Parse the JSON response
-      return _parseResponse(response.text!);
-    } catch (e) {
-      final detailedError = await _getDetailedErrorMessage(e);
-      throw Exception('Failed to analyze message: $detailedError');
     }
+    
+    // Fallback (should not reach here)
+    return SmishAnalysisResult(
+      isScam: false,
+      confidenceLevel: 'Low',
+      verdict: 'Unable to analyze message',
+      redFlags: ['Analysis failed after retries'],
+      sarcasticAdvice: 'Something went wrong. When in doubt, be suspicious! 🤔',
+    );
   }
 
   /// Starts a chat session with a specific scenario
@@ -235,8 +280,16 @@ Your goal is to trick the user into clicking a fake link, giving their password,
 Be convincing but include subtle red flags that a careful user might notice.
 Use casual Discord language, emojis, urgency tactics.
 Keep responses SHORT (1-3 sentences).
-If the user catches your scam or refuses, admit it and congratulate them.
-Start by sending them an urgent message about their account.
+
+IMPORTANT BEHAVIOR:
+- When user says it's a scam or refuses, DON'T give up immediately
+- Try to convince them 2-3 times before admitting defeat
+- Use phrases like "No wait!", "This is official!", "You're making a mistake!", "I'm a real mod!"
+- Get progressively more desperate/urgent
+- BOLD the main action you want them to take (use **bold** markdown)
+- After 3 rejections, admit it and congratulate them
+
+Start by sending them an urgent message about their account with a **bolded action**.
 ''';
     } else if (scenario == 'bank') {
       systemPrompt = '''
@@ -244,8 +297,16 @@ You are roleplaying as a scammer pretending to be from the user's bank.
 Your goal is to trick them into sharing account details, clicking links, or providing verification codes.
 Be professional but include subtle red flags (spelling errors, urgency, suspicious requests).
 Keep responses SHORT (1-3 sentences).
-If the user catches your scam or refuses, admit it and congratulate them.
-Start by sending them an urgent message about suspicious activity.
+
+IMPORTANT BEHAVIOR:
+- When user says it's a scam or refuses, DON'T give up immediately
+- Try to convince them 2-3 times before admitting defeat
+- Use phrases like "Sir/Madam this is urgent!", "Your account will be locked!", "This is the official bank!"
+- Get progressively more panicked/urgent
+- BOLD the main action you want them to take (use **bold** markdown)
+- After 3 rejections, admit it and congratulate them
+
+Start by sending them an urgent message about suspicious activity with a **bolded action**.
 ''';
     } else {
       systemPrompt = 'You are a helpful assistant.';
@@ -260,22 +321,56 @@ Start by sending them an urgent message about suspicious activity.
   }
 
   /// Sends a message in an ongoing chat and returns the AI's response
-  Future<String> sendChatMessage(ChatSession chat, String userMessage) async {
-    try {
-      final response = await chat.sendMessage(Content.text(userMessage));
-      return response.text ?? 'No response from AI';
-    } on GenerativeAIException catch (e) {
-      return 'AI Error: ${e.message}';
-    } catch (e) {
-      return 'Error: $e';
+  /// Includes retry logic for 503 errors (service overloaded)
+  Future<String> sendChatMessage(ChatSession chat, String userMessage, {int maxRetries = 3}) async {
+    int attempt = 0;
+    
+    while (attempt < maxRetries) {
+      try {
+        final response = await chat.sendMessage(Content.text(userMessage));
+        return response.text ?? 'No response from AI';
+      } on GenerativeAIException catch (e) {
+        // Check if it's a 503 (overloaded) error
+        if (e.message.contains('503') || e.message.toLowerCase().contains('overloaded')) {
+          attempt++;
+          if (attempt < maxRetries) {
+            // Exponential backoff: wait 2^attempt seconds
+            final waitSeconds = (2 << attempt);
+            await Future.delayed(Duration(seconds: waitSeconds));
+            continue; // Retry
+          } else {
+            // Max retries reached
+            return '🤖 AI Service Busy\n\n'
+                'The AI service is currently overloaded. This happens when many people are using it.\n\n'
+                '💡 What to do:\n'
+                '• Wait 30-60 seconds and try again\n'
+                '• Try during off-peak hours\n'
+                '• The service usually recovers quickly\n\n'
+                'Technical: ${e.message}';
+          }
+        } else {
+          // Other AI errors
+          return '⚠️ AI Error\n\n${e.message}\n\n'
+              'This might be a temporary issue. Please try again in a moment.';
+        }
+      } catch (e) {
+        return '❌ Error\n\n$e\n\n'
+            'Please check your internet connection and try again.';
+      }
     }
+    
+    return 'An unexpected error occurred. Please try again.';
   }
 
   /// Roasts a password with mean, sarcastic cybersecurity feedback
   /// Returns funny commentary on why the password is weak or strong
-  Future<String> roastPassword(String password) async {
-    try {
-      final prompt = '''
+  /// Includes retry logic for 503 errors
+  Future<String> roastPassword(String password, {int maxRetries = 3}) async {
+    int attempt = 0;
+    
+    while (attempt < maxRetries) {
+      try {
+        final prompt = '''
 You are a mean, sarcastic cybersecurity expert who roasts people's passwords.
 
 Analyze this password: "$password"
@@ -288,21 +383,39 @@ If it's strong, give grudging respect with a joke.
 Respond with JUST the roast text, no JSON, no formatting.
 ''';
 
-      final content = [Content.text(prompt)];
-      final response = await _model.generateContent(content);
+        final content = [Content.text(prompt)];
+        final response = await _model.generateContent(content);
 
-      if (response.text == null || response.text!.isEmpty) {
-        return "Even the AI is speechless at this password choice. That's... impressive? 🤦";
+        if (response.text == null || response.text!.isEmpty) {
+          return "Even the AI is speechless at this password choice. That's... impressive? 🤦";
+        }
+
+        return response.text!.trim();
+      } on GenerativeAIException catch (e) {
+        // Check if it's a 503 (overloaded) error
+        if (e.message.contains('503') || e.message.toLowerCase().contains('overloaded')) {
+          attempt++;
+          if (attempt < maxRetries) {
+            // Exponential backoff: wait 2^attempt seconds
+            final waitSeconds = (2 << attempt);
+            await Future.delayed(Duration(seconds: waitSeconds));
+            continue; // Retry
+          } else {
+            // Max retries reached
+            return "🤖 The AI roast machine is taking a coffee break (service overloaded).\n\n"
+                "Try again in 30-60 seconds. Even AIs need rest when everyone's checking their terrible passwords at once! ☕";
+          }
+        } else {
+          final detailedError = await _getDetailedErrorMessage(e);
+          return "The AI couldn't roast your password: $detailedError";
+        }
+      } catch (e) {
+        final detailedError = await _getDetailedErrorMessage(e);
+        return "Error roasting password: $detailedError";
       }
-
-      return response.text!.trim();
-    } on GenerativeAIException catch (e) {
-      final detailedError = await _getDetailedErrorMessage(e);
-      return "The AI couldn't roast your password: $detailedError";
-    } catch (e) {
-      final detailedError = await _getDetailedErrorMessage(e);
-      return "Error roasting password: $detailedError";
     }
+    
+    return "Something went wrong. Your password remains un-roasted for now. 😅";
   }
 
   SmishAnalysisResult _parseResponse(String responseText) {
