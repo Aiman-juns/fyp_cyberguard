@@ -33,6 +33,58 @@ class TrainingHubScreen extends ConsumerWidget {
     );
   }
 
+  int _calculateCompleted(WidgetRef ref, String userId) {
+    int completed = 0;
+    
+    final phishingAsync = ref.watch(
+      moduleProgressProvider((userId: userId, moduleType: 'phishing')),
+    );
+    final passwordAsync = ref.watch(
+      moduleProgressProvider((userId: userId, moduleType: 'password')),
+    );
+    final attackAsync = ref.watch(
+      moduleProgressProvider((userId: userId, moduleType: 'attack')),
+    );
+
+    phishingAsync.whenData((map) {
+      completed += map.values.where((p) => p == 1.0).length;
+    });
+    passwordAsync.whenData((map) {
+      completed += map.values.where((p) => p == 1.0).length;
+    });
+    attackAsync.whenData((map) {
+      completed += map.values.where((p) => p == 1.0).length;
+    });
+
+    return completed;
+  }
+
+  int _calculateInProgress(WidgetRef ref, String userId) {
+    int inProgress = 0;
+    
+    final phishingAsync = ref.watch(
+      moduleProgressProvider((userId: userId, moduleType: 'phishing')),
+    );
+    final passwordAsync = ref.watch(
+      moduleProgressProvider((userId: userId, moduleType: 'password')),
+    );
+    final attackAsync = ref.watch(
+      moduleProgressProvider((userId: userId, moduleType: 'attack')),
+    );
+
+    phishingAsync.whenData((map) {
+      inProgress += map.values.where((p) => p > 0 && p < 1.0).length;
+    });
+    passwordAsync.whenData((map) {
+      inProgress += map.values.where((p) => p > 0 && p < 1.0).length;
+    });
+    attackAsync.whenData((map) {
+      inProgress += map.values.where((p) => p > 0 && p < 1.0).length;
+    });
+
+    return inProgress;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userId = SupabaseConfig.client.auth.currentUser?.id;
@@ -46,71 +98,242 @@ class TrainingHubScreen extends ConsumerWidget {
           const DailyChallengeCard(),
           const SizedBox(height: 24.0),
 
-          // Welcome Header Card
+          // Welcome Header Card with Quick Stats
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Theme.of(context).colorScheme.primary,
-                  Theme.of(context).colorScheme.primary.withOpacity(0.8),
-                ],
+              gradient: const LinearGradient(
+                colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.4),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
+                  color: const Color(0xFF3B82F6).withOpacity(0.3),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
                 ),
               ],
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.school,
-                    color: Colors.white,
-                    size: 32,
-                  ),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(
+                        Icons.school,
+                        color: Colors.white,
+                        size: 32,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Training Hub',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Master cybersecurity skills',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.white.withOpacity(0.9),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Training Hub',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                const SizedBox(height: 20),
+                // Quick Stats
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 14,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            const Icon(
+                              Icons.check_circle,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              userId != null ? '${_calculateCompleted(ref, userId)}' : '0',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            Text(
+                              'Completed',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.white.withOpacity(0.85),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Choose a difficulty level before starting',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.white.withOpacity(0.9),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 14,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            const Icon(
+                              Icons.pending_actions,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              userId != null ? '${_calculateInProgress(ref, userId)}' : '0',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            Text(
+                              'In Progress',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.white.withOpacity(0.85),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 14,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            const Icon(
+                              Icons.emoji_events,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              '850',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            Text(
+                              'XP Points',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.white.withOpacity(0.85),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 24.0),
+          const SizedBox(height: 28.0),
+          // Training Modules Section Header
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3B82F6).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.fitness_center,
+                  color: Color(0xFF3B82F6),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                'Training Modules',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1E293B),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16.0),
           _ModuleCard(
             title: 'Phishing Detection',
+            moduleColor: const Color(0xFF3B82F6),
+            userId: userId,
             description: 'Learn to identify phishing emails and websites',
             icon: Icons.mail_outline,
             onTap: () => _showLevelSelectionDialog(
@@ -125,6 +348,8 @@ class TrainingHubScreen extends ConsumerWidget {
             title: 'Password Dojo',
             description: 'Create and test strong passwords',
             icon: Icons.lock,
+            moduleColor: const Color(0xFF8B5CF6),
+            userId: userId,
             onTap: () => _showLevelSelectionDialog(
               context,
               'Password Dojo',
@@ -137,6 +362,8 @@ class TrainingHubScreen extends ConsumerWidget {
             title: 'Cyber Attack Analyst',
             description: 'Analyze and identify cyber attack scenarios',
             icon: Icons.shield,
+            moduleColor: const Color(0xFFEF4444),
+            userId: userId,
             onTap: () => _showLevelSelectionDialog(
               context,
               'Cyber Attack Analyst',
@@ -144,53 +371,96 @@ class TrainingHubScreen extends ConsumerWidget {
               ref,
             ),
           ),
-          const SizedBox(height: 32.0),
+          const SizedBox(height: 28.0),
 
           // Tools Section
           Row(
             children: [
-              Icon(Icons.build, color: Colors.blueGrey, size: 20),
-              const SizedBox(width: 8),
-              Text(
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.build,
+                  color: Color(0xFF10B981),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Text(
                 'Security Tools',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                style: TextStyle(
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Colors.blueGrey,
+                  color: Color(0xFF1E293B),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12.0),
-          _ModuleCard(
+          const SizedBox(height: 16.0),
+          _ToolCard(
             title: 'Device Shield',
             description: 'Scan your phone for vulnerabilities',
             icon: Icons.security_update_good,
             onTap: () => context.push('/device-shield'),
           ),
-          const SizedBox(height: 32.0),
+          const SizedBox(height: 28.0),
 
           // Simulation Games Section
           Row(
             children: [
-              Icon(Icons.psychology, color: Colors.purple, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Simulation Games (AI)',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.purple.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.psychology,
                   color: Colors.purple,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                'AI Simulations',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1E293B),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)],
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'NEW',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12.0),
+          const SizedBox(height: 16.0),
           Row(
             children: [
               Expanded(
-                child: _ModuleCard(
+                child: _AISimulationCard(
                   title: 'Discord Scam',
-                  description: 'Spot the scammer in chat',
+                  description: 'Spot the scammer',
                   icon: Icons.chat_bubble_outline,
+                  gradientColors: const [Color(0xFF5865F2), Color(0xFF4752C4)],
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -202,10 +472,11 @@ class TrainingHubScreen extends ConsumerWidget {
               ),
               const SizedBox(width: 12.0),
               Expanded(
-                child: _ModuleCard(
+                child: _AISimulationCard(
                   title: 'Bank Phishing',
-                  description: 'Identify fake bank rep',
+                  description: 'Identify fake rep',
                   icon: Icons.account_balance,
+                  gradientColors: const [Color(0xFF0066CC), Color(0xFF004C99)],
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -217,16 +488,51 @@ class TrainingHubScreen extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 32.0),
+          const SizedBox(height: 28.0),
 
           // Recent Activity Section
-          Text(
-            'Recent Activity',
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF8B5CF6).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.history,
+                      color: Color(0xFF8B5CF6),
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'Recent Activity',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E293B),
+                    ),
+                  ),
+                ],
+              ),
+              TextButton(
+                onPressed: () {},
+                child: const Text(
+                  'View All',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF3B82F6),
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 12.0),
+          const SizedBox(height: 16.0),
           if (userId != null)
             _RecentActivityWidget(userId: userId)
           else
@@ -244,13 +550,187 @@ class TrainingHubScreen extends ConsumerWidget {
   }
 }
 
-class _ModuleCard extends StatelessWidget {
+class _ModuleCard extends ConsumerWidget {
+  final String title;
+  final String description;
+  final IconData icon;
+  final Color moduleColor;
+  final String? userId;
+  final VoidCallback onTap;
+
+  const _ModuleCard({
+    required this.title,
+    required this.description,
+    required this.icon,
+    required this.moduleColor,
+    this.userId,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Get module type from title
+    String moduleType = '';
+    if (title.contains('Phishing')) moduleType = 'phishing';
+    if (title.contains('Password')) moduleType = 'password';
+    if (title.contains('Attack')) moduleType = 'attack';
+
+    // Get progress data
+    double completedLevels = 0;
+    double progress = 0.0;
+    if (userId != null && moduleType.isNotEmpty) {
+      final progressAsync = ref.watch(
+        moduleProgressProvider((userId: userId!, moduleType: moduleType)),
+      );
+      progressAsync.whenData((progressMap) {
+        completedLevels = progressMap.values.where((p) => p == 1.0).length.toDouble();
+        progress = progressMap.values.fold(0.0, (sum, p) => sum + p) / 3.0;
+      });
+    }
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: moduleColor,
+            width: 2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: moduleColor.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(18.0),
+              child: Row(
+                children: [
+                  // Icon Container
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          moduleColor,
+                          moduleColor.withOpacity(0.7),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: moduleColor.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Icon(icon, color: Colors.white, size: 28),
+                  ),
+                  const SizedBox(width: 16),
+                  // Content
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1E293B),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          description,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF64748B),
+                            height: 1.3,
+                          ),
+                        ),
+                        if (completedLevels > 0) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            '${completedLevels.toInt()}/3 levels',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: moduleColor,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  // Arrow Icon
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: moduleColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.arrow_forward,
+                      color: moduleColor,
+                      size: 20,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Progress bar
+            if (progress > 0 && progress < 1.0)
+              Container(
+                height: 8,
+                margin: const EdgeInsets.only(
+                  left: 18,
+                  right: 18,
+                  bottom: 14,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: FractionallySizedBox(
+                  alignment: Alignment.centerLeft,
+                  widthFactor: progress,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [moduleColor, moduleColor.withOpacity(0.7)],
+                      ),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Tool Card Widget (simpler design)
+class _ToolCard extends StatelessWidget {
   final String title;
   final String description;
   final IconData icon;
   final VoidCallback onTap;
 
-  const _ModuleCard({
+  const _ToolCard({
     required this.title,
     required this.description,
     required this.icon,
@@ -263,107 +743,168 @@ class _ModuleCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                icon,
+                color: const Color(0xFF10B981),
+                size: 28,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E293B),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    description,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios,
+              color: Color(0xFF64748B),
+              size: 16,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// AI Simulation Card Widget
+class _AISimulationCard extends StatelessWidget {
+  final String title;
+  final String description;
+  final IconData icon;
+  final List<Color> gradientColors;
+  final VoidCallback onTap;
+
+  const _AISimulationCard({
+    required this.title,
+    required this.description,
+    required this.icon,
+    required this.gradientColors,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [
-              Theme.of(context).colorScheme.surface,
-              Theme.of(context).colorScheme.surfaceContainerHighest,
-            ],
+            colors: gradientColors,
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-            width: 2,
-          ),
           boxShadow: [
             BoxShadow(
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
+              color: gradientColors[0].withOpacity(0.3),
               blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              offset: const Offset(0, 6),
             ),
           ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Row(
-            children: [
-              // Icon Container
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Theme.of(context).colorScheme.primary,
-                      Theme.of(context).colorScheme.primary.withOpacity(0.7),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(
+                icon,
+                color: Colors.white,
+                size: 36,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              description,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.white.withOpacity(0.9),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.psychology,
+                    color: Colors.white,
+                    size: 14,
                   ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.primary.withOpacity(0.4),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+                  const SizedBox(width: 4),
+                  Text(
+                    'AI Powered',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white.withOpacity(0.95),
                     ),
-                  ],
-                ),
-                child: Icon(icon, color: Colors.white, size: 30),
+                  ),
+                ],
               ),
-              const SizedBox(width: 16),
-              // Content
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      description,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.grey.shade400
-                            : Colors.grey.shade700,
-                        height: 1.3,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Arrow Icon
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.secondary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.arrow_forward,
-                  color: Theme.of(context).colorScheme.secondary,
-                  size: 20,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

@@ -43,32 +43,36 @@ class ProgressNotifier extends StateNotifier<Map<String, ResourceProgress>> {
   }
 
   Future<void> _loadProgress() async {
-    final prefs = await SharedPreferences.getInstance();
-    final keys = prefs.getKeys().where(
-      (key) => key.startsWith('resource_') && key.endsWith('_completed'),
-    );
-    final Map<String, ResourceProgress> loaded = {};
-
-    for (final key in keys) {
-      final resourceId = key
-          .replaceFirst('resource_', '')
-          .replaceFirst('_completed', '');
-      final isCompleted = prefs.getBool(key) ?? false;
-      final completedLessons =
-          prefs.getInt('resource_${resourceId}_lessons') ?? 0;
-      final minutesWatched =
-          prefs.getInt('resource_${resourceId}_minutes') ?? 0;
-
-      loaded[resourceId] = ResourceProgress(
-        resourceId: resourceId,
-        isCompleted: isCompleted,
-        completedLessons: completedLessons,
-        minutesWatched: minutesWatched,
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final keys = prefs.getKeys().where(
+        (key) => key.startsWith('resource_') && key.endsWith('_completed'),
       );
-    }
+      final Map<String, ResourceProgress> loaded = {};
 
-    if (loaded.isNotEmpty) {
+      for (final key in keys) {
+        final resourceId = key
+            .replaceFirst('resource_', '')
+            .replaceFirst('_completed', '');
+        final isCompleted = prefs.getBool(key) ?? false;
+        final completedLessons =
+            prefs.getInt('resource_${resourceId}_lessons') ?? 0;
+        final minutesWatched =
+            prefs.getInt('resource_${resourceId}_minutes') ?? 0;
+
+        loaded[resourceId] = ResourceProgress(
+          resourceId: resourceId,
+          isCompleted: isCompleted,
+          completedLessons: completedLessons,
+          minutesWatched: minutesWatched,
+        );
+      }
+
+      // Always update state, even if empty
       state = loaded;
+    } catch (e) {
+      // Log error but don't crash
+      print('Error loading progress: $e');
     }
   }
 
@@ -76,19 +80,26 @@ class ProgressNotifier extends StateNotifier<Map<String, ResourceProgress>> {
     String resourceId,
     ResourceProgress progress,
   ) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(
-      'resource_${resourceId}_completed',
-      progress.isCompleted,
-    );
-    await prefs.setInt(
-      'resource_${resourceId}_lessons',
-      progress.completedLessons,
-    );
-    await prefs.setInt(
-      'resource_${resourceId}_minutes',
-      progress.minutesWatched,
-    );
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(
+        'resource_${resourceId}_completed',
+        progress.isCompleted,
+      );
+      await prefs.setInt(
+        'resource_${resourceId}_lessons',
+        progress.completedLessons,
+      );
+      await prefs.setInt(
+        'resource_${resourceId}_minutes',
+        progress.minutesWatched,
+      );
+      
+      // Verify save by logging
+      print('Saved progress for $resourceId: completed=${progress.isCompleted}, lessons=${progress.completedLessons}, minutes=${progress.minutesWatched}');
+    } catch (e) {
+      print('Error saving progress: $e');
+    }
   }
 
   void markAsComplete(String resourceId) {

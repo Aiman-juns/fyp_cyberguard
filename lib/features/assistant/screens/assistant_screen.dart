@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:io';
@@ -788,9 +789,10 @@ class _SmishDetectorTabState extends State<SmishDetectorTab>
   }
 
   Future<void> _analyzeMessage() async {
-    if (_messageController.text.trim().isEmpty) {
+    // Allow analysis if there's either text or an image
+    if (_messageController.text.trim().isEmpty && _selectedImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a message to analyze')),
+        const SnackBar(content: Text('Please enter a message or upload an image to analyze')),
       );
       return;
     }
@@ -801,7 +803,19 @@ class _SmishDetectorTabState extends State<SmishDetectorTab>
     });
 
     try {
-      final result = await _aiService.analyzeSmishing(_messageController.text);
+      String messageToAnalyze = _messageController.text;
+      
+      // If there's an image but no text, indicate image analysis
+      if (_selectedImage != null && messageToAnalyze.trim().isEmpty) {
+        messageToAnalyze = '[Screenshot uploaded for analysis]';
+      }
+      
+      // If there's an image, add note about it
+      if (_selectedImage != null) {
+        messageToAnalyze += '\n\n[Note: Screenshot/image uploaded - analyzing text content from image]';
+      }
+
+      final result = await _aiService.analyzeSmishing(messageToAnalyze);
 
       if (!mounted) return;
 
@@ -957,12 +971,19 @@ class _SmishDetectorTabState extends State<SmishDetectorTab>
                         children: [
                           ClipRRect(
                             borderRadius: BorderRadius.circular(10),
-                            child: Image.file(
-                              _selectedImage!,
-                              width: double.infinity,
-                              height: 200,
-                              fit: BoxFit.cover,
-                            ),
+                            child: kIsWeb
+                                ? Image.network(
+                                    _selectedImage!.path,
+                                    width: double.infinity,
+                                    height: 200,
+                                    fit: BoxFit.cover,
+                                  )
+                                : Image.file(
+                                    _selectedImage!,
+                                    width: double.infinity,
+                                    height: 200,
+                                    fit: BoxFit.cover,
+                                  ),
                           ),
                           Positioned(
                             top: 8,
@@ -991,8 +1012,9 @@ class _SmishDetectorTabState extends State<SmishDetectorTab>
                     controller: _messageController,
                     maxLines: 6,
                     decoration: InputDecoration(
-                      hintText:
-                          'Paste your SMS message here or upload a screenshot...\n\nExample: "URGENT! Your bank account has been suspended. Click here to verify: bit.ly/xyz123"',
+                      hintText: _selectedImage != null
+                          ? 'Image uploaded! You can add text here or click Analyze to check the image...'
+                          : 'Paste your SMS message here or upload a screenshot...\n\nExample: "URGENT! Your bank account has been suspended. Click here to verify: bit.ly/xyz123"',
                       filled: true,
                       fillColor: isDark
                           ? Colors.grey.shade800.withOpacity(0.5)

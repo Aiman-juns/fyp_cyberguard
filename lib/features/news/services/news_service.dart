@@ -5,7 +5,7 @@ import '../../../config/supabase_config.dart';
 
 class NewsService {
   static const String newsDataApiUrl = 'https://newsdata.io/api/1/news';
-  
+
   /// Fetch and cache cybersecurity news
   static Future<void> fetchAndCacheNews() async {
     try {
@@ -34,16 +34,15 @@ class NewsService {
 
   /// Fetch from NewsData.io API
   static Future<List<Map<String, dynamic>>> _fetchFromNewsData(
-      String apiKey) async {
+    String apiKey,
+  ) async {
     try {
       // Search for cybersecurity news in Malaysia
       final url = Uri.parse(
-        '$newsDataApiUrl?apikey=$apiKey&country=my&q=cyber OR scam OR ransomware OR phishing&language=en',
+        '$newsDataApiUrl?apikey=$apiKey&country=my&q=(cyber OR cybersecurity OR scam OR ransomware OR phishing OR "data breach" OR hacker) AND (Malaysia OR Malaysian OR MY)&language=en',
       );
 
-      final response = await http.get(url).timeout(
-        const Duration(seconds: 15),
-      );
+      final response = await http.get(url).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -54,10 +53,13 @@ class NewsService {
             return {
               'title': article['title'] ?? 'No Title',
               'summary':
-                  article['description'] ?? article['content'] ?? 'No description available',
+                  article['description'] ??
+                  article['content'] ??
+                  'No description available',
               'source': article['source_id'] ?? 'Unknown Source',
               'url': article['link'] ?? '',
-              'published_at': article['pubDate'] ?? DateTime.now().toIso8601String(),
+              'published_at':
+                  article['pubDate'] ?? DateTime.now().toIso8601String(),
               'category': _categorizeArticle(article['title'] ?? ''),
               'image_url': article['image_url'],
             };
@@ -73,21 +75,34 @@ class NewsService {
   /// Fallback: Fetch from GDELT API
   static Future<List<Map<String, dynamic>>> _fetchFromGDELT() async {
     try {
-      // GDELT API for cybersecurity news
+      // GDELT API for Malaysia cybersecurity news
       final url = Uri.parse(
-        'https://api.gdeltproject.org/api/v2/doc/doc?query=(cybersecurity OR cyber%20attack OR scam OR ransomware OR phishing)%20sourcelang:eng&mode=artlist&maxrecords=20&format=json',
+        'https://api.gdeltproject.org/api/v2/doc/doc?query=(cybersecurity OR cyber%20attack OR scam OR ransomware OR phishing)%20AND%20(Malaysia OR Malaysian)%20sourcelang:eng&mode=artlist&maxrecords=20&format=json',
       );
 
-      final response = await http.get(url).timeout(
-        const Duration(seconds: 15),
-      );
+      final response = await http.get(url).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final articles = data['articles'] as List<dynamic>?;
 
         if (articles != null && articles.isNotEmpty) {
-          return articles.map((article) {
+          // Filter for Malaysia-related articles
+          final malaysiaArticles = articles.where((article) {
+            final title = (article['title'] ?? '').toString().toLowerCase();
+            final url = (article['url'] ?? '').toString().toLowerCase();
+            return title.contains('malaysia') ||
+                title.contains('malaysian') ||
+                url.contains('.my') ||
+                url.contains('malaysia');
+          }).toList();
+
+          // Use filtered list or fallback to all if no Malaysia-specific found
+          final articlesToProcess = malaysiaArticles.isNotEmpty
+              ? malaysiaArticles
+              : articles;
+
+          return articlesToProcess.map((article) {
             return {
               'title': article['title'] ?? 'No Title',
               'summary': article['seendate'] != null
@@ -150,7 +165,8 @@ class NewsService {
 
   /// Cache articles in Supabase
   static Future<void> _cacheInSupabase(
-      List<Map<String, dynamic>> articles) async {
+    List<Map<String, dynamic>> articles,
+  ) async {
     try {
       for (var article in articles) {
         // Check if article already exists (by URL)

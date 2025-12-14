@@ -36,135 +36,205 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
     final authState = ref.watch(authProvider);
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF1E293B)),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text('Resources'),
-        centerTitle: true,
-        elevation: 0,
-      ),
-      body: Column(
-        children: [
-          // Learning Progress
-          resourcesAsync.when(
-            data: (resources) => _buildLearningProgress(context, resources),
-            loading: () => const SizedBox.shrink(),
-            error: (_, __) => const SizedBox.shrink(),
+        title: const Text(
+          'Resources',
+          style: TextStyle(
+            color: Color(0xFF1E293B),
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
           ),
-          // Content
-          Expanded(
-            child: resourcesAsync.when(
-              data: (resources) {
-                if (resources.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.library_books,
-                          size: 64,
-                          color: Colors.grey.shade400,
+        ),
+        centerTitle: true,
+      ),
+      body: resourcesAsync.when(
+        data: (resources) {
+          if (resources.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.library_books,
+                    size: 64,
+                    color: Colors.grey.shade400,
+                  ),
+                  const SizedBox(height: 16.0),
+                  Text(
+                    'No resources available',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Welcome Header Card
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF3B82F6).withOpacity(0.3),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(14),
                         ),
-                        const SizedBox(height: 16.0),
-                        Text(
-                          'No resources available',
-                          style: Theme.of(context).textTheme.titleMedium,
+                        child: const Icon(
+                          Icons.library_books,
+                          color: Colors.white,
+                          size: 32,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Learning Resources',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Explore security learning materials',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.white.withOpacity(0.9),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                // Learning Progress
+                _buildLearningProgress(context, resources),
+                const SizedBox(height: 28),
+                // Header Row with "Learning Resources" and "See All"
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF3B82F6).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.library_books,
+                            color: Color(0xFF3B82F6),
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        const Text(
+                          'Learning Resources',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1E293B),
+                          ),
                         ),
                       ],
                     ),
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          _showAllResources = !_showAllResources;
+                        });
+                      },
+                      child: Text(
+                        _showAllResources ? 'Show Less' : 'See All',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF3B82F6),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16.0),
+                // Resource List
+                ...(_showAllResources ? resources : resources.take(3)).map((
+                  resource,
+                ) {
+                  final progress = ref.watch(
+                    resourceProgressProvider(resource.id),
                   );
-                }
 
-                return SingleChildScrollView(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header Row with "Learning Resources" and "See All"
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Learning Resources',
-                            style: Theme.of(context).textTheme.headlineSmall,
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              setState(() {
-                                _showAllResources = !_showAllResources;
-                              });
-                            },
-                            child: Text(
-                              _showAllResources ? 'Show Less' : 'See All',
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16.0),
-                      // Resource List
-                      ...(_showAllResources ? resources : resources.take(3))
-                          .map((resource) {
-                            final progress = ref.watch(
-                              resourceProgressProvider(resource.id),
-                            );
+                  // Special handling for Types of Cyber Attack
+                  if (resource.title == 'Types of Cyber Attack' &&
+                      resource.attackTypes != null &&
+                      resource.attackTypes!.isNotEmpty) {
+                    return _buildCyberAttackCard(context, resource, progress);
+                  }
 
-                            // Special handling for Types of Cyber Attack
-                            if (resource.title == 'Types of Cyber Attack' &&
-                                resource.attackTypes != null &&
-                                resource.attackTypes!.isNotEmpty) {
-                              return _buildCyberAttackCard(
-                                context,
-                                resource,
-                                progress,
-                              );
-                            }
-
-                            return _buildResourceCard(
-                              context,
-                              resource,
-                              progress,
-                            );
-                          })
-                          .toList(),
-                    ],
-                  ),
-                );
-              },
-              loading: () {
-                return const Center(child: CircularProgressIndicator());
-              },
-              error: (error, stackTrace) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        size: 64,
-                        color: Colors.red.shade400,
-                      ),
-                      const SizedBox(height: 16.0),
-                      Text(
-                        'Error loading resources: $error',
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 16.0),
-                      ElevatedButton(
-                        onPressed: () {
-                          ref.invalidate(resourcesProvider);
-                        },
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                );
-              },
+                  return _buildResourceCard(context, resource, progress);
+                }).toList(),
+              ],
             ),
-          ),
-        ],
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stackTrace) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, size: 64, color: Colors.red.shade400),
+                const SizedBox(height: 16.0),
+                Text(
+                  'Error loading resources: $error',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16.0),
+                ElevatedButton(
+                  onPressed: () {
+                    ref.invalidate(resourcesProvider);
+                  },
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -177,6 +247,11 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
     final progressPercent = progress.progressPercentage;
     final remainingLessons = progress.totalLessons - progress.completedLessons;
 
+    // Get resource color and icon based on title
+    final resourceData = _getResourceData(resource.title);
+    final resourceColor = resourceData['color'] as Color;
+    final resourceIcon = resourceData['icon'] as IconData;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
       child: InkWell(
@@ -186,135 +261,165 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
         borderRadius: BorderRadius.circular(16),
         child: Container(
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
+            color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-              width: 2,
-            ),
+            border: Border.all(color: resourceColor.withOpacity(0.3), width: 2),
             boxShadow: [
               BoxShadow(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
-                blurRadius: 8,
+                color: resourceColor.withOpacity(0.1),
+                blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
             ],
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Row(
-              children: [
-                // Icon/Thumbnail
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.primary.withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.article,
-                    color: Colors.white,
-                    size: 32,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                // Content
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        resource.title,
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(18.0),
+                child: Row(
+                  children: [
+                    // Icon/Thumbnail
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            resourceColor,
+                            resourceColor.withOpacity(0.7),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Icon(
-                            remainingLessons > 0
-                                ? Icons.play_circle_outline
-                                : Icons.check_circle,
-                            size: 16,
-                            color: remainingLessons > 0
-                                ? Theme.of(context).colorScheme.secondary
-                                : Theme.of(context).colorScheme.tertiary,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            remainingLessons > 0
-                                ? '$remainingLessons Lesson${remainingLessons > 1 ? 's' : ''} to go'
-                                : 'Completed',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey[600],
-                            ),
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: resourceColor.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      // Progress Bar
-                      Row(
+                      child: Icon(resourceIcon, color: Colors.white, size: 32),
+                    ),
+                    const SizedBox(width: 16),
+                    // Content
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: LinearProgressIndicator(
-                                value: progressPercent / 100,
-                                minHeight: 8,
-                                backgroundColor: Theme.of(
-                                  context,
-                                ).colorScheme.surfaceContainerHighest,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Theme.of(context).colorScheme.secondary,
+                          Text(
+                            resource.title,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1E293B),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            resource.description ?? '',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Color(0xFF64748B),
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Icon(
+                                remainingLessons > 0
+                                    ? Icons.play_circle_outline
+                                    : Icons.check_circle,
+                                size: 16,
+                                color: remainingLessons > 0
+                                    ? resourceColor
+                                    : const Color(0xFF10B981),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                remainingLessons > 0
+                                    ? '$remainingLessons lesson${remainingLessons > 1 ? 's' : ''} remaining'
+                                    : 'Completed',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF64748B),
                                 ),
                               ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.secondary.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              '${progressPercent.toStringAsFixed(0)}%',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.secondary,
+                              const Spacer(),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: resourceColor.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '${progressPercent.toStringAsFixed(0)}%',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: resourceColor,
+                                  ),
+                                ),
                               ),
-                            ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
+                    ),
+                  ],
+                ),
+              ),
+              // Progress Bar
+              if (progressPercent > 0 && progressPercent < 100)
+                Container(
+                  height: 8,
+                  margin: const EdgeInsets.only(
+                    left: 18,
+                    right: 18,
+                    bottom: 14,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: (progressPercent / 100).clamp(0.0, 1.0),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            resourceColor,
+                            resourceColor.withOpacity(0.7),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
                   ),
                 ),
-              ],
-            ),
+            ],
           ),
         ),
       ),
     );
+  }
+
+  Map<String, dynamic> _getResourceData(String title) {
+    if (title.contains('Password')) {
+      return {'color': const Color(0xFF3B82F6), 'icon': Icons.lock};
+    } else if (title.contains('Phishing')) {
+      return {'color': const Color(0xFFF59E0B), 'icon': Icons.email};
+    } else if (title.contains('Network')) {
+      return {'color': const Color(0xFF10B981), 'icon': Icons.wifi};
+    }
+    return {'color': const Color(0xFF3B82F6), 'icon': Icons.article};
   }
 
   Widget _buildCyberAttackCard(
@@ -322,6 +427,8 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
     Resource resource,
     ResourceProgress progress,
   ) {
+    const cardColor = Color(0xFFEF4444);
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
       child: InkWell(
@@ -333,22 +440,19 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
         borderRadius: BorderRadius.circular(16),
         child: Container(
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
+            color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-              width: 2,
-            ),
+            border: Border.all(color: cardColor.withOpacity(0.3), width: 2),
             boxShadow: [
               BoxShadow(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
-                blurRadius: 8,
+                color: cardColor.withOpacity(0.1),
+                blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.all(20.0),
+            padding: const EdgeInsets.all(18.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -359,13 +463,15 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
                       width: 64,
                       height: 64,
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary,
-                        borderRadius: BorderRadius.circular(12),
+                        gradient: LinearGradient(
+                          colors: [cardColor, cardColor.withOpacity(0.7)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.primary.withOpacity(0.3),
+                            color: cardColor.withOpacity(0.3),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -388,18 +494,15 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
                             style: const TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.bold,
+                              color: Color(0xFF1E293B),
                             ),
                           ),
                           const SizedBox(height: 6),
                           Text(
                             '${resource.attackTypes!.length} attack types',
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 13,
-                              color:
-                                  Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? Colors.grey.shade400
-                                  : Colors.grey.shade700,
+                              color: Color(0xFF64748B),
                             ),
                           ),
                         ],
@@ -409,16 +512,14 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.secondary.withOpacity(0.1),
+                        color: cardColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
                         _showAttackTypes
                             ? Icons.expand_less
                             : Icons.expand_more,
-                        color: Theme.of(context).colorScheme.secondary,
+                        color: cardColor,
                         size: 20,
                       ),
                     ),
@@ -618,99 +719,93 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
         const SizedBox(height: 16),
         // Learning Progress Card
         Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
+          margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primary,
-            borderRadius: BorderRadius.circular(16),
+            gradient: const LinearGradient(
+              colors: [Color(0xFF9333EA), Color(0xFF7E22CE)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
+                color: const Color(0xFF9333EA).withOpacity(0.3),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
               ),
             ],
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.trending_up,
-                        color: Colors.white,
-                        size: 20,
-                      ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Learning Progress',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '$coursesInProgress course${coursesInProgress != 1 ? 's' : ''} in progress',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey[400],
-                            ),
-                          ),
-                        ],
-                      ),
+                    child: const Icon(
+                      Icons.trending_up,
+                      color: Colors.white,
+                      size: 24,
                     ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          '${totalProgress.toStringAsFixed(0)}%',
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w700,
+                        const Text(
+                          'Learning Progress',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
                         ),
+                        const SizedBox(height: 4),
                         Text(
-                          'Complete',
+                          '$coursesInProgress course${coursesInProgress != 1 ? 's' : ''} in progress',
                           style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[400],
+                            fontSize: 13,
+                            color: Colors.white.withOpacity(0.85),
                           ),
                         ),
                       ],
                     ),
-                  ],
+                  ),
+                  Text(
+                    '${totalProgress.toStringAsFixed(0)}%',
+                    style: const TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Container(
+                height: 10,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(5),
                 ),
-                const SizedBox(height: 16),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: totalProgress / 100,
-                    minHeight: 8,
-                    backgroundColor: Colors.grey.shade800,
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      Color(0xFFF97316),
+                child: FractionallySizedBox(
+                  alignment: Alignment.centerLeft,
+                  widthFactor: (totalProgress / 100).clamp(0.0, 1.0),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF97316),
+                      borderRadius: BorderRadius.circular(5),
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ],
@@ -747,152 +842,5 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
       default:
         return {'icon': Icons.security, 'color': const Color(0xFF9333EA)};
     }
-  }
-
-  // Custom Header Widget
-  Widget _buildCustomHeader(
-    BuildContext context,
-    AsyncValue<dynamic> authState,
-  ) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primary,
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(24),
-          bottomRight: Radius.circular(24),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-          child: Column(
-            children: [
-              // Top Row: Drawer button, User info, Notification
-              Row(
-                children: [
-                  // Drawer Button
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.menu,
-                        color: Colors.white,
-                        size: 28,
-                      ),
-                      onPressed: () {
-                        Scaffold.of(context).openDrawer();
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // User Name
-                  Expanded(
-                    child: authState.when(
-                      data: (user) {
-                        final userName = user?.fullName ?? 'Guest User';
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Hello,',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.9),
-                                fontSize: 14,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              userName,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        );
-                      },
-                      loading: () => const Text(
-                        'Loading...',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      error: (_, __) => const Text(
-                        'Guest User',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ),
-                  // App Logo (Shield)
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.shield,
-                      color: Colors.white,
-                      size: 28,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              // Search Bar
-              Container(
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: TextField(
-                  controller: _searchController,
-                  style: const TextStyle(fontSize: 14),
-                  decoration: InputDecoration(
-                    hintText: 'Cari di sini',
-                    hintStyle: TextStyle(
-                      color: Colors.grey.shade400,
-                      fontSize: 14,
-                    ),
-                    prefixIcon: Icon(
-                      Icons.search,
-                      color: Colors.grey.shade600,
-                      size: 22,
-                    ),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                  ),
-                  onChanged: (value) {
-                    // Placeholder for search functionality
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
