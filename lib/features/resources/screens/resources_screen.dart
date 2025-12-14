@@ -140,10 +140,10 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
                 // Learning Progress
                 _buildLearningProgress(context, resources),
-                const SizedBox(height: 28),
+                const SizedBox(height: 20),
                 // Header Row with "Learning Resources" and "See All"
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -719,20 +719,20 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
         const SizedBox(height: 16),
         // Learning Progress Card
         Container(
-          margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-          padding: const EdgeInsets.all(24),
+          margin: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFF9333EA), Color(0xFF7E22CE)],
+              colors: [Color(0xFF93C5FD), Color(0xFFA5B4FC)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF9333EA).withOpacity(0.3),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
+                color: const Color(0xFF93C5FD).withOpacity(0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
             ],
           ),

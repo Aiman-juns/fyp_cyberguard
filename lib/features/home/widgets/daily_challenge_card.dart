@@ -16,17 +16,19 @@ class DailyChallengeCard extends ConsumerWidget {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFF6F00), Color(0xFFFFB300)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        border: Border(
+          left: BorderSide(
+            color: const Color(0xFFF97316),
+            width: 6,
+          ),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.orange.withOpacity(0.3),
+            color: Colors.grey.withOpacity(0.15),
             blurRadius: 8,
-            offset: const Offset(0, 4),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -47,7 +49,7 @@ class DailyChallengeCard extends ConsumerWidget {
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: Color(0xFF1E293B),
                   ),
                 ),
                 const Spacer(),
@@ -58,7 +60,7 @@ class DailyChallengeCard extends ConsumerWidget {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: Color(0xFFF97316),
                     ),
                   ),
                 const SizedBox(width: 8),
@@ -69,7 +71,7 @@ class DailyChallengeCard extends ConsumerWidget {
                   },
                   icon: Icon(
                     isExpanded ? Icons.expand_less : Icons.expand_more,
-                    color: Colors.white,
+                    color: Color(0xFF64748B),
                     size: 28,
                   ),
                   tooltip: isExpanded ? 'Collapse' : 'Expand',
@@ -95,7 +97,7 @@ class DailyChallengeCard extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: const Color(0xFFF97316).withOpacity(0.1),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -104,7 +106,7 @@ class DailyChallengeCard extends ConsumerWidget {
           const Icon(
             Icons.calendar_today,
             size: 16,
-            color: Colors.white,
+            color: Color(0xFFF97316),
           ),
           const SizedBox(width: 8),
           Text(
@@ -112,7 +114,7 @@ class DailyChallengeCard extends ConsumerWidget {
             style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: Colors.white,
+              color: Color(0xFF1E293B),
             ),
           ),
           const SizedBox(width: 12),
@@ -181,14 +183,17 @@ class DailyChallengeCard extends ConsumerWidget {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
+            color: const Color(0xFFF8FAFC),
             borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: const Color(0xFFE2E8F0),
+            ),
           ),
           child: Text(
             state.challenge!['question'],
             style: const TextStyle(
               fontSize: 16,
-              color: Colors.white,
+              color: Color(0xFF1E293B),
               height: 1.5,
             ),
           ),
@@ -250,8 +255,11 @@ class DailyChallengeCard extends ConsumerWidget {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
+            color: const Color(0xFFF8FAFC),
             borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: const Color(0xFFE2E8F0),
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -260,7 +268,7 @@ class DailyChallengeCard extends ConsumerWidget {
                 children: [
                   Icon(
                     isCorrect ? Icons.check_circle : Icons.cancel,
-                    color: isCorrect ? Colors.greenAccent : Colors.redAccent,
+                    color: isCorrect ? Colors.green : Colors.red,
                     size: 32,
                   ),
                   const SizedBox(width: 8),
@@ -270,7 +278,7 @@ class DailyChallengeCard extends ConsumerWidget {
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: Color(0xFF1E293B),
                       ),
                     ),
                   ),
@@ -281,19 +289,19 @@ class DailyChallengeCard extends ConsumerWidget {
                 state.challenge!['question'],
                 style: const TextStyle(
                   fontSize: 14,
-                  color: Colors.white,
+                  color: Color(0xFF475569),
                   height: 1.4,
                 ),
               ),
               const SizedBox(height: 12),
-              const Divider(color: Colors.white54),
+              const Divider(color: Color(0xFFCBD5E1)),
               const SizedBox(height: 8),
               const Text(
                 'Explanation:',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: Color(0xFF1E293B),
                 ),
               ),
               const SizedBox(height: 4),
@@ -301,7 +309,7 @@ class DailyChallengeCard extends ConsumerWidget {
                 state.challenge!['explanation'],
                 style: const TextStyle(
                   fontSize: 13,
-                  color: Colors.white,
+                  color: Color(0xFF475569),
                   height: 1.4,
                 ),
               ),
@@ -309,12 +317,12 @@ class DailyChallengeCard extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 12),
-        const Center(
+        Center(
           child: Text(
             '✨ Come back tomorrow for a new challenge!',
             style: TextStyle(
               fontSize: 14,
-              color: Colors.white,
+              color: Colors.grey.shade600,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -327,19 +335,22 @@ class DailyChallengeCard extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
+        color: const Color(0xFFFEF2F2),
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFFECACA),
+        ),
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline, color: Colors.white, size: 32),
+          const Icon(Icons.error_outline, color: Colors.red, size: 32),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               state.errorMessage ?? 'An error occurred',
               style: const TextStyle(
                 fontSize: 14,
-                color: Colors.white,
+                color: Color(0xFF991B1B),
               ),
             ),
           ),

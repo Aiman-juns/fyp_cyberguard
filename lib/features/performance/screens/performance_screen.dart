@@ -1,10 +1,69 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/performance_provider.dart';
+import '../providers/leaderboard_provider.dart';
+import '../../../core/services/avatar_service.dart';
 
-class PerformanceScreen extends ConsumerWidget {
+class PerformanceScreen extends ConsumerStatefulWidget {
   const PerformanceScreen({Key? key}) : super(key: key);
 
+  @override
+  ConsumerState<PerformanceScreen> createState() => _PerformanceScreenState();
+}
+
+class _PerformanceScreenState extends ConsumerState<PerformanceScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          child: TabBar(
+            controller: _tabController,
+            labelColor: const Color(0xFF3B82F6),
+            unselectedLabelColor: Colors.grey,
+            indicatorColor: const Color(0xFF3B82F6),
+            indicatorWeight: 3,
+            labelStyle: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+            tabs: const [
+              Tab(text: 'Performance'),
+              Tab(text: 'Leaderboard'),
+            ],
+          ),
+        ),
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _PerformanceTab(),
+              _LeaderboardTab(),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PerformanceTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final performanceAsyncValue = ref.watch(performanceProvider);
@@ -15,6 +74,7 @@ class PerformanceScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const SizedBox(height: 16),
             // Current Level and Total Score
             Container(
               decoration: BoxDecoration(
@@ -546,6 +606,599 @@ class _AchievementCard extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+// Leaderboard Tab
+class _LeaderboardTab extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final leaderboardAsync = ref.watch(leaderboardProvider);
+
+    return leaderboardAsync.when(
+      data: (leaderboard) => RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(leaderboardProvider);
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 8),
+              // User Rank Card (if not in top 3)
+              if (leaderboard.currentUser != null &&
+                  leaderboard.currentUser!.rank > 3)
+                _UserRankCard(
+                  user: leaderboard.currentUser!,
+                  percentageBetter: leaderboard.percentageBetter,
+                ),
+              if (leaderboard.currentUser != null &&
+                  leaderboard.currentUser!.rank > 3)
+                const SizedBox(height: 24),
+              // Podium Section
+              _PodiumSection(topUsers: leaderboard.topUsers.take(3).toList()),
+              const SizedBox(height: 24),
+              // Rankings List (4th place onwards)
+              if (leaderboard.topUsers.length > 3)
+                _RankingsList(
+                  users: leaderboard.topUsers.skip(3).toList(),
+                  currentUserId: leaderboard.currentUser?.id,
+                ),
+            ],
+          ),
+        ),
+      ),
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stackTrace) => Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            const SizedBox(height: 16),
+            Text('Error loading leaderboard: $error'),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => ref.invalidate(leaderboardProvider),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// User Rank Card Widget
+class _UserRankCard extends StatelessWidget {
+  final LeaderboardUser user;
+  final double percentageBetter;
+
+  const _UserRankCard({
+    required this.user,
+    required this.percentageBetter,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFF97316), Color(0xFFFB923C)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFF97316).withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              '#${user.rank}',
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'You are doing better than',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${percentageBetter.toStringAsFixed(0)}% of other players!',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Podium Section Widget
+class _PodiumSection extends StatelessWidget {
+  final List<LeaderboardUser> topUsers;
+
+  const _PodiumSection({required this.topUsers});
+
+  @override
+  Widget build(BuildContext context) {
+    // Ensure we have at least 3 users (pad with nulls if needed)
+    final first = topUsers.length > 0 ? topUsers[0] : null;
+    final second = topUsers.length > 1 ? topUsers[1] : null;
+    final third = topUsers.length > 2 ? topUsers[2] : null;
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFF7E22CE).withOpacity(0.3),
+            const Color(0xFF3B82F6).withOpacity(0.2),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        children: [
+          // Top row with 1st place
+          if (first != null) _buildFirstPlace(first),
+          const SizedBox(height: 16),
+          // Bottom row with 2nd and 3rd
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (second != null)
+                Expanded(child: _buildSecondPlace(second))
+              else
+                const Expanded(child: SizedBox()),
+              const SizedBox(width: 12),
+              if (third != null)
+                Expanded(child: _buildThirdPlace(third))
+              else
+                const Expanded(child: SizedBox()),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFirstPlace(LeaderboardUser user) {
+    final avatar = AvatarService.getAvatarById(user.avatarId);
+
+    return Column(
+      children: [
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFF59E0B).withOpacity(0.4),
+                    blurRadius: 12,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: CircleAvatar(
+                radius: 40,
+                backgroundColor: avatar.color,
+                child: Icon(avatar.icon, size: 40, color: Colors.white),
+              ),
+            ),
+            Positioned(
+              top: -8,
+              right: -8,
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(0xFFF59E0B),
+                ),
+                child: const Icon(
+                  Icons.emoji_events,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Text(
+                user.username,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1E293B),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${user.totalScore} DP',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFFF59E0B),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: 80,
+          height: 100,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.5),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+          ),
+          child: const Center(
+            child: Text(
+              '1',
+              style: TextStyle(
+                fontSize: 48,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSecondPlace(LeaderboardUser user) {
+    final avatar = AvatarService.getAvatarById(user.avatarId);
+
+    return Column(
+      children: [
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF94A3B8), Color(0xFF64748B)],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF94A3B8).withOpacity(0.3),
+                    blurRadius: 8,
+                  ),
+                ],
+              ),
+              child: CircleAvatar(
+                radius: 32,
+                backgroundColor: avatar.color,
+                child: Icon(avatar.icon, size: 32, color: Colors.white),
+              ),
+            ),
+            Positioned(
+              top: -4,
+              right: -4,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(0xFF94A3B8),
+                ),
+                child: const Icon(
+                  Icons.workspace_premium,
+                  color: Colors.white,
+                  size: 16,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          user.username,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 2),
+        Text(
+          '${user.totalScore} DP',
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: Colors.white70,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: 70,
+          height: 70,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.4),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+          ),
+          child: const Center(
+            child: Text(
+              '2',
+              style: TextStyle(
+                fontSize: 36,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildThirdPlace(LeaderboardUser user) {
+    final avatar = AvatarService.getAvatarById(user.avatarId);
+
+    return Column(
+      children: [
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFEA580C), Color(0xFFC2410C)],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFEA580C).withOpacity(0.3),
+                    blurRadius: 8,
+                  ),
+                ],
+              ),
+              child: CircleAvatar(
+                radius: 32,
+                backgroundColor: avatar.color,
+                child: Icon(avatar.icon, size: 32, color: Colors.white),
+              ),
+            ),
+            Positioned(
+              top: -4,
+              right: -4,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(0xFFEA580C),
+                ),
+                child: const Icon(
+                  Icons.workspace_premium,
+                  color: Colors.white,
+                  size: 16,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          user.username,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 2),
+        Text(
+          '${user.totalScore} DP',
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: Colors.white70,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: 70,
+          height: 70,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.4),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+          ),
+          child: const Center(
+            child: Text(
+              '3',
+              style: TextStyle(
+                fontSize: 36,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// Rankings List Widget
+class _RankingsList extends StatelessWidget {
+  final List<LeaderboardUser> users;
+  final String? currentUserId;
+
+  const _RankingsList({
+    required this.users,
+    this.currentUserId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ListView.separated(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        itemCount: users.length,
+        separatorBuilder: (context, index) => const Divider(height: 1),
+        itemBuilder: (context, index) {
+          final user = users[index];
+          final isCurrentUser = user.id == currentUserId;
+          final avatar = AvatarService.getAvatarById(user.avatarId);
+
+          return Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: isCurrentUser
+                  ? const Color(0xFF9333EA).withOpacity(0.1)
+                  : index % 2 == 0
+                      ? const Color(0xFFF8FAFC)
+                      : Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: isCurrentUser
+                  ? Border.all(
+                      color: const Color(0xFF9333EA),
+                      width: 2,
+                    )
+                  : null,
+            ),
+            child: Row(
+              children: [
+                const SizedBox(width: 12),
+                // Rank number
+                SizedBox(
+                  width: 32,
+                  child: Text(
+                    '${user.rank}',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight:
+                          isCurrentUser ? FontWeight.bold : FontWeight.w600,
+                      color: isCurrentUser
+                          ? const Color(0xFF9333EA)
+                          : const Color(0xFF64748B),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Avatar
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: avatar.color,
+                  child: Icon(avatar.icon, size: 20, color: Colors.white),
+                ),
+                const SizedBox(width: 12),
+                // Username
+                Expanded(
+                  child: Text(
+                    user.username,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight:
+                          isCurrentUser ? FontWeight.bold : FontWeight.w500,
+                      color: const Color(0xFF1E293B),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                // Score
+                Text(
+                  '${user.totalScore} DP',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: isCurrentUser
+                        ? const Color(0xFF9333EA)
+                        : const Color(0xFF64748B),
+                  ),
+                ),
+                const SizedBox(width: 12),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
