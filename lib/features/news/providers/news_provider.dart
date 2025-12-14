@@ -1,46 +1,51 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/supabase_config.dart';
+import '../services/news_service.dart';
 
-/// News Model
+/// News Model (Updated)
 class News {
   final String id;
   final String title;
-  final String body;
-  final String sourceUrl;
+  final String summary;
+  final String source;
+  final String url;
+  final DateTime publishedAt;
+  final String category;
   final String? imageUrl;
-  final DateTime createdAt;
-  final DateTime updatedAt;
 
   News({
     required this.id,
     required this.title,
-    required this.body,
-    required this.sourceUrl,
+    required this.summary,
+    required this.source,
+    required this.url,
+    required this.publishedAt,
+    required this.category,
     this.imageUrl,
-    required this.createdAt,
-    required this.updatedAt,
   });
 
   factory News.fromJson(Map<String, dynamic> json) {
     return News(
       id: json['id'] as String,
       title: json['title'] as String,
-      body: json['body'] as String,
-      sourceUrl: json['source_url'] as String,
+      summary: json['summary'] as String,
+      source: json['source'] as String,
+      url: json['url'] as String,
+      publishedAt: DateTime.parse(json['published_at'] as String),
+      category: json['category'] as String? ?? 'General',
       imageUrl: json['image_url'] as String?,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
     );
   }
 }
 
-/// Fetch all news from Supabase
+/// Fetch all news from Supabase (cached)
 Future<List<News>> fetchNews() async {
   try {
     final response = await SupabaseConfig.client
         .from('news')
         .select()
-        .order('created_at', ascending: false);
+        .order('published_at', ascending: false)
+        .limit(50);
 
     return (response as List<dynamic>)
         .map((json) => News.fromJson(json as Map<String, dynamic>))
@@ -73,4 +78,11 @@ final newsProvider = FutureProvider<List<News>>((ref) async {
 /// Riverpod provider for single news
 final newsItemProvider = FutureProvider.family<News, String>((ref, id) async {
   return fetchNewsById(id);
+});
+
+/// Provider to refresh news from external APIs
+final refreshNewsProvider = FutureProvider<void>((ref) async {
+  await NewsService.fetchAndCacheNews();
+  // Invalidate news provider to refetch from Supabase
+  ref.invalidate(newsProvider);
 });

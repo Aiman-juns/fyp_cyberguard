@@ -1,32 +1,29 @@
 import 'package:flutter/material.dart';
 
-/// CyberGuard Color Palette
+/// CyberGuard Color Palette - Following 60-30-10 Rule
+/// 60% Dominant/Neutral - Backgrounds and surfaces
+/// 30% Secondary/Brand - Headers, cards, major UI blocks
+/// 10% Accent - CTAs, highlights, critical actions
 class AppColors {
-  // Primary Colors - Cybersecurity Blue
+  // 60% - Dominant/Neutral Colors (Backgrounds & Surfaces)
+  static const Color white = Color(0xFFFFFFFF);
+  static const Color lightGray = Color(0xFFF8F9FA);
+  static const Color darkBg = Color(0xFF0D1117);
+  static const Color darkSurface = Color(0xFF161B22);
+  
+  // 30% - Secondary/Brand Color (CyberGuard Blue)
   static const Color primaryBlue = Color(0xFF0066CC);
   static const Color primaryBlueDark = Color(0xFF004A99);
-  static const Color primaryBlueLight = Color(0xFF3385DD);
-
-  // Success Colors - Secure Green
+  
+  // 10% - Accent Color (Electric Blue for CTAs)
+  static const Color accentBlue = Color(0xFF3385DD);
+  
+  // Semantic Colors (for specific use cases only)
   static const Color successGreen = Color(0xFF00CC66);
-  static const Color successGreenDark = Color(0xFF009947);
-  static const Color successGreenLight = Color(0xFF33DD88);
-
-  // Warning Colors - Alert Red
   static const Color warningRed = Color(0xFFFF3333);
-  static const Color warningRedDark = Color(0xFFCC0000);
-  static const Color warningRedLight = Color(0xFFFF6666);
-
-  // Neutral Colors
-  static const Color white = Color(0xFFFFFFFF);
+  
+  // Text Colors
   static const Color black = Color(0xFF000000);
-  static const Color darkBg = Color(0xFF0F1419);
-  static const Color darkSurface = Color(0xFF1A1F26);
-  static const Color lightGray = Color(0xFFF5F5F5);
-  static const Color mediumGray = Color(0xFF9CA3AF);
-  static const Color darkGray = Color(0xFF4B5563);
-
-  // Light Blue Gradient Colors
-  static const Color lightBlueGradientStart = Color(0xFFE3F2FD); // Light blue
-  static const Color lightBlueGradientEnd = Color(0xFFB3E5FC); // Lighter cyan
+  static const Color mediumGray = Color(0xFF6B7280);
+  static const Color darkGray = Color(0xFF374151);
 }

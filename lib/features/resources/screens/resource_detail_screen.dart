@@ -11,9 +11,13 @@ import '../models/note_model.dart';
 
 class ResourceDetailScreen extends ConsumerStatefulWidget {
   final String resourceId;
+  final String? attackTypeId;
 
-  const ResourceDetailScreen({Key? key, required this.resourceId})
-    : super(key: key);
+  const ResourceDetailScreen({
+    Key? key,
+    required this.resourceId,
+    this.attackTypeId,
+  }) : super(key: key);
 
   @override
   ConsumerState<ResourceDetailScreen> createState() =>
@@ -53,7 +57,7 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
     try {
       // Clean up the video path (remove extra whitespace/newlines)
       final cleanPath = videoPath.trim();
-      
+
       // Check if it's a YouTube URL
       if (cleanPath.contains('youtube.com') || cleanPath.contains('youtu.be')) {
         final videoId = YoutubePlayer.convertUrlToId(cleanPath);
@@ -61,10 +65,7 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
           _isYouTubeVideo = true;
           _youtubeController = YoutubePlayerController(
             initialVideoId: videoId,
-            flags: const YoutubePlayerFlags(
-              autoPlay: false,
-              mute: false,
-            ),
+            flags: const YoutubePlayerFlags(autoPlay: false, mute: false),
           );
           if (mounted) {
             setState(() {
@@ -98,22 +99,26 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
 
       _videoController = VideoPlayerController.asset(assetPath)
         ..addListener(_onVideoPositionChanged)
-        ..initialize().then((_) {
-          if (mounted) {
-            setState(() {
-              _isVideoInitialized = true;
+        ..initialize()
+            .then((_) {
+              if (mounted) {
+                setState(() {
+                  _isVideoInitialized = true;
+                });
+              }
+            })
+            .catchError((error) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Error loading video: $error\nPath: $assetPath',
+                    ),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
             });
-          }
-        }).catchError((error) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Error loading video: $error\nPath: $assetPath'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -127,7 +132,8 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
   }
 
   void _onVideoPositionChanged() {
-    if (_videoController == null || !_videoController!.value.isInitialized) return;
+    if (_videoController == null || !_videoController!.value.isInitialized)
+      return;
 
     final isPlaying = _videoController!.value.isPlaying;
 
@@ -135,9 +141,10 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
       final timeDiff = DateTime.now().difference(_lastUpdateTime!);
       if (timeDiff.inSeconds >= 60) {
         // Update watch time every minute
-        ref
-            .read(progressProvider.notifier)
-            .addWatchTime(widget.resourceId, timeDiff);
+        final progressId = widget.attackTypeId != null
+            ? '${widget.resourceId}_${widget.attackTypeId}'
+            : widget.resourceId;
+        ref.read(progressProvider.notifier).addWatchTime(progressId, timeDiff);
         _lastUpdateTime = DateTime.now();
       }
     } else if (isPlaying) {
@@ -172,27 +179,43 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
   Widget build(BuildContext context) {
     final resourceAsync = ref.watch(resourceProvider(widget.resourceId));
     final notes = ref.watch(resourceNotesProvider(widget.resourceId));
-    final progress = ref.watch(resourceProgressProvider(widget.resourceId));
+    // Use combined ID for progress tracking if attackTypeId is provided
+    final progressId = widget.attackTypeId != null
+        ? '${widget.resourceId}_${widget.attackTypeId}'
+        : widget.resourceId;
+    final progress = ref.watch(resourceProgressProvider(progressId));
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: resourceAsync.when(
         data: (resource) {
+          // Determine which video URL to use
+          String? videoUrl = resource.mediaUrl;
+
+          // If attackTypeId is provided, find and use that attack type's video
+          if (widget.attackTypeId != null && resource.attackTypes != null) {
+            final attackType = resource.attackTypes!.firstWhere(
+              (type) => type.id == widget.attackTypeId,
+              orElse: () => resource.attackTypes!.first,
+            );
+            videoUrl = attackType.mediaUrl ?? resource.mediaUrl;
+          }
+
           // Initialize video player if URL changed or not initialized
-          if (resource.mediaUrl != null && 
-              resource.mediaUrl!.isNotEmpty && 
-              _currentMediaUrl != resource.mediaUrl) {
+          if (videoUrl != null &&
+              videoUrl.isNotEmpty &&
+              _currentMediaUrl != videoUrl) {
             // Clean up old controllers
             _videoController?.dispose();
             _videoController = null;
             _youtubeController?.dispose();
             _youtubeController = null;
             _isVideoInitialized = false;
-            _currentMediaUrl = resource.mediaUrl;
-            
+            _currentMediaUrl = videoUrl;
+
             // Initialize new video
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              _initializeVideoPlayer(resource.mediaUrl);
+              _initializeVideoPlayer(videoUrl);
             });
           }
 
@@ -296,71 +319,73 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
               aspectRatio: 16 / 9,
               child: _isVideoInitialized
                   ? _isYouTubeVideo && _youtubeController != null
-                      ? YoutubePlayer(
-                          controller: _youtubeController!,
-                          showVideoProgressIndicator: true,
-                          progressIndicatorColor: const Color(0xFF9333EA),
-                          progressColors: const ProgressBarColors(
-                            playedColor: Color(0xFF9333EA),
-                            handleColor: Color(0xFF9333EA),
-                          ),
-                        )
-                      : _videoController != null
-                          ? Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                VideoPlayer(_videoController!),
-                                // Play/Pause overlay
-                                Center(
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      setState(() {
-                                        if (_videoController!.value.isPlaying) {
-                                          _videoController!.pause();
-                                        } else {
-                                          _videoController!.play();
-                                        }
-                                      });
-                                    },
-                                    child: Container(
-                                      width: 60,
-                                      height: 60,
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withOpacity(0.5),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Icon(
-                                        _videoController!.value.isPlaying
-                                            ? Icons.pause
-                                            : Icons.play_arrow,
-                                        color: Colors.white,
-                                        size: 40,
-                                      ),
+                        ? YoutubePlayer(
+                            controller: _youtubeController!,
+                            showVideoProgressIndicator: true,
+                            progressIndicatorColor: const Color(0xFF9333EA),
+                            progressColors: const ProgressBarColors(
+                              playedColor: Color(0xFF9333EA),
+                              handleColor: Color(0xFF9333EA),
+                            ),
+                          )
+                        : _videoController != null
+                        ? Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              VideoPlayer(_videoController!),
+                              // Play/Pause overlay
+                              Center(
+                                child: GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      if (_videoController!.value.isPlaying) {
+                                        _videoController!.pause();
+                                      } else {
+                                        _videoController!.play();
+                                      }
+                                    });
+                                  },
+                                  child: Container(
+                                    width: 60,
+                                    height: 60,
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.5),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      _videoController!.value.isPlaying
+                                          ? Icons.pause
+                                          : Icons.play_arrow,
+                                      color: Colors.white,
+                                      size: 40,
                                     ),
                                   ),
                                 ),
-                                // Progress indicator
-                                Positioned(
-                                  bottom: 0,
-                                  left: 0,
-                                  right: 0,
-                                  child: VideoProgressIndicator(
-                                    _videoController!,
-                                    allowScrubbing: true,
-                                    colors: const VideoProgressColors(
-                                      playedColor: Color(0xFF9333EA),
-                                      bufferedColor: Colors.white24,
-                                      backgroundColor: Colors.white12,
-                                    ),
+                              ),
+                              // Progress indicator
+                              Positioned(
+                                bottom: 0,
+                                left: 0,
+                                right: 0,
+                                child: VideoProgressIndicator(
+                                  _videoController!,
+                                  allowScrubbing: true,
+                                  colors: const VideoProgressColors(
+                                    playedColor: Color(0xFF9333EA),
+                                    bufferedColor: Colors.white24,
+                                    backgroundColor: Colors.white12,
                                   ),
                                 ),
-                              ],
-                            )
-                          : Container()
+                              ),
+                            ],
+                          )
+                        : Container()
                   : Container(
                       color: Colors.grey[900],
                       child: Center(
-                        child: resource.mediaUrl == null || resource.mediaUrl!.isEmpty
+                        child:
+                            resource.mediaUrl == null ||
+                                resource.mediaUrl!.isEmpty
                             ? Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
@@ -388,7 +413,9 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
                                   ),
                                 ],
                               )
-                            : const CircularProgressIndicator(color: Colors.white),
+                            : const CircularProgressIndicator(
+                                color: Colors.white,
+                              ),
                       ),
                     ),
             ),
@@ -404,7 +431,8 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
                   children: [
                     TextButton.icon(
                       onPressed: () {
-                        final currentPosition = _videoController!.value.position;
+                        final currentPosition =
+                            _videoController!.value.position;
                         final newPosition =
                             currentPosition - const Duration(seconds: 10);
                         _videoController!.seekTo(
@@ -413,10 +441,7 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
                               : newPosition,
                         );
                       },
-                      icon: const Icon(
-                        Icons.replay_10,
-                        color: Colors.white,
-                      ),
+                      icon: const Icon(Icons.replay_10, color: Colors.white),
                       label: const Text(
                         '-10s',
                         style: TextStyle(color: Colors.white),
@@ -443,7 +468,8 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
                     ),
                     TextButton.icon(
                       onPressed: () {
-                        final currentPosition = _videoController!.value.position;
+                        final currentPosition =
+                            _videoController!.value.position;
                         final duration = _videoController!.value.duration;
                         final newPosition =
                             currentPosition + const Duration(seconds: 10);
@@ -553,9 +579,13 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: () {
+                      // Use attackTypeId if available, otherwise use resource.id
+                      final progressId = widget.attackTypeId != null
+                          ? '${resource.id}_${widget.attackTypeId}'
+                          : resource.id;
                       ref
                           .read(progressProvider.notifier)
-                          .markAsComplete(resource.id);
+                          .markAsComplete(progressId);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: const Row(

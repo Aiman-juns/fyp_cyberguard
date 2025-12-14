@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ResourceProgress {
   final String resourceId;
@@ -37,45 +38,95 @@ class ResourceProgress {
 }
 
 class ProgressNotifier extends StateNotifier<Map<String, ResourceProgress>> {
-  ProgressNotifier() : super({});
+  ProgressNotifier() : super({}) {
+    _loadProgress();
+  }
+
+  Future<void> _loadProgress() async {
+    final prefs = await SharedPreferences.getInstance();
+    final keys = prefs.getKeys().where(
+      (key) => key.startsWith('resource_') && key.endsWith('_completed'),
+    );
+    final Map<String, ResourceProgress> loaded = {};
+
+    for (final key in keys) {
+      final resourceId = key
+          .replaceFirst('resource_', '')
+          .replaceFirst('_completed', '');
+      final isCompleted = prefs.getBool(key) ?? false;
+      final completedLessons =
+          prefs.getInt('resource_${resourceId}_lessons') ?? 0;
+      final minutesWatched =
+          prefs.getInt('resource_${resourceId}_minutes') ?? 0;
+
+      loaded[resourceId] = ResourceProgress(
+        resourceId: resourceId,
+        isCompleted: isCompleted,
+        completedLessons: completedLessons,
+        minutesWatched: minutesWatched,
+      );
+    }
+
+    if (loaded.isNotEmpty) {
+      state = loaded;
+    }
+  }
+
+  Future<void> _saveProgress(
+    String resourceId,
+    ResourceProgress progress,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(
+      'resource_${resourceId}_completed',
+      progress.isCompleted,
+    );
+    await prefs.setInt(
+      'resource_${resourceId}_lessons',
+      progress.completedLessons,
+    );
+    await prefs.setInt(
+      'resource_${resourceId}_minutes',
+      progress.minutesWatched,
+    );
+  }
 
   void markAsComplete(String resourceId) {
-    final current = state[resourceId] ?? ResourceProgress(resourceId: resourceId);
-    state = {
-      ...state,
-      resourceId: current.copyWith(
-        isCompleted: true,
-        completedLessons: current.totalLessons, // Set to 100%
-      ),
-    };
+    final current =
+        state[resourceId] ?? ResourceProgress(resourceId: resourceId);
+    final updated = current.copyWith(
+      isCompleted: true,
+      completedLessons: current.totalLessons,
+    );
+    state = {...state, resourceId: updated};
+    _saveProgress(resourceId, updated);
   }
 
   void updateProgress(String resourceId, int completed, int total) {
-    state = {
-      ...state,
-      resourceId: ResourceProgress(
-        resourceId: resourceId,
-        completedLessons: completed,
-        totalLessons: total,
-      ),
-    };
+    final updated = ResourceProgress(
+      resourceId: resourceId,
+      completedLessons: completed,
+      totalLessons: total,
+    );
+    state = {...state, resourceId: updated};
+    _saveProgress(resourceId, updated);
   }
 
   void updateWatchTime(String resourceId, int minutes) {
-    final current = state[resourceId] ?? ResourceProgress(resourceId: resourceId);
-    state = {
-      ...state,
-      resourceId: current.copyWith(minutesWatched: minutes),
-    };
+    final current =
+        state[resourceId] ?? ResourceProgress(resourceId: resourceId);
+    final updated = current.copyWith(minutesWatched: minutes);
+    state = {...state, resourceId: updated};
+    _saveProgress(resourceId, updated);
   }
 
   void addWatchTime(String resourceId, Duration watched) {
-    final current = state[resourceId] ?? ResourceProgress(resourceId: resourceId);
+    final current =
+        state[resourceId] ?? ResourceProgress(resourceId: resourceId);
     final newMinutes = current.minutesWatched + watched.inMinutes;
-    state = {
-      ...state,
-      resourceId: current.copyWith(minutesWatched: newMinutes),
-    };
+    final updated = current.copyWith(minutesWatched: newMinutes);
+    state = {...state, resourceId: updated};
+    _saveProgress(resourceId, updated);
   }
 
   ResourceProgress getProgress(String resourceId) {
@@ -85,14 +136,17 @@ class ProgressNotifier extends StateNotifier<Map<String, ResourceProgress>> {
 }
 
 final progressProvider =
-    StateNotifierProvider<ProgressNotifier, Map<String, ResourceProgress>>((ref) {
-  return ProgressNotifier();
-});
+    StateNotifierProvider<ProgressNotifier, Map<String, ResourceProgress>>((
+      ref,
+    ) {
+      return ProgressNotifier();
+    });
 
-final resourceProgressProvider =
-    Provider.family<ResourceProgress, String>((ref, resourceId) {
+final resourceProgressProvider = Provider.family<ResourceProgress, String>((
+  ref,
+  resourceId,
+) {
   final allProgress = ref.watch(progressProvider);
   return allProgress[resourceId] ??
       ResourceProgress(resourceId: resourceId, totalLessons: 245);
 });
-

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:local_auth/local_auth.dart';
-import 'package:flutter_jailbreak_detection/flutter_jailbreak_detection.dart';
+import 'package:safe_device/safe_device.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
 import 'dart:io';
 
@@ -54,7 +54,7 @@ class _DeviceShieldScreenState extends State<DeviceShieldScreen>
     try {
       // Check 1: Root/Jailbreak Detection
       try {
-        _isRooted = await FlutterJailbreakDetection.jailbroken;
+        _isRooted = await SafeDevice.isJailBroken;
       } catch (e) {
         _isRooted = false; // Assume not rooted if check fails
       }

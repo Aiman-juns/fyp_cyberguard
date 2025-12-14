@@ -2,19 +2,20 @@ import 'package:flutter/material.dart';
 import 'app_colors.dart';
 
 class AppTheme {
-  // Light Theme
+  // Light Theme - Following 60-30-10 Rule
   static ThemeData lightTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
     colorScheme: ColorScheme.light(
-      primary: AppColors.primaryBlue,
-      secondary: AppColors.primaryBlueLight,
+      primary: AppColors.primaryBlue, // 30% - Brand color
+      secondary: AppColors.accentBlue, // 10% - Accent for CTAs
       tertiary: AppColors.successGreen,
       error: AppColors.warningRed,
-      surface: AppColors.white,
+      surface: AppColors.white, // 60% - Card surfaces
       onSurface: AppColors.black,
+      surfaceContainerHighest: AppColors.lightGray, // 60% - Neutral background
     ),
-    scaffoldBackgroundColor: AppColors.white,
+    scaffoldBackgroundColor: AppColors.lightGray,
     appBarTheme: const AppBarTheme(
       backgroundColor: AppColors.white,
       foregroundColor: AppColors.black,
@@ -55,7 +56,7 @@ class AppTheme {
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.primaryBlue,
+        backgroundColor: AppColors.accentBlue, // 10% - Accent for CTAs
         foregroundColor: AppColors.white,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -92,17 +93,18 @@ class AppTheme {
     ),
   );
 
-  // Dark Theme
+  // Dark Theme - Following 60-30-10 Rule
   static ThemeData darkTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
     colorScheme: ColorScheme.dark(
-      primary: AppColors.primaryBlueLight,
-      secondary: AppColors.primaryBlue,
+      primary: AppColors.primaryBlue, // 30% - Brand color
+      secondary: AppColors.accentBlue, // 10% - Accent for CTAs
       tertiary: AppColors.successGreen,
-      error: AppColors.warningRedLight,
-      surface: AppColors.darkSurface,
+      error: AppColors.warningRed,
+      surface: AppColors.darkSurface, // 60% - Card surfaces
       onSurface: AppColors.white,
+      surfaceContainerHighest: AppColors.darkBg, // 60% - Dark background
     ),
     scaffoldBackgroundColor: AppColors.darkBg,
     appBarTheme: const AppBarTheme(
@@ -145,16 +147,16 @@ class AppTheme {
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.primaryBlueLight,
-        foregroundColor: AppColors.darkBg,
+        backgroundColor: AppColors.accentBlue, // 10% - Accent for CTAs
+        foregroundColor: AppColors.white,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.primaryBlueLight,
-        side: const BorderSide(color: AppColors.primaryBlueLight, width: 2),
+        foregroundColor: AppColors.accentBlue,
+        side: const BorderSide(color: AppColors.accentBlue, width: 2),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
@@ -173,13 +175,13 @@ class AppTheme {
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
         borderSide: const BorderSide(
-          color: AppColors.primaryBlueLight,
+          color: AppColors.accentBlue,
           width: 2,
         ),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: AppColors.warningRedLight),
+        borderSide: const BorderSide(color: AppColors.warningRed),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
     ),

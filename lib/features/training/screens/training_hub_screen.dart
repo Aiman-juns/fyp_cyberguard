@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../config/supabase_config.dart';
+import '../../home/widgets/daily_challenge_card.dart';
 import '../providers/training_provider.dart';
 import 'phishing_screen.dart';
 import 'password_dojo_screen.dart';
@@ -41,19 +42,26 @@ class TrainingHubScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Daily Cyber Challenge
+          const DailyChallengeCard(),
+          const SizedBox(height: 24.0),
+
           // Welcome Header Card
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [Colors.purple.shade700, Colors.purple.shade500],
+                colors: [
+                  Theme.of(context).colorScheme.primary,
+                  Theme.of(context).colorScheme.primary.withOpacity(0.8),
+                ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.purple.withOpacity(0.3),
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.4),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -105,7 +113,6 @@ class TrainingHubScreen extends ConsumerWidget {
             title: 'Phishing Detection',
             description: 'Learn to identify phishing emails and websites',
             icon: Icons.mail_outline,
-            color: Colors.blue,
             onTap: () => _showLevelSelectionDialog(
               context,
               'Phishing Detection',
@@ -118,7 +125,6 @@ class TrainingHubScreen extends ConsumerWidget {
             title: 'Password Dojo',
             description: 'Create and test strong passwords',
             icon: Icons.lock,
-            color: Colors.green,
             onTap: () => _showLevelSelectionDialog(
               context,
               'Password Dojo',
@@ -131,7 +137,6 @@ class TrainingHubScreen extends ConsumerWidget {
             title: 'Cyber Attack Analyst',
             description: 'Analyze and identify cyber attack scenarios',
             icon: Icons.shield,
-            color: Colors.orange,
             onTap: () => _showLevelSelectionDialog(
               context,
               'Cyber Attack Analyst',
@@ -148,9 +153,7 @@ class TrainingHubScreen extends ConsumerWidget {
               const SizedBox(width: 8),
               Text(
                 'Security Tools',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: Colors.blueGrey,
                 ),
@@ -162,7 +165,6 @@ class TrainingHubScreen extends ConsumerWidget {
             title: 'Device Shield',
             description: 'Scan your phone for vulnerabilities',
             icon: Icons.security_update_good,
-            color: Colors.blueGrey,
             onTap: () => context.push('/device-shield'),
           ),
           const SizedBox(height: 32.0),
@@ -174,9 +176,7 @@ class TrainingHubScreen extends ConsumerWidget {
               const SizedBox(width: 8),
               Text(
                 'Simulation Games (AI)',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: Colors.purple,
                 ),
@@ -184,30 +184,38 @@ class TrainingHubScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 12.0),
-          _ModuleCard(
-            title: 'Hacker Chat: Discord Scam',
-            description: 'Interactive chat simulation - Can you spot the scammer?',
-            icon: Icons.chat_bubble_outline,
-            color: Color(0xFF5865F2),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ScamSimulatorScreen(scenario: 'discord'),
+          Row(
+            children: [
+              Expanded(
+                child: _ModuleCard(
+                  title: 'Discord Scam',
+                  description: 'Spot the scammer in chat',
+                  icon: Icons.chat_bubble_outline,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          ScamSimulatorScreen(scenario: 'discord'),
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(height: 12.0),
-          _ModuleCard(
-            title: 'Hacker Chat: Bank Phishing',
-            description: 'Can you identify a fake bank representative?',
-            icon: Icons.account_balance,
-            color: Color(0xFF0066CC),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ScamSimulatorScreen(scenario: 'bank'),
+              const SizedBox(width: 12.0),
+              Expanded(
+                child: _ModuleCard(
+                  title: 'Bank Phishing',
+                  description: 'Identify fake bank rep',
+                  icon: Icons.account_balance,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          ScamSimulatorScreen(scenario: 'bank'),
+                    ),
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
           const SizedBox(height: 32.0),
 
@@ -240,14 +248,12 @@ class _ModuleCard extends StatelessWidget {
   final String title;
   final String description;
   final IconData icon;
-  final Color color;
   final VoidCallback onTap;
 
   const _ModuleCard({
     required this.title,
     required this.description,
     required this.icon,
-    required this.color,
     required this.onTap,
   });
 
@@ -259,17 +265,28 @@ class _ModuleCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
+            colors: [
+              Theme.of(context).colorScheme.surface,
+              Theme.of(context).colorScheme.surfaceContainerHighest,
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.3), width: 2),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+            width: 2,
+          ),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.15),
-              blurRadius: 8,
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
+              blurRadius: 12,
               offset: const Offset(0, 4),
+            ),
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
@@ -283,14 +300,19 @@ class _ModuleCard extends StatelessWidget {
                 height: 60,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [color, color.withOpacity(0.7)],
+                    colors: [
+                      Theme.of(context).colorScheme.primary,
+                      Theme.of(context).colorScheme.primary.withOpacity(0.7),
+                    ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: color.withOpacity(0.3),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primary.withOpacity(0.4),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -329,10 +351,16 @@ class _ModuleCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.secondary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(Icons.arrow_forward, color: color, size: 20),
+                child: Icon(
+                  Icons.arrow_forward,
+                  color: Theme.of(context).colorScheme.secondary,
+                  size: 20,
+                ),
               ),
             ],
           ),

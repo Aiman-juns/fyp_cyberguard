@@ -16,6 +16,7 @@ class ResourcesScreen extends ConsumerStatefulWidget {
 class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
   late TextEditingController _searchController;
   bool _showAllResources = false;
+  bool _showAttackTypes = false;
 
   @override
   void initState() {
@@ -35,9 +36,7 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
     final authState = ref.watch(authProvider);
 
     return Scaffold(
-      backgroundColor: Theme.of(context).brightness == Brightness.dark
-          ? Theme.of(context).scaffoldBackgroundColor
-          : Colors.grey.shade50,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -51,121 +50,119 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
         children: [
           // Learning Progress
           resourcesAsync.when(
-                data: (resources) => _buildLearningProgress(context, resources),
-                loading: () => const SizedBox.shrink(),
-                error: (_, __) => const SizedBox.shrink(),
-              ),
-              // Content
-              Expanded(
-                child: resourcesAsync.when(
-                  data: (resources) {
-                    if (resources.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.library_books,
-                              size: 64,
-                              color: Colors.grey.shade400,
-                            ),
-                            const SizedBox(height: 16.0),
-                            Text(
-                              'No resources available',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                          ],
+            data: (resources) => _buildLearningProgress(context, resources),
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+          ),
+          // Content
+          Expanded(
+            child: resourcesAsync.when(
+              data: (resources) {
+                if (resources.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.library_books,
+                          size: 64,
+                          color: Colors.grey.shade400,
                         ),
-                      );
-                    }
+                        const SizedBox(height: 16.0),
+                        Text(
+                          'No resources available',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                      ],
+                    ),
+                  );
+                }
 
-                    return SingleChildScrollView(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header Row with "Learning Resources" and "See All"
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          // Header Row with "Learning Resources" and "See All"
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Learning Resources',
-                                style: Theme.of(
-                                  context,
-                                ).textTheme.headlineSmall,
-                              ),
-                              TextButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _showAllResources = !_showAllResources;
-                                  });
-                                },
-                                child: Text(
-                                  _showAllResources ? 'Show Less' : 'See All',
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16.0),
-                          // Resource List
-                          ...(_showAllResources ? resources : resources.take(3))
-                              .map((resource) {
-                                final progress = ref.watch(
-                                  resourceProgressProvider(resource.id),
-                                );
-
-                                // Special handling for Types of Cyber Attack
-                                if (resource.title == 'Types of Cyber Attack' &&
-                                    resource.attackTypes != null &&
-                                    resource.attackTypes!.isNotEmpty) {
-                                  return _buildCyberAttackCard(
-                                    context,
-                                    resource,
-                                    progress,
-                                  );
-                                }
-
-                                return _buildResourceCard(
-                                  context,
-                                  resource,
-                                  progress,
-                                );
-                              })
-                              .toList(),
-                        ],
-                      ),
-                    );
-                  },
-                  loading: () {
-                    return const Center(child: CircularProgressIndicator());
-                  },
-                  error: (error, stackTrace) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.error_outline,
-                            size: 64,
-                            color: Colors.red.shade400,
-                          ),
-                          const SizedBox(height: 16.0),
                           Text(
-                            'Error loading resources: $error',
-                            textAlign: TextAlign.center,
+                            'Learning Resources',
+                            style: Theme.of(context).textTheme.headlineSmall,
                           ),
-                          const SizedBox(height: 16.0),
-                          ElevatedButton(
+                          TextButton(
                             onPressed: () {
-                              ref.invalidate(resourcesProvider);
+                              setState(() {
+                                _showAllResources = !_showAllResources;
+                              });
                             },
-                            child: const Text('Retry'),
+                            child: Text(
+                              _showAllResources ? 'Show Less' : 'See All',
+                            ),
                           ),
                         ],
                       ),
-                    );
-                  },
-                ),
+                      const SizedBox(height: 16.0),
+                      // Resource List
+                      ...(_showAllResources ? resources : resources.take(3))
+                          .map((resource) {
+                            final progress = ref.watch(
+                              resourceProgressProvider(resource.id),
+                            );
+
+                            // Special handling for Types of Cyber Attack
+                            if (resource.title == 'Types of Cyber Attack' &&
+                                resource.attackTypes != null &&
+                                resource.attackTypes!.isNotEmpty) {
+                              return _buildCyberAttackCard(
+                                context,
+                                resource,
+                                progress,
+                              );
+                            }
+
+                            return _buildResourceCard(
+                              context,
+                              resource,
+                              progress,
+                            );
+                          })
+                          .toList(),
+                    ],
+                  ),
+                );
+              },
+              loading: () {
+                return const Center(child: CircularProgressIndicator());
+              },
+              error: (error, stackTrace) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        size: 64,
+                        color: Colors.red.shade400,
+                      ),
+                      const SizedBox(height: 16.0),
+                      Text(
+                        'Error loading resources: $error',
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16.0),
+                      ElevatedButton(
+                        onPressed: () {
+                          ref.invalidate(resourcesProvider);
+                        },
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -189,15 +186,15 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
         borderRadius: BorderRadius.circular(16),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: const Color(0xFF9333EA).withOpacity(0.3),
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
               width: 2,
             ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF9333EA).withOpacity(0.15),
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),
@@ -212,18 +209,13 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
                   width: 64,
                   height: 64,
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        const Color(0xFF9333EA),
-                        const Color(0xFF7C3AED),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                    color: Theme.of(context).colorScheme.primary,
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF9333EA).withOpacity(0.3),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primary.withOpacity(0.3),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -257,8 +249,8 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
                                 : Icons.check_circle,
                             size: 16,
                             color: remainingLessons > 0
-                                ? const Color(0xFF9333EA)
-                                : Colors.green,
+                                ? Theme.of(context).colorScheme.secondary
+                                : Theme.of(context).colorScheme.tertiary,
                           ),
                           const SizedBox(width: 4),
                           Text(
@@ -282,9 +274,11 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
                               child: LinearProgressIndicator(
                                 value: progressPercent / 100,
                                 minHeight: 8,
-                                backgroundColor: Colors.grey.shade200,
-                                valueColor: const AlwaysStoppedAnimation<Color>(
-                                  Color(0xFF9333EA),
+                                backgroundColor: Theme.of(
+                                  context,
+                                ).colorScheme.surfaceContainerHighest,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Theme.of(context).colorScheme.secondary,
                                 ),
                               ),
                             ),
@@ -296,15 +290,17 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF9333EA).withOpacity(0.1),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.secondary.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
                               '${progressPercent.toStringAsFixed(0)}%',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF9333EA),
+                                color: Theme.of(context).colorScheme.secondary,
                               ),
                             ),
                           ),
@@ -326,183 +322,240 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
     Resource resource,
     ResourceProgress progress,
   ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 16.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                resource.title,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _showAttackTypes = !_showAttackTypes;
+          });
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+              width: 2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
               ),
-              if (progress.minutesWatched > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.access_time,
-                        size: 14,
-                        color: Colors.grey[700],
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${progress.minutesWatched} min',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.grey[700],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
             ],
           ),
-        ),
-        SizedBox(
-          height: 220,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: resource.attackTypes!.length,
-            itemBuilder: (context, index) {
-              final attackType = resource.attackTypes![index];
-              final attackData = _getAttackTypeData(attackType.title);
-              return Container(
-                width: 280,
-                margin: EdgeInsets.only(
-                  right: index == resource.attackTypes!.length - 1 ? 0 : 16,
-                ),
-                child: InkWell(
-                  onTap: () {
-                    context.push('/resource/${resource.id}');
-                  },
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          attackData['color']!.withOpacity(0.1),
-                          attackData['color']!.withOpacity(0.05),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    // Icon Container
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primary.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
                         ],
                       ),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: attackData['color']!.withOpacity(0.3),
-                        width: 2,
+                      child: const Icon(
+                        Icons.bug_report,
+                        color: Colors.white,
+                        size: 32,
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: attackData['color']!.withOpacity(0.2),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(20.0),
+                    const SizedBox(width: 16),
+                    // Content
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Icon Container
-                          Container(
-                            width: 56,
-                            height: 56,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  attackData['color']!.withOpacity(0.3),
-                                  attackData['color']!.withOpacity(0.2),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: attackData['color']!.withOpacity(0.3),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Icon(
-                              attackData['icon'] as IconData,
-                              color: attackData['color'],
-                              size: 28,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          // Title
                           Text(
-                            attackType.title,
+                            resource.title,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            '${resource.attackTypes!.length} attack types',
                             style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.grey[900],
+                              fontSize: 13,
+                              color:
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Colors.grey.shade400
+                                  : Colors.grey.shade700,
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          // Description
-                          Expanded(
-                            child: Text(
-                              attackType.description,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey[700],
-                                height: 1.5,
-                              ),
-                              maxLines: 4,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          // Learn More indicator
-                          Row(
-                            children: [
-                              Text(
-                                'Learn More',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: attackData['color'],
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Icon(
-                                Icons.arrow_forward,
-                                size: 14,
-                                color: attackData['color'],
-                              ),
-                            ],
                           ),
                         ],
                       ),
                     ),
-                  ),
+                    // Expand/Collapse Icon
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.secondary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        _showAttackTypes
+                            ? Icons.expand_less
+                            : Icons.expand_more,
+                        color: Theme.of(context).colorScheme.secondary,
+                        size: 20,
+                      ),
+                    ),
+                  ],
                 ),
-              );
-            },
+                if (_showAttackTypes) ...[
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  ...resource.attackTypes!.map((attackType) {
+                    final attackData = _getAttackTypeData(attackType.title);
+                    final attackProgressId = '${resource.id}_${attackType.id}';
+                    final attackProgress = ref.watch(
+                      resourceProgressProvider(attackProgressId),
+                    );
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12.0),
+                      child: InkWell(
+                        onTap: () {
+                          context.push(
+                            '/resource/${resource.id}?attackTypeId=${attackType.id}',
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.primary.withOpacity(0.2),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.primary.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: attackProgress.isCompleted
+                                    ? Icon(
+                                        Icons.check_circle,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
+                                        size: 24,
+                                      )
+                                    : Icon(
+                                        attackData['icon'] as IconData,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
+                                        size: 24,
+                                      ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            attackType.title,
+                                            style: const TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                        if (attackProgress.isCompleted)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .secondary
+                                                  .withOpacity(0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                            child: Text(
+                                              'Completed',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold,
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.secondary,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      attackType.description,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                Icons.arrow_forward_ios,
+                                size: 16,
+                                color: Theme.of(context).colorScheme.secondary,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ],
+              ],
+            ),
           ),
         ),
-        const SizedBox(height: 12),
-      ],
+      ),
     );
   }
 
@@ -513,17 +566,51 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
     // Calculate total progress
     int coursesInProgress = 0;
     double totalProgress = 0.0;
+    int totalCourses = 0;
 
     for (var resource in resources) {
-      final progress = ref.watch(resourceProgressProvider(resource.id));
-      if (progress.completedLessons > 0 || progress.minutesWatched > 0) {
-        coursesInProgress++;
+      // For "Types of Cyber Attack", count individual attack types
+      if (resource.title == 'Types of Cyber Attack' &&
+          resource.attackTypes != null &&
+          resource.attackTypes!.isNotEmpty) {
+        // Count each attack type separately
+        for (var attackType in resource.attackTypes!) {
+          final attackProgressId = '${resource.id}_${attackType.id}';
+          final attackProgress = ref.watch(
+            resourceProgressProvider(attackProgressId),
+          );
+          totalCourses++;
+          if (attackProgress.isCompleted) {
+            coursesInProgress++;
+            totalProgress += 100.0;
+          } else if (attackProgress.minutesWatched > 0) {
+            coursesInProgress++;
+            totalProgress += 50.0; // Partial progress
+          } else {
+            // Not started - still count in total but add 0 progress
+            totalProgress += 0.0;
+          }
+        }
+      } else {
+        // Regular resource
+        totalCourses++;
+        final progress = ref.watch(resourceProgressProvider(resource.id));
+        if (progress.isCompleted) {
+          coursesInProgress++;
+          totalProgress += 100.0;
+        } else if (progress.completedLessons > 0 ||
+            progress.minutesWatched > 0) {
+          coursesInProgress++;
+          totalProgress += progress.progressPercentage;
+        } else {
+          // Not started
+          totalProgress += 0.0;
+        }
       }
-      totalProgress += progress.progressPercentage;
     }
 
-    if (resources.isNotEmpty) {
-      totalProgress = totalProgress / resources.length;
+    if (totalCourses > 0) {
+      totalProgress = totalProgress / totalCourses;
     }
 
     return Column(
@@ -533,15 +620,11 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.grey.shade900, Colors.grey.shade800],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: Theme.of(context).colorScheme.primary,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.3),
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
@@ -559,12 +642,12 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF97316).withOpacity(0.2),
+                        color: Colors.white.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
                         Icons.trending_up,
-                        color: Color(0xFFF97316),
+                        color: Colors.white,
                         size: 20,
                       ),
                     ),
@@ -673,21 +756,14 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
   ) {
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF1E88E5), // Light blue
-            const Color(0xFF42A5F5), // Lighter blue
-          ],
-        ),
+        color: Theme.of(context).colorScheme.primary,
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(24),
           bottomRight: Radius.circular(24),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.blue.withOpacity(0.3),
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),

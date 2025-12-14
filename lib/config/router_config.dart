@@ -123,10 +123,7 @@ class RouterConfig {
       GoRoute(
         path: '/training',
         builder: (context, state) => Scaffold(
-          appBar: AppBar(
-            title: const Text('Training Hub'),
-            centerTitle: true,
-          ),
+          appBar: AppBar(title: const Text('Training Hub'), centerTitle: true),
           body: const TrainingHubScreen(),
         ),
       ),
@@ -138,17 +135,18 @@ class RouterConfig {
         path: '/resources',
         builder: (context, state) => const ResourcesScreen(),
       ),
-      GoRoute(
-        path: '/news',
-        builder: (context, state) => const NewsScreen(),
-      ),
+      GoRoute(path: '/news', builder: (context, state) => const NewsScreen()),
       GoRoute(
         path: '/resource/:id',
         pageBuilder: (context, state) {
           final id = state.pathParameters['id']!;
+          final attackTypeId = state.uri.queryParameters['attackTypeId'];
           return MaterialPage(
             key: state.pageKey,
-            child: ResourceDetailScreen(resourceId: id),
+            child: ResourceDetailScreen(
+              resourceId: id,
+              attackTypeId: attackTypeId,
+            ),
           );
         },
       ),

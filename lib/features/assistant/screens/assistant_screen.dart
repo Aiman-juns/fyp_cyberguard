@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/services/ai_service.dart';
 
 class AssistantScreen extends StatefulWidget {
@@ -84,10 +86,11 @@ class _AssistantScreenState extends State<AssistantScreen>
                     children: [
                       Text(
                         'Security Assistant',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
                       ),
                       const SizedBox(height: 4.0),
                       Text(
@@ -129,8 +132,13 @@ class _AssistantScreenState extends State<AssistantScreen>
                 ),
               ),
               labelColor: Colors.white,
-              unselectedLabelColor: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
-              labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              unselectedLabelColor: isDark
+                  ? Colors.grey.shade400
+                  : Colors.grey.shade700,
+              labelStyle: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
               tabs: const [
                 Tab(icon: Icon(Icons.link), text: 'URL Scanner'),
                 Tab(icon: Icon(Icons.message), text: 'Smish Detector'),
@@ -142,10 +150,7 @@ class _AssistantScreenState extends State<AssistantScreen>
           Expanded(
             child: TabBarView(
               controller: _tabController,
-              children: const [
-                UrlScannerTab(),
-                SmishDetectorTab(),
-              ],
+              children: const [UrlScannerTab(), SmishDetectorTab()],
             ),
           ),
         ],
@@ -188,7 +193,9 @@ class _UrlScannerTabState extends State<UrlScannerTab>
     return encoded.replaceAll('=', '');
   }
 
-  List<Map<String, String>> _extractThreatDetails(Map<String, dynamic> analysisResults) {
+  List<Map<String, String>> _extractThreatDetails(
+    Map<String, dynamic> analysisResults,
+  ) {
     List<Map<String, String>> threats = [];
     analysisResults.forEach((vendor, result) {
       if (result is Map<String, dynamic>) {
@@ -208,11 +215,11 @@ class _UrlScannerTabState extends State<UrlScannerTab>
 
   Future<void> _checkUrl() async {
     final inputUrl = _urlController.text.trim();
-    
+
     if (inputUrl.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a URL')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please enter a URL')));
       return;
     }
 
@@ -239,13 +246,17 @@ class _UrlScannerTabState extends State<UrlScannerTab>
       if (!mounted) return;
 
       print('Response status: ${response.statusCode}');
-      print('Response body preview: ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}');
+      print(
+        'Response body preview: ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}',
+      );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         final attributes = data['data']?['attributes'] as Map<String, dynamic>?;
-        final lastAnalysisStats = attributes?['last_analysis_stats'] as Map<String, dynamic>?;
-        final lastAnalysisResults = attributes?['last_analysis_results'] as Map<String, dynamic>?;
+        final lastAnalysisStats =
+            attributes?['last_analysis_stats'] as Map<String, dynamic>?;
+        final lastAnalysisResults =
+            attributes?['last_analysis_results'] as Map<String, dynamic>?;
 
         if (lastAnalysisStats != null) {
           final malicious = (lastAnalysisStats['malicious'] ?? 0) as int;
@@ -264,24 +275,28 @@ class _UrlScannerTabState extends State<UrlScannerTab>
               }
             } else if (harmless > 0) {
               _resultStatus = 'safe';
-              _resultMessage = '✅ Good news! This website appears safe to visit according to our security scan.';
+              _resultMessage =
+                  '✅ Good news! This website appears safe to visit according to our security scan.';
             } else {
               _resultStatus = 'unknown';
-              _resultMessage = '❓ This is a new or unknown link. We have no security data for it yet. Be careful.';
+              _resultMessage =
+                  '❓ This is a new or unknown link. We have no security data for it yet. Be careful.';
             }
           });
           _animationController.forward(from: 0);
         } else {
           setState(() {
             _resultStatus = 'unknown';
-            _resultMessage = '❓ This is a new or unknown link. We have no security data for it yet. Be careful.';
+            _resultMessage =
+                '❓ This is a new or unknown link. We have no security data for it yet. Be careful.';
           });
           _animationController.forward(from: 0);
         }
       } else if (response.statusCode == 404) {
         setState(() {
           _resultStatus = 'unknown';
-          _resultMessage = '❓ This is a new or unknown link. We have no security data for it yet. Be careful.';
+          _resultMessage =
+              '❓ This is a new or unknown link. We have no security data for it yet. Be careful.';
         });
         _animationController.forward(from: 0);
       } else {
@@ -289,15 +304,15 @@ class _UrlScannerTabState extends State<UrlScannerTab>
       }
     } catch (e) {
       if (!mounted) return;
-      
+
       print('Error checking URL: $e');
-      
+
       setState(() {
         _resultStatus = 'unknown';
         _resultMessage = '⚠️ Unable to check this URL. Error: ${e.toString()}';
       });
       _animationController.forward(from: 0);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: ${e.toString()}'),
@@ -314,17 +329,17 @@ class _UrlScannerTabState extends State<UrlScannerTab>
   @override
   void initState() {
     super.initState();
-    
+
     // Load VirusTotal API key from .env
     final virusTotalKey = dotenv.env['VIRUSTOTAL_KEY'];
     if (virusTotalKey == null || virusTotalKey.isEmpty) {
       throw Exception(
         'VIRUSTOTAL_KEY not found in .env file!\n'
-        'Add VIRUSTOTAL_KEY=your_api_key to your .env file'
+        'Add VIRUSTOTAL_KEY=your_api_key to your .env file',
       );
     }
     _apiKey = virusTotalKey;
-    
+
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 600),
       vsync: this,
@@ -332,12 +347,13 @@ class _UrlScannerTabState extends State<UrlScannerTab>
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
     );
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
-    );
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
   }
 
   @override
@@ -360,22 +376,19 @@ class _UrlScannerTabState extends State<UrlScannerTab>
           const SizedBox(height: 8.0),
           Text(
             'Check if a URL is safe',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w500,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 12.0),
-          
+
           // Instructions Card
           Container(
             padding: const EdgeInsets.all(16.0),
             decoration: BoxDecoration(
               color: Colors.blue.shade50,
               borderRadius: BorderRadius.circular(12.0),
-              border: Border.all(
-                color: Colors.blue.shade200,
-                width: 1.5,
-              ),
+              border: Border.all(color: Colors.blue.shade200, width: 1.5),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -470,7 +483,9 @@ class _UrlScannerTabState extends State<UrlScannerTab>
                                   width: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
                                   ),
                                 ),
                                 SizedBox(width: 12),
@@ -511,15 +526,15 @@ class _UrlScannerTabState extends State<UrlScannerTab>
                     color: _resultStatus == 'danger'
                         ? Colors.red.withOpacity(0.1)
                         : _resultStatus == 'safe'
-                            ? Colors.green.withOpacity(0.1)
-                            : Colors.orange.withOpacity(0.1),
+                        ? Colors.green.withOpacity(0.1)
+                        : Colors.orange.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: _resultStatus == 'danger'
                           ? Colors.red
                           : _resultStatus == 'safe'
-                              ? Colors.green
-                              : Colors.orange,
+                          ? Colors.green
+                          : Colors.orange,
                       width: 2,
                     ),
                   ),
@@ -529,13 +544,13 @@ class _UrlScannerTabState extends State<UrlScannerTab>
                         _resultStatus == 'danger'
                             ? Icons.dangerous
                             : _resultStatus == 'safe'
-                                ? Icons.check_circle
-                                : Icons.help,
+                            ? Icons.check_circle
+                            : Icons.help,
                         color: _resultStatus == 'danger'
                             ? Colors.red
                             : _resultStatus == 'safe'
-                                ? Colors.green
-                                : Colors.orange,
+                            ? Colors.green
+                            : Colors.orange,
                         size: 64,
                       ),
                       const SizedBox(height: 16),
@@ -543,16 +558,16 @@ class _UrlScannerTabState extends State<UrlScannerTab>
                         _resultStatus == 'danger'
                             ? 'DANGEROUS!'
                             : _resultStatus == 'safe'
-                                ? 'SAFE'
-                                : 'UNKNOWN',
+                            ? 'SAFE'
+                            : 'UNKNOWN',
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                           color: _resultStatus == 'danger'
                               ? Colors.red
                               : _resultStatus == 'safe'
-                                  ? Colors.green
-                                  : Colors.orange,
+                              ? Colors.green
+                              : Colors.orange,
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -561,7 +576,9 @@ class _UrlScannerTabState extends State<UrlScannerTab>
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 16,
-                          color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                          color: isDark
+                              ? Colors.grey.shade300
+                              : Colors.grey.shade700,
                         ),
                       ),
                       if (_scanStats != null) ...[
@@ -582,15 +599,32 @@ class _UrlScannerTabState extends State<UrlScannerTab>
                                 ),
                               ),
                               const SizedBox(height: 12),
-                              _buildStatRow('Malicious', _scanStats!['malicious'] ?? 0, Colors.red),
-                              _buildStatRow('Suspicious', _scanStats!['suspicious'] ?? 0, Colors.orange),
-                              _buildStatRow('Harmless', _scanStats!['harmless'] ?? 0, Colors.green),
-                              _buildStatRow('Undetected', _scanStats!['undetected'] ?? 0, Colors.grey),
+                              _buildStatRow(
+                                'Malicious',
+                                _scanStats!['malicious'] ?? 0,
+                                Colors.red,
+                              ),
+                              _buildStatRow(
+                                'Suspicious',
+                                _scanStats!['suspicious'] ?? 0,
+                                Colors.orange,
+                              ),
+                              _buildStatRow(
+                                'Harmless',
+                                _scanStats!['harmless'] ?? 0,
+                                Colors.green,
+                              ),
+                              _buildStatRow(
+                                'Undetected',
+                                _scanStats!['undetected'] ?? 0,
+                                Colors.grey,
+                              ),
                             ],
                           ),
                         ),
                       ],
-                      if (_threatDetails != null && _threatDetails!.isNotEmpty) ...[
+                      if (_threatDetails != null &&
+                          _threatDetails!.isNotEmpty) ...[
                         const SizedBox(height: 16),
                         Container(
                           padding: const EdgeInsets.all(16),
@@ -604,7 +638,11 @@ class _UrlScannerTabState extends State<UrlScannerTab>
                             children: [
                               Row(
                                 children: [
-                                  Icon(Icons.warning, color: Colors.red, size: 20),
+                                  Icon(
+                                    Icons.warning,
+                                    color: Colors.red,
+                                    size: 20,
+                                  ),
                                   const SizedBox(width: 8),
                                   Text(
                                     'Threat Details',
@@ -621,9 +659,14 @@ class _UrlScannerTabState extends State<UrlScannerTab>
                                 return Padding(
                                   padding: const EdgeInsets.only(bottom: 8),
                                   child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Icon(Icons.shield, color: Colors.red, size: 16),
+                                      Icon(
+                                        Icons.shield,
+                                        color: Colors.red,
+                                        size: 16,
+                                      ),
                                       const SizedBox(width: 8),
                                       Expanded(
                                         child: Text(
@@ -670,10 +713,7 @@ class _UrlScannerTabState extends State<UrlScannerTab>
               Container(
                 width: 12,
                 height: 12,
-                decoration: BoxDecoration(
-                  color: color,
-                  shape: BoxShape.circle,
-                ),
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
               ),
               const SizedBox(width: 8),
               Text(label),
@@ -681,10 +721,7 @@ class _UrlScannerTabState extends State<UrlScannerTab>
           ),
           Text(
             count.toString(),
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
+            style: TextStyle(fontWeight: FontWeight.bold, color: color),
           ),
         ],
       ),
@@ -709,9 +746,46 @@ class _SmishDetectorTabState extends State<SmishDetectorTab>
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
   final AiService _aiService = AiService();
+  final ImagePicker _imagePicker = ImagePicker();
+  File? _selectedImage;
 
   @override
   bool get wantKeepAlive => true;
+
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1920,
+        maxHeight: 1080,
+      );
+      if (image != null) {
+        setState(() {
+          _selectedImage = File(image.path);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8),
+                Text('Image selected! Click Analyze to scan.'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error picking image: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   Future<void> _analyzeMessage() async {
     if (_messageController.text.trim().isEmpty) {
@@ -738,9 +812,9 @@ class _SmishDetectorTabState extends State<SmishDetectorTab>
       _animationController.forward(from: 0);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error analyzing message: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error analyzing message: $e')));
     } finally {
       if (mounted) {
         setState(() => _isAnalyzing = false);
@@ -758,12 +832,13 @@ class _SmishDetectorTabState extends State<SmishDetectorTab>
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
     );
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
-    );
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
   }
 
   @override
@@ -796,8 +871,8 @@ class _SmishDetectorTabState extends State<SmishDetectorTab>
                 child: Text(
                   'AI-Powered SMS Analyzer',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ],
@@ -806,8 +881,8 @@ class _SmishDetectorTabState extends State<SmishDetectorTab>
           Text(
             'Paste a suspicious SMS message below to detect phishing attempts',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                ),
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+            ),
           ),
           const SizedBox(height: 12.0),
 
@@ -817,10 +892,7 @@ class _SmishDetectorTabState extends State<SmishDetectorTab>
             decoration: BoxDecoration(
               color: Colors.purple.shade50,
               borderRadius: BorderRadius.circular(12.0),
-              border: Border.all(
-                color: Colors.purple.shade200,
-                width: 1.5,
-              ),
+              border: Border.all(color: Colors.purple.shade200, width: 1.5),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -870,12 +942,57 @@ class _SmishDetectorTabState extends State<SmishDetectorTab>
               padding: const EdgeInsets.all(20.0),
               child: Column(
                 children: [
+                  if (_selectedImage != null) ...[
+                    Container(
+                      width: double.infinity,
+                      height: 200,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.primary,
+                          width: 2,
+                        ),
+                      ),
+                      child: Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.file(
+                              _selectedImage!,
+                              width: double.infinity,
+                              height: 200,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: IconButton(
+                              icon: const Icon(
+                                Icons.close,
+                                color: Colors.white,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _selectedImage = null;
+                                });
+                              },
+                              style: IconButton.styleFrom(
+                                backgroundColor: Colors.red,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   TextField(
                     controller: _messageController,
                     maxLines: 6,
                     decoration: InputDecoration(
                       hintText:
-                          'Paste your SMS message here...\n\nExample: "URGENT! Your bank account has been suspended. Click here to verify: bit.ly/xyz123"',
+                          'Paste your SMS message here or upload a screenshot...\n\nExample: "URGENT! Your bank account has been suspended. Click here to verify: bit.ly/xyz123"',
                       filled: true,
                       fillColor: isDark
                           ? Colors.grey.shade800.withOpacity(0.5)
@@ -893,6 +1010,27 @@ class _SmishDetectorTabState extends State<SmishDetectorTab>
                       ),
                       contentPadding: const EdgeInsets.all(16.0),
                     ),
+                  ),
+                  const SizedBox(height: 16.0),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _pickImage,
+                          icon: const Icon(Icons.upload_file),
+                          label: const Text('Upload Image'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            side: BorderSide(
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16.0),
                   SizedBox(
@@ -917,7 +1055,9 @@ class _SmishDetectorTabState extends State<SmishDetectorTab>
                                   width: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
                                   ),
                                 ),
                                 SizedBox(width: 12),
@@ -979,19 +1119,26 @@ class _SmishDetectorTabState extends State<SmishDetectorTab>
                               Container(
                                 padding: const EdgeInsets.all(16.0),
                                 decoration: BoxDecoration(
-                                  color: _result!.isScam ? Colors.red : Colors.green,
+                                  color: _result!.isScam
+                                      ? Colors.red
+                                      : Colors.green,
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: (_result!.isScam ? Colors.red : Colors.green)
-                                          .withOpacity(0.4),
+                                      color:
+                                          (_result!.isScam
+                                                  ? Colors.red
+                                                  : Colors.green)
+                                              .withOpacity(0.4),
                                       blurRadius: 12,
                                       spreadRadius: 2,
                                     ),
                                   ],
                                 ),
                                 child: Icon(
-                                  _result!.isScam ? Icons.warning : Icons.check_circle,
+                                  _result!.isScam
+                                      ? Icons.warning
+                                      : Icons.check_circle,
                                   color: Colors.white,
                                   size: 32,
                                 ),
@@ -1002,8 +1149,13 @@ class _SmishDetectorTabState extends State<SmishDetectorTab>
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      _result!.isScam ? '🚨 Likely a SCAM!' : '✅ Looks Safe',
-                                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                      _result!.isScam
+                                          ? '🚨 Likely a SCAM!'
+                                          : '✅ Looks Safe',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleLarge
+                                          ?.copyWith(
                                             color: _result!.isScam
                                                 ? Colors.red.shade900
                                                 : Colors.green.shade900,
@@ -1012,10 +1164,16 @@ class _SmishDetectorTabState extends State<SmishDetectorTab>
                                     ),
                                     const SizedBox(height: 4),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
                                       decoration: BoxDecoration(
-                                        color: (_result!.isScam ? Colors.red : Colors.green)
-                                            .withOpacity(0.2),
+                                        color:
+                                            (_result!.isScam
+                                                    ? Colors.red
+                                                    : Colors.green)
+                                                .withOpacity(0.2),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Text(
@@ -1041,8 +1199,9 @@ class _SmishDetectorTabState extends State<SmishDetectorTab>
                           Container(
                             padding: const EdgeInsets.all(16.0),
                             decoration: BoxDecoration(
-                              color:
-                                  isDark ? Colors.grey.shade800.withOpacity(0.5) : Colors.white,
+                              color: isDark
+                                  ? Colors.grey.shade800.withOpacity(0.5)
+                                  : Colors.white,
                               borderRadius: BorderRadius.circular(12.0),
                             ),
                             child: Column(
@@ -1053,12 +1212,17 @@ class _SmishDetectorTabState extends State<SmishDetectorTab>
                                     Icon(
                                       Icons.fact_check,
                                       size: 20,
-                                      color: Theme.of(context).colorScheme.primary,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
                                       'Analysis:',
-                                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleSmall
+                                          ?.copyWith(
                                             fontWeight: FontWeight.bold,
                                           ),
                                     ),
@@ -1079,8 +1243,9 @@ class _SmishDetectorTabState extends State<SmishDetectorTab>
                             Container(
                               padding: const EdgeInsets.all(16.0),
                               decoration: BoxDecoration(
-                                color:
-                                    isDark ? Colors.grey.shade800.withOpacity(0.5) : Colors.white,
+                                color: isDark
+                                    ? Colors.grey.shade800.withOpacity(0.5)
+                                    : Colors.white,
                                 borderRadius: BorderRadius.circular(12.0),
                                 border: Border.all(
                                   color: _result!.isScam
@@ -1103,8 +1268,13 @@ class _SmishDetectorTabState extends State<SmishDetectorTab>
                                       ),
                                       const SizedBox(width: 8),
                                       Text(
-                                        _result!.isScam ? 'Red Flags Detected:' : 'Trust Indicators:',
-                                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                        _result!.isScam
+                                            ? 'Red Flags Detected:'
+                                            : 'Trust Indicators:',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleSmall
+                                            ?.copyWith(
                                               fontWeight: FontWeight.bold,
                                               color: _result!.isScam
                                                   ? Colors.red.shade900
@@ -1116,20 +1286,29 @@ class _SmishDetectorTabState extends State<SmishDetectorTab>
                                   const SizedBox(height: 12),
                                   ..._result!.redFlags.map((flag) {
                                     return Padding(
-                                      padding: const EdgeInsets.only(bottom: 8.0),
+                                      padding: const EdgeInsets.only(
+                                        bottom: 8.0,
+                                      ),
                                       child: Row(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Icon(
-                                            _result!.isScam ? Icons.close : Icons.check,
+                                            _result!.isScam
+                                                ? Icons.close
+                                                : Icons.check,
                                             size: 16,
-                                            color: _result!.isScam ? Colors.red : Colors.green,
+                                            color: _result!.isScam
+                                                ? Colors.red
+                                                : Colors.green,
                                           ),
                                           const SizedBox(width: 8),
                                           Expanded(
                                             child: Text(
                                               flag,
-                                              style: Theme.of(context).textTheme.bodySmall,
+                                              style: Theme.of(
+                                                context,
+                                              ).textTheme.bodySmall,
                                             ),
                                           ),
                                         ],
@@ -1166,7 +1345,10 @@ class _SmishDetectorTabState extends State<SmishDetectorTab>
                                     const SizedBox(width: 8),
                                     Text(
                                       'Expert Commentary:',
-                                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleSmall
+                                          ?.copyWith(
                                             fontWeight: FontWeight.bold,
                                             color: Colors.purple.shade900,
                                           ),
@@ -1176,7 +1358,8 @@ class _SmishDetectorTabState extends State<SmishDetectorTab>
                                 const SizedBox(height: 8),
                                 Text(
                                   _result!.sarcasticAdvice,
-                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(
                                         fontStyle: FontStyle.italic,
                                         color: Colors.purple.shade900,
                                       ),

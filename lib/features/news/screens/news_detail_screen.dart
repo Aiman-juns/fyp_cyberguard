@@ -1,12 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/news_provider.dart';
 
 class NewsDetailScreen extends ConsumerWidget {
   final String newsId;
 
   const NewsDetailScreen({Key? key, required this.newsId}) : super(key: key);
+
+  Color _getCategoryColor(String category) {
+    switch (category) {
+      case 'Scam':
+        return Colors.red;
+      case 'Ransomware':
+        return Colors.orange;
+      case 'Data Breach':
+        return Colors.purple;
+      case 'Cyber Attack':
+        return Colors.deepOrange;
+      default:
+        return Colors.blue;
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -55,28 +71,44 @@ class NewsDetailScreen extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      news.createdAt.toString().split('.')[0],
-                      style: Theme.of(
-                        context,
-                      ).textTheme.labelSmall?.copyWith(color: Colors.grey),
+                    Expanded(
+                      child: Text(
+                        'Published ${news.publishedAt.toString().split('.')[0]} • ${news.source}',
+                        style: Theme.of(
+                          context,
+                        ).textTheme.labelSmall?.copyWith(color: Colors.grey),
+                      ),
                     ),
                     TextButton.icon(
                       icon: const Icon(Icons.open_in_new),
                       label: const Text('Source'),
-                      onPressed: () {
-                        // In Phase 3+, we can add URL launching
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Opening source URL - Coming Soon'),
-                          ),
-                        );
+                      onPressed: () async {
+                        final uri = Uri.parse(news.url);
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                        }
                       },
                     ),
                   ],
                 ),
+                const SizedBox(height: 8.0),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _getCategoryColor(news.category).withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    news.category,
+                    style: TextStyle(
+                      color: _getCategoryColor(news.category),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 16.0),
-                Text(news.body, style: Theme.of(context).textTheme.bodyMedium),
+                Text(news.summary, style: Theme.of(context).textTheme.bodyMedium),
               ],
             ),
           );

@@ -87,10 +87,13 @@ dependencies:
   # Local Storage
   shared_preferences: ^2.2.2
 
+  # Time formatting
+  timeago: ^3.6.0
+
   # Device Security
   device_info_plus: ^10.1.0
   local_auth: ^2.1.8
-  flutter_jailbreak_detection: ^1.10.0
+  safe_device: ^1.1.8
   percent_indicator: ^4.2.3
 
 dev_dependencies:
