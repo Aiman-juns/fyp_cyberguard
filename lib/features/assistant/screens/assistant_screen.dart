@@ -46,6 +46,7 @@ class _AssistantScreenState extends State<AssistantScreen>
       ),
       child: Column(
         children: [
+          const SizedBox(height: 16),
           // Header
           Container(
             padding: const EdgeInsets.all(20.0),
@@ -369,18 +370,89 @@ class _UrlScannerTabState extends State<UrlScannerTab>
     super.build(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 8.0),
-          Text(
-            'Check if a URL is safe',
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w500),
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFFFAFAFA),
+            const Color(0xFFFFFFFF),
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 8.0),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Check if a URL is safe',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w500),
+                ),
+                PopupMenuButton<String>(
+                  icon: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.science,
+                      size: 18,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                  tooltip: 'Test Data',
+                  onSelected: (String url) {
+                    _urlController.text = url;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Test URL loaded: ${url.length > 40 ? url.substring(0, 40) + '...' : url}'),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                    const PopupMenuItem<String>(
+                      child: Text('Safe URLs', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      enabled: false,
+                    ),
+                    const PopupMenuItem<String>(
+                      value: 'https://www.youtube.com/',
+                      child: Text('YouTube'),
+                    ),
+                    const PopupMenuItem<String>(
+                      value: 'https://myguru.upsi.edu.my/users/auth/login',
+                      child: Text('MyGuru UPSI'),
+                    ),
+                    const PopupMenuItem<String>(
+                      value: 'https://www.sara.gov.my/',
+                      child: Text('SARA Malaysia'),
+                    ),
+                    const PopupMenuDivider(),
+                    const PopupMenuItem<String>(
+                      child: Text('Unsafe URLs', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.red)),
+                      enabled: false,
+                    ),
+                    const PopupMenuItem<String>(
+                      value: 'https://ww4.site/bflix/',
+                      child: Text('Suspicious Streaming Site', style: TextStyle(color: Colors.red)),
+                    ),
+                    const PopupMenuItem<String>(
+                      value: 'https://pencurivids.blogspot.com/',
+                      child: Text('Suspicious Blog Site', style: TextStyle(color: Colors.red)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           const SizedBox(height: 12.0),
 
           // Instructions Card
@@ -430,38 +502,48 @@ class _UrlScannerTabState extends State<UrlScannerTab>
           const SizedBox(height: 16.0),
 
           // Input Card
-          Card(
-            elevation: 4,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16.0),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: const Color(0xFF3B82F6).withOpacity(0.2),
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF3B82F6).withOpacity(0.08),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                children: [
-                  TextField(
-                    controller: _urlController,
-                    decoration: InputDecoration(
-                      hintText: 'Enter URL (e.g., https://example.com)',
-                      filled: true,
-                      fillColor: isDark
-                          ? Colors.grey.shade800.withOpacity(0.5)
-                          : Colors.grey.shade50,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12.0),
-                        borderSide: BorderSide.none,
-                      ),
-                      prefixIcon: Icon(
-                        Icons.link,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16.0,
-                        vertical: 16.0,
-                      ),
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              children: [
+                TextField(
+                  controller: _urlController,
+                  decoration: InputDecoration(
+                    hintText: 'Enter URL (e.g., https://example.com)',
+                    filled: true,
+                    fillColor: isDark
+                        ? Colors.grey.shade800.withOpacity(0.5)
+                        : Colors.grey.shade50,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12.0),
+                      borderSide: BorderSide.none,
+                    ),
+                    prefixIcon: Icon(
+                      Icons.link,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16.0,
+                      vertical: 16.0,
                     ),
                   ),
-                  const SizedBox(height: 16.0),
+                ),
+                const SizedBox(height: 16.0),
                   SizedBox(
                     width: double.infinity,
                     height: 50,
@@ -509,21 +591,20 @@ class _UrlScannerTabState extends State<UrlScannerTab>
                             ),
                     ),
                   ),
-                ],
-              ),
+              ],
             ),
           ),
 
-          // Results section
-          if (_resultStatus != null) ...[
-            const SizedBox(height: 24),
-            FadeTransition(
-              opacity: _fadeAnimation,
-              child: SlideTransition(
-                position: _slideAnimation,
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
+            // Results section
+            if (_resultStatus != null) ...[
+                const SizedBox(height: 24),
+              FadeTransition(
+                opacity: _fadeAnimation,
+                child: SlideTransition(
+                  position: _slideAnimation,
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
                     color: _resultStatus == 'danger'
                         ? Colors.red.withOpacity(0.1)
                         : _resultStatus == 'safe'
@@ -539,23 +620,23 @@ class _UrlScannerTabState extends State<UrlScannerTab>
                       width: 2,
                     ),
                   ),
-                  child: Column(
-                    children: [
-                      Icon(
-                        _resultStatus == 'danger'
-                            ? Icons.dangerous
-                            : _resultStatus == 'safe'
-                            ? Icons.check_circle
-                            : Icons.help,
-                        color: _resultStatus == 'danger'
-                            ? Colors.red
-                            : _resultStatus == 'safe'
-                            ? Colors.green
-                            : Colors.orange,
-                        size: 64,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
+                    child: Column(
+                      children: [
+                        Icon(
+                          _resultStatus == 'danger'
+                              ? Icons.dangerous
+                              : _resultStatus == 'safe'
+                              ? Icons.check_circle
+                              : Icons.help,
+                          color: _resultStatus == 'danger'
+                              ? Colors.red
+                              : _resultStatus == 'safe'
+                              ? Colors.green
+                              : Colors.orange,
+                          size: 64,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
                         _resultStatus == 'danger'
                             ? 'DANGEROUS!'
                             : _resultStatus == 'safe'
@@ -691,14 +772,15 @@ class _UrlScannerTabState extends State<UrlScannerTab>
                             ],
                           ),
                         ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -867,27 +949,97 @@ class _SmishDetectorTabState extends State<SmishDetectorTab>
     super.build(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 8.0),
-          Row(
-            children: [
-              Icon(
-                Icons.psychology,
-                color: Theme.of(context).colorScheme.primary,
-                size: 24,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'AI-Powered SMS Analyzer',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFFFAFAFA),
+            const Color(0xFFFFFFFF),
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 8.0),
+            Row(
+              children: [
+                Icon(
+                  Icons.psychology,
+                  color: Theme.of(context).colorScheme.primary,
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'AI-Powered SMS Analyzer',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
+              PopupMenuButton<String>(
+                icon: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.science,
+                    size: 18,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                tooltip: 'Test Data',
+                onSelected: (String message) {
+                  _messageController.text = message;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Test message loaded'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+                itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                  const PopupMenuItem<String>(
+                    child: Text('Safe Messages', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.green)),
+                    enabled: false,
+                  ),
+                  const PopupMenuItem<String>(
+                    value: 'Hi! Just checking in to see how you\'re doing. Let me know when you\'re free to catch up!',
+                    child: Text('Casual Friend Message'),
+                  ),
+                  const PopupMenuItem<String>(
+                    value: 'Your appointment at the clinic has been confirmed for tomorrow at 3 PM. Please arrive 10 minutes early. Reply CONFIRM to acknowledge.',
+                    child: Text('Appointment Reminder'),
+                  ),
+                  const PopupMenuItem<String>(
+                    value: 'Dear customer, your order #12345 has been shipped and will arrive in 2-3 business days. Track your order at our official website.',
+                    child: Text('Delivery Notification'),
+                  ),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem<String>(
+                    child: Text('Scam Messages', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.red)),
+                    enabled: false,
+                  ),
+                  const PopupMenuItem<String>(
+                    value: 'URGENT! Your bank account has been suspended due to suspicious activity. Click this link immediately to verify your identity: bit.ly/verify123 or your account will be closed in 24 hours!',
+                    child: Text('Fake Bank Alert', style: TextStyle(color: Colors.red)),
+                  ),
+                  const PopupMenuItem<String>(
+                    value: 'CONGRATULATIONS! You\'ve won RM50,000 in our lucky draw! To claim your prize, send us your IC number, bank account details, and pay RM500 processing fee to this number.',
+                    child: Text('Prize Scam', style: TextStyle(color: Colors.red)),
+                  ),
+                  const PopupMenuItem<String>(
+                    value: 'Hi, this is LHDN. You have an outstanding tax payment of RM3,500. Pay now via this link or face legal action: shorturl.at/tax123. Reply with your details urgently!',
+                    child: Text('Tax Fraud', style: TextStyle(color: Colors.red)),
+                  ),
+                ],
               ),
             ],
           ),
@@ -947,19 +1099,29 @@ class _SmishDetectorTabState extends State<SmishDetectorTab>
           const SizedBox(height: 16.0),
 
           // Input Card
-          Card(
-            elevation: 4,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16.0),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: const Color(0xFF9333EA).withOpacity(0.2),
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF9333EA).withOpacity(0.08),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                children: [
-                  if (_selectedImage != null) ...[
-                    Container(
-                      width: double.infinity,
-                      height: 200,
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              children: [
+                if (_selectedImage != null) ...[
+                  Container(
+                    width: double.infinity,
+                    height: 200,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
@@ -1105,7 +1267,6 @@ class _SmishDetectorTabState extends State<SmishDetectorTab>
                 ],
               ),
             ),
-          ),
 
           // Results
           if (_result != null) ...[
@@ -1398,6 +1559,7 @@ class _SmishDetectorTabState extends State<SmishDetectorTab>
             ),
           ],
         ],
+      ),
       ),
     );
   }

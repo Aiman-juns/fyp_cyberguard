@@ -9,7 +9,7 @@ import '../../support/screens/emergency_support_screen.dart';
 import '../../resources/providers/resources_provider.dart';
 import '../../resources/providers/progress_provider.dart';
 import '../../training/providers/training_provider.dart';
-import '../../../shared/widgets/emergency_fab.dart';
+import '../../../shared/widgets/security_fab.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -737,7 +737,7 @@ class HomeScreen extends ConsumerWidget {
           error: (error, _) => Center(child: Text('Error: $error')),
         ),
       ),
-      floatingActionButton: const EmergencyFAB(),
+      floatingActionButton: const SecurityFAB(),
     );
   }
 

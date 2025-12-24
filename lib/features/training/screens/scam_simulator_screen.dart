@@ -19,6 +19,7 @@ class _ScamSimulatorScreenState extends State<ScamSimulatorScreen> {
   final List<ChatMessage> _messages = [];
   final TextEditingController _messageController = TextEditingController();
   bool _isLoading = false;
+  List<String> _quickReplies = [];
 
   @override
   void initState() {
@@ -44,7 +45,30 @@ class _ScamSimulatorScreenState extends State<ScamSimulatorScreen> {
         timestamp: DateTime.now(),
       ));
       _isLoading = false;
+      _updateQuickReplies();
     });
+  }
+
+  void _updateQuickReplies() {
+    final isDiscord = widget.scenario == 'discord';
+    setState(() {
+      _quickReplies = isDiscord
+          ? [
+              "✅ Okay, I'll verify my account",
+              "✅ Sure, what information do you need?",
+              "❌ This seems suspicious. I'll contact Discord support directly.",
+            ]
+          : [
+              "✅ I'll update my information right away",
+              "✅ Yes, please send me the verification link",
+              "❌ I'll call my bank's official number to verify this.",
+            ];
+    });
+  }
+
+  void _sendQuickReply(String text) {
+    _messageController.text = text.replaceFirst(RegExp(r'^[✅❌]\s*'), '');
+    _sendMessage();
   }
 
   Future<void> _sendMessage() async {
@@ -73,6 +97,7 @@ class _ScamSimulatorScreenState extends State<ScamSimulatorScreen> {
         timestamp: DateTime.now(),
       ));
       _isLoading = false;
+      _updateQuickReplies();
     });
   }
 
@@ -218,6 +243,71 @@ class _ScamSimulatorScreenState extends State<ScamSimulatorScreen> {
               ),
             ),
 
+          // Quick Reply Chips
+          if (_quickReplies.isNotEmpty && !_isLoading)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey.shade900 : Colors.grey.shade100,
+                border: Border(
+                  bottom: BorderSide(
+                    color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+                    width: 1,
+                  ),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.tips_and_updates,
+                        size: 14,
+                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Quick Replies:',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: _quickReplies.map((reply) {
+                      final isGoodChoice = reply.startsWith('❌');
+                      return ActionChip(
+                        avatar: Icon(
+                          isGoodChoice ? Icons.shield : Icons.warning_amber,
+                          size: 16,
+                          color: isGoodChoice ? Colors.green : Colors.orange.shade700,
+                        ),
+                        label: Text(
+                          reply,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        backgroundColor: isGoodChoice
+                            ? Colors.green.withOpacity(0.1)
+                            : Colors.orange.withOpacity(0.1),
+                        side: BorderSide(
+                          color: isGoodChoice ? Colors.green : Colors.orange.shade700,
+                          width: 1,
+                        ),
+                        onPressed: () => _sendQuickReply(reply),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+
           // Input field
           Container(
             padding: const EdgeInsets.all(12),
@@ -270,6 +360,81 @@ class _ScamSimulatorScreenState extends State<ScamSimulatorScreen> {
     );
   }
 
+  Widget _buildMessageText(String text, bool isUser, bool isDark) {
+    if (isUser) {
+      return Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 14,
+        ),
+      );
+    }
+
+    // Find action phrases to bold (click, verify, send, provide, etc.)
+    final actionPatterns = [
+      RegExp(r'(click\s+(?:here|this\s+link|the\s+link|on\s+this)[^.!?]*)',
+          caseSensitive: false),
+      RegExp(r'(verify\s+(?:your|the|this)[^.!?]*)', caseSensitive: false),
+      RegExp(r'(send\s+(?:me|us|your)[^.!?]*)', caseSensitive: false),
+      RegExp(r'(provide\s+(?:your|the)[^.!?]*)', caseSensitive: false),
+      RegExp(r'(enter\s+(?:your|the)[^.!?]*)', caseSensitive: false),
+      RegExp(r'(update\s+(?:your|the)[^.!?]*)', caseSensitive: false),
+      RegExp(r'(confirm\s+(?:your|the)[^.!?]*)', caseSensitive: false),
+    ];
+
+    List<TextSpan> spans = [];
+    int lastIndex = 0;
+    List<Map<String, dynamic>> matches = [];
+
+    // Find all matches
+    for (var pattern in actionPatterns) {
+      for (var match in pattern.allMatches(text)) {
+        matches.add({
+          'start': match.start,
+          'end': match.end,
+          'text': match.group(0)!,
+        });
+      }
+    }
+
+    // Sort matches by start position
+    matches.sort((a, b) => a['start'].compareTo(b['start']));
+
+    // Build text spans
+    for (var match in matches) {
+      if (match['start'] > lastIndex) {
+        spans.add(TextSpan(
+          text: text.substring(lastIndex, match['start']),
+        ));
+      }
+      spans.add(TextSpan(
+        text: match['text'],
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          backgroundColor: Colors.yellow.withOpacity(0.3),
+        ),
+      ));
+      lastIndex = match['end'];
+    }
+
+    if (lastIndex < text.length) {
+      spans.add(TextSpan(
+        text: text.substring(lastIndex),
+      ));
+    }
+
+    return RichText(
+      text: TextSpan(
+        style: TextStyle(
+          color: isDark ? Colors.white : Colors.black87,
+          fontSize: 14,
+        ),
+        children: spans.isEmpty ? [TextSpan(text: text)] : spans,
+      ),
+    );
+  }
+
   Widget _buildMessageBubble(
     ChatMessage message,
     Color primaryColor,
@@ -316,14 +481,10 @@ class _ScamSimulatorScreenState extends State<ScamSimulatorScreen> {
                         color: primaryColor,
                       ),
                     ),
-                  Text(
+                  _buildMessageText(
                     message.text,
-                    style: TextStyle(
-                      color: message.isUser
-                          ? Colors.white
-                          : (isDark ? Colors.white : Colors.black87),
-                      fontSize: 14,
-                    ),
+                    message.isUser,
+                    isDark,
                   ),
                 ],
               ),

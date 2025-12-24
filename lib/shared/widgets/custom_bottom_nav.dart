@@ -18,7 +18,7 @@ class _CustomBottomNavState extends State<CustomBottomNav> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 64,
+      height: 72,
       decoration: BoxDecoration(
         color: Theme.of(context).brightness == Brightness.dark
             ? Colors.grey.shade900

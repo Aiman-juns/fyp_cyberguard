@@ -16,6 +16,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _passwordFocusNode = FocusNode();
   bool _obscurePassword = true;
   bool _isLoading = false;
 
@@ -23,6 +24,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _passwordFocusNode.dispose();
     super.dispose();
   }
 
@@ -203,6 +205,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             TextFormField(
                               controller: _emailController,
                               keyboardType: TextInputType.emailAddress,
+                              textInputAction: TextInputAction.next,
+                              onFieldSubmitted: (_) {
+                                FocusScope.of(context).requestFocus(_passwordFocusNode);
+                              },
                               decoration: InputDecoration(
                                 hintText: 'Email',
                                 hintStyle: TextStyle(color: Colors.grey.shade400),
@@ -237,6 +243,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             TextFormField(
                               controller: _passwordController,
                               obscureText: _obscurePassword,
+                              focusNode: _passwordFocusNode,
+                              textInputAction: TextInputAction.done,
+                              onFieldSubmitted: (_) => _handleLogin(ref),
                               decoration: InputDecoration(
                                 hintText: 'Password',
                                 hintStyle: TextStyle(color: Colors.grey.shade400),
