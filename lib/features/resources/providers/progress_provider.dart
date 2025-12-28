@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -38,19 +39,34 @@ class ResourceProgress {
 }
 
 class ProgressNotifier extends StateNotifier<Map<String, ResourceProgress>> {
+  bool _isLoaded = false;
+
   ProgressNotifier() : super({}) {
     _loadProgress();
   }
 
+  bool get isLoaded => _isLoaded;
+
   Future<void> _loadProgress() async {
+    debugPrint(
+      '🔄 PROGRESS LOAD: Starting to load progress from SharedPreferences...',
+    );
     try {
       final prefs = await SharedPreferences.getInstance();
-      final keys = prefs.getKeys().where(
-        (key) => key.startsWith('resource_') && key.endsWith('_completed'),
-      );
+
+      // Load from both old format (resource_) and new format (video_progress_)
+      final allKeys = prefs.getKeys();
+      debugPrint('🔄 PROGRESS LOAD: Found ${allKeys.length} total keys');
+      debugPrint('🔄 PROGRESS LOAD: Keys = $allKeys');
+
       final Map<String, ResourceProgress> loaded = {};
 
-      for (final key in keys) {
+      // Load old format: resource_{id}_completed
+      final oldFormatKeys = allKeys.where(
+        (key) => key.startsWith('resource_') && key.endsWith('_completed'),
+      );
+
+      for (final key in oldFormatKeys) {
         final resourceId = key
             .replaceFirst('resource_', '')
             .replaceFirst('_completed', '');
@@ -66,13 +82,51 @@ class ProgressNotifier extends StateNotifier<Map<String, ResourceProgress>> {
           completedLessons: completedLessons,
           minutesWatched: minutesWatched,
         );
+        debugPrint(
+          '📦 Loaded resource progress: $resourceId, completed=$isCompleted',
+        );
       }
 
-      // Always update state, even if empty
+      // Also load new format: video_progress_{id}_completed
+      final newFormatKeys = allKeys.where(
+        (key) =>
+            key.startsWith('video_progress_') && key.endsWith('_completed'),
+      );
+
+      for (final key in newFormatKeys) {
+        final resourceId = key
+            .replaceFirst('video_progress_', '')
+            .replaceFirst('_completed', '');
+
+        // Only add if not already loaded from old format
+        if (!loaded.containsKey(resourceId)) {
+          final isCompleted = prefs.getBool(key) ?? false;
+          final percentage =
+              prefs.getDouble('video_progress_${resourceId}_percentage') ?? 0.0;
+
+          if (isCompleted || percentage > 0) {
+            loaded[resourceId] = ResourceProgress(
+              resourceId: resourceId,
+              isCompleted: isCompleted,
+              completedLessons: isCompleted ? 245 : (percentage * 2.45).round(),
+              minutesWatched:
+                  prefs.getInt('video_progress_${resourceId}_duration') ?? 0,
+            );
+            debugPrint(
+              '📦 Loaded video progress: $resourceId, completed=$isCompleted, percentage=$percentage',
+            );
+          }
+        }
+      }
+
+      debugPrint(
+        '✅ PROGRESS LOAD: Loaded ${loaded.length} resources: ${loaded.keys.toList()}',
+      );
       state = loaded;
+      _isLoaded = true;
     } catch (e) {
-      // Log error but don't crash
-      print('Error loading progress: $e');
+      debugPrint('❌ Error loading progress: $e');
+      _isLoaded = true; // Mark as loaded even on error
     }
   }
 
@@ -94,15 +148,27 @@ class ProgressNotifier extends StateNotifier<Map<String, ResourceProgress>> {
         'resource_${resourceId}_minutes',
         progress.minutesWatched,
       );
-      
-      // Verify save by logging
-      print('Saved progress for $resourceId: completed=${progress.isCompleted}, lessons=${progress.completedLessons}, minutes=${progress.minutesWatched}');
+
+      // Also save in video_progress format for cross-compatibility
+      await prefs.setDouble(
+        'video_progress_${resourceId}_percentage',
+        progress.isCompleted ? 100.0 : progress.progressPercentage,
+      );
+      await prefs.setBool(
+        'video_progress_${resourceId}_completed',
+        progress.isCompleted,
+      );
+
+      debugPrint(
+        '💾 Saved progress for $resourceId: completed=${progress.isCompleted}, lessons=${progress.completedLessons}',
+      );
     } catch (e) {
-      print('Error saving progress: $e');
+      debugPrint('❌ Error saving progress: $e');
     }
   }
 
   void markAsComplete(String resourceId) {
+    debugPrint('✅ MARKING COMPLETE: $resourceId');
     final current =
         state[resourceId] ?? ResourceProgress(resourceId: resourceId);
     final updated = current.copyWith(

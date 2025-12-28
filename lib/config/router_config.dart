@@ -6,6 +6,8 @@ import '../auth/screens/register_screen.dart';
 import '../features/home/screens/home_screen.dart';
 import '../features/training/screens/training_hub_screen.dart';
 import '../features/training/screens/device_shield_screen.dart';
+import '../features/training/screens/infection_simulator_screen.dart';
+import '../features/tools/screens/breach_checker_screen.dart';
 import '../features/resources/screens/resources_screen.dart';
 import '../features/resources/screens/resource_detail_screen.dart';
 import '../features/news/screens/news_screen.dart';
@@ -130,6 +132,14 @@ class RouterConfig {
       GoRoute(
         path: '/device-shield',
         builder: (context, state) => const DeviceShieldScreen(),
+      ),
+      GoRoute(
+        path: '/infection-simulator',
+        builder: (context, state) => const InfectionSimulatorScreen(),
+      ),
+      GoRoute(
+        path: '/breach-checker',
+        builder: (context, state) => const BreachCheckerScreen(),
       ),
       GoRoute(
         path: '/resources',

@@ -8,6 +8,7 @@ import 'phishing_screen.dart';
 import 'password_dojo_screen.dart';
 import 'cyber_attack_screen.dart';
 import 'scam_simulator_screen.dart';
+import 'infection_simulator_screen.dart';
 import '../../support/screens/emergency_support_screen.dart';
 
 class TrainingHubScreen extends ConsumerWidget {
@@ -35,7 +36,7 @@ class TrainingHubScreen extends ConsumerWidget {
 
   int _calculateCompleted(WidgetRef ref, String userId) {
     int completed = 0;
-    
+
     final phishingAsync = ref.watch(
       moduleProgressProvider((userId: userId, moduleType: 'phishing')),
     );
@@ -61,7 +62,7 @@ class TrainingHubScreen extends ConsumerWidget {
 
   int _calculateInProgress(WidgetRef ref, String userId) {
     int inProgress = 0;
-    
+
     final phishingAsync = ref.watch(
       moduleProgressProvider((userId: userId, moduleType: 'phishing')),
     );
@@ -189,7 +190,9 @@ class TrainingHubScreen extends ConsumerWidget {
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              userId != null ? '${_calculateCompleted(ref, userId)}' : '0',
+                              userId != null
+                                  ? '${_calculateCompleted(ref, userId)}'
+                                  : '0',
                               style: const TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
@@ -234,7 +237,9 @@ class TrainingHubScreen extends ConsumerWidget {
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              userId != null ? '${_calculateInProgress(ref, userId)}' : '0',
+                              userId != null
+                                  ? '${_calculateInProgress(ref, userId)}'
+                                  : '0',
                               style: const TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
@@ -303,6 +308,13 @@ class TrainingHubScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 28.0),
+
+          // Featured: Infection Simulator
+          _FeaturedSimulatorCard(
+            onTap: () => context.push('/infection-simulator'),
+          ),
+          const SizedBox(height: 28.0),
+
           // Training Modules Section Header
           Row(
             children: [
@@ -406,6 +418,13 @@ class TrainingHubScreen extends ConsumerWidget {
             icon: Icons.security_update_good,
             onTap: () => context.push('/device-shield'),
           ),
+          const SizedBox(height: 12.0),
+          _ToolCard(
+            title: 'Data Breach Checker',
+            description: 'Check if your email has been compromised',
+            icon: Icons.security,
+            onTap: () => context.push('/breach-checker'),
+          ),
           const SizedBox(height: 28.0),
 
           // Simulation Games Section
@@ -483,6 +502,50 @@ class TrainingHubScreen extends ConsumerWidget {
                       builder: (context) =>
                           ScamSimulatorScreen(scenario: 'bank'),
                     ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12.0),
+          Row(
+            children: [
+              Expanded(
+                child: _AISimulationCard(
+                  title: 'Malware Attack',
+                  description: 'Experience infection',
+                  icon: Icons.bug_report,
+                  gradientColors: const [Color(0xFFEF4444), Color(0xFFDC2626)],
+                  badge: 'IMMERSIVE',
+                  onTap: () => context.push('/infection-simulator'),
+                ),
+              ),
+              const SizedBox(width: 12.0),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey.shade300, width: 2),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.add_circle_outline,
+                        color: Colors.grey.shade400,
+                        size: 32,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'More Coming',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -583,7 +646,10 @@ class _ModuleCard extends ConsumerWidget {
         moduleProgressProvider((userId: userId!, moduleType: moduleType)),
       );
       progressAsync.whenData((progressMap) {
-        completedLevels = progressMap.values.where((p) => p == 1.0).length.toDouble();
+        completedLevels = progressMap.values
+            .where((p) => p == 1.0)
+            .length
+            .toDouble();
         progress = progressMap.values.fold(0.0, (sum, p) => sum + p) / 3.0;
       });
     }
@@ -595,10 +661,7 @@ class _ModuleCard extends ConsumerWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: moduleColor,
-            width: 2,
-          ),
+          border: Border.all(color: moduleColor, width: 2),
           boxShadow: [
             BoxShadow(
               color: moduleColor.withOpacity(0.1),
@@ -619,10 +682,7 @@ class _ModuleCard extends ConsumerWidget {
                     height: 56,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [
-                          moduleColor,
-                          moduleColor.withOpacity(0.7),
-                        ],
+                        colors: [moduleColor, moduleColor.withOpacity(0.7)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -694,11 +754,7 @@ class _ModuleCard extends ConsumerWidget {
             if (progress > 0 && progress < 1.0)
               Container(
                 height: 8,
-                margin: const EdgeInsets.only(
-                  left: 18,
-                  right: 18,
-                  bottom: 14,
-                ),
+                margin: const EdgeInsets.only(left: 18, right: 18, bottom: 14),
                 decoration: BoxDecoration(
                   color: Colors.grey.shade200,
                   borderRadius: BorderRadius.circular(4),
@@ -763,11 +819,7 @@ class _ToolCard extends StatelessWidget {
                 color: const Color(0xFF10B981).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                icon,
-                color: const Color(0xFF10B981),
-                size: 28,
-              ),
+              child: Icon(icon, color: const Color(0xFF10B981), size: 28),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -812,6 +864,7 @@ class _AISimulationCard extends StatelessWidget {
   final IconData icon;
   final List<Color> gradientColors;
   final VoidCallback onTap;
+  final String? badge;
 
   const _AISimulationCard({
     required this.title,
@@ -819,6 +872,7 @@ class _AISimulationCard extends StatelessWidget {
     required this.icon,
     required this.gradientColors,
     required this.onTap,
+    this.badge,
   });
 
   @override
@@ -852,11 +906,7 @@ class _AISimulationCard extends StatelessWidget {
                 color: Colors.white.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: Icon(
-                icon,
-                color: Colors.white,
-                size: 36,
-              ),
+              child: Icon(icon, color: Colors.white, size: 36),
             ),
             const SizedBox(height: 14),
             Text(
@@ -887,14 +937,14 @@ class _AISimulationCard extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
-                    Icons.psychology,
+                  Icon(
+                    badge != null ? Icons.stars : Icons.psychology,
                     color: Colors.white,
                     size: 14,
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    'AI Powered',
+                    badge ?? 'AI Powered',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
@@ -1427,5 +1477,189 @@ class _RecentActivityWidget extends ConsumerWidget {
     } else {
       return '${date.month}/${date.day}/${date.year}';
     }
+  }
+}
+
+/// Featured Infection Simulator Card - Prominent showcase card
+class _FeaturedSimulatorCard extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _FeaturedSimulatorCard({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [
+              Color(0xFFDC2626), // Red-600
+              Color(0xFFEF4444), // Red-500
+              Color(0xFFF97316), // Orange-500
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFEF4444).withOpacity(0.4),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.25),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.auto_awesome,
+                        color: Colors.white,
+                        size: 14,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'NEW EXPERIENCE',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white.withOpacity(0.95),
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.arrow_forward,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.bug_report, color: Colors.white, size: 28),
+                          SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              'Malware Infection Simulator',
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                height: 1.2,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Experience what happens when you click malicious links. Feel the panic. Learn the lesson.',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.white.withOpacity(0.95),
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _FeatureBadge(
+                            icon: Icons.screen_rotation,
+                            label: 'Immersive',
+                          ),
+                          _FeatureBadge(icon: Icons.vibration, label: 'Haptic'),
+                          _FeatureBadge(
+                            icon: Icons.psychology_outlined,
+                            label: 'Educational',
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FeatureBadge extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _FeatureBadge({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 14),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.white.withOpacity(0.95),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

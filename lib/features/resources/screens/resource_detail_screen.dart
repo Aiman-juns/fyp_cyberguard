@@ -7,8 +7,10 @@ import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'dart:io';
 import '../providers/resources_provider.dart';
 import '../providers/notes_provider.dart';
+import '../providers/video_progress_provider.dart';
 import '../providers/progress_provider.dart';
 import '../models/note_model.dart';
+import '../models/video_progress_model.dart';
 
 class ResourceDetailScreen extends ConsumerStatefulWidget {
   final String resourceId;
@@ -101,11 +103,31 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
       _videoController = VideoPlayerController.asset(assetPath)
         ..addListener(_onVideoPositionChanged)
         ..initialize()
-            .then((_) {
+            .then((_) async {
               if (mounted) {
                 setState(() {
                   _isVideoInitialized = true;
                 });
+
+                // Restore saved progress after initialization
+                try {
+                  final progressId = widget.attackTypeId != null
+                      ? '${widget.resourceId}_${widget.attackTypeId}'
+                      : widget.resourceId;
+                  final progressAsync = ref.read(
+                    videoProgressProvider(progressId),
+                  );
+                  progressAsync.whenData((progress) async {
+                    if (progress != null && progress.watchPercentage > 0) {
+                      final duration = _videoController!.value.duration;
+                      final savedPosition =
+                          duration * (progress.watchPercentage / 100);
+                      await _videoController!.seekTo(savedPosition);
+                    }
+                  });
+                } catch (e) {
+                  print('Error restoring video progress: $e');
+                }
               }
             })
             .catchError((error) {
@@ -132,20 +154,39 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
     }
   }
 
-  void _onVideoPositionChanged() {
+  void _onVideoPositionChanged() async {
     if (_videoController == null || !_videoController!.value.isInitialized)
       return;
 
     final isPlaying = _videoController!.value.isPlaying;
+    final position = _videoController!.value.position;
+    final duration = _videoController!.value.duration;
 
-    if (isPlaying && _lastUpdateTime != null) {
-      final timeDiff = DateTime.now().difference(_lastUpdateTime!);
-      if (timeDiff.inSeconds >= 60) {
-        // Update watch time every minute
-        final progressId = widget.attackTypeId != null
-            ? '${widget.resourceId}_${widget.attackTypeId}'
-            : widget.resourceId;
-        ref.read(progressProvider.notifier).addWatchTime(progressId, timeDiff);
+    if (isPlaying && duration.inMilliseconds > 0) {
+      // Update progress every 30 seconds
+      if (_lastUpdateTime == null ||
+          DateTime.now().difference(_lastUpdateTime!).inSeconds >= 30) {
+        final watchPercentage =
+            (position.inMilliseconds / duration.inMilliseconds * 100).clamp(
+              0.0,
+              100.0,
+            );
+
+        try {
+          final progressId = widget.attackTypeId != null
+              ? '${widget.resourceId}_${widget.attackTypeId}'
+              : widget.resourceId;
+          await ref
+              .read(videoProgressProvider(progressId).notifier)
+              .updateProgress(
+                resourceId: progressId,
+                watchPercentage: watchPercentage,
+                watchDurationSeconds: position.inSeconds,
+              );
+        } catch (e) {
+          print('Error updating video progress: $e');
+        }
+
         _lastUpdateTime = DateTime.now();
       }
     } else if (isPlaying) {
@@ -184,7 +225,7 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
     final progressId = widget.attackTypeId != null
         ? '${widget.resourceId}_${widget.attackTypeId}'
         : widget.resourceId;
-    final progress = ref.watch(resourceProgressProvider(progressId));
+    final progress = ref.watch(videoProgressProvider(progressId));
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -273,190 +314,190 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
       child: SingleChildScrollView(
         child: Column(
           children: [
-          // Header
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16.0,
-              vertical: 8.0,
-            ),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () {
-                    SystemChrome.setPreferredOrientations([
-                      DeviceOrientation.portraitUp,
-                      DeviceOrientation.portraitDown,
-                    ]);
-                    context.pop();
-                  },
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        resource.title,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        '${resource.category} • Lesson 1',
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
+            // Header
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 8.0,
+              ),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () {
+                      SystemChrome.setPreferredOrientations([
+                        DeviceOrientation.portraitUp,
+                        DeviceOrientation.portraitDown,
+                      ]);
+                      context.pop();
+                    },
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.settings, color: Colors.white),
-                  onPressed: () {},
-                ),
-              ],
-            ),
-          ),
-          // Video Player
-          _isVideoInitialized && _isYouTubeVideo && _youtubeController != null
-              ? YoutubePlayerBuilder(
-                  onEnterFullScreen: () {
-                    SystemChrome.setPreferredOrientations([
-                      DeviceOrientation.landscapeLeft,
-                      DeviceOrientation.landscapeRight,
-                    ]);
-                  },
-                  onExitFullScreen: () {
-                    SystemChrome.setPreferredOrientations([
-                      DeviceOrientation.portraitUp,
-                      DeviceOrientation.portraitDown,
-                    ]);
-                  },
-                  player: YoutubePlayer(
-                    controller: _youtubeController!,
-                    showVideoProgressIndicator: true,
-                    progressIndicatorColor: const Color(0xFF9333EA),
-                    progressColors: const ProgressBarColors(
-                      playedColor: Color(0xFF9333EA),
-                      handleColor: Color(0xFF9333EA),
-                    ),
-                    bottomActions: [
-                      const SizedBox(width: 14.0),
-                      CurrentPosition(),
-                      const SizedBox(width: 8.0),
-                      ProgressBar(
-                        isExpanded: true,
-                        colors: const ProgressBarColors(
-                          playedColor: Color(0xFF9333EA),
-                          handleColor: Color(0xFF9333EA),
-                        ),
-                      ),
-                      RemainingDuration(),
-                      const SizedBox(width: 8.0),
-                      FullScreenButton(),
-                    ],
-                  ),
-                  builder: (context, player) => AspectRatio(
-                    aspectRatio: 16 / 9,
-                    child: player,
-                  ),
-                )
-              : AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: _isVideoInitialized && _videoController != null
-                      ? Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            VideoPlayer(_videoController!),
-                            // Play/Pause overlay
-                            Center(
-                              child: GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    if (_videoController!.value.isPlaying) {
-                                      _videoController!.pause();
-                                    } else {
-                                      _videoController!.play();
-                                    }
-                                  });
-                                },
-                                child: Container(
-                                  width: 60,
-                                  height: 60,
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.5),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    _videoController!.value.isPlaying
-                                        ? Icons.pause
-                                        : Icons.play_arrow,
-                                    color: Colors.white,
-                                    size: 40,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            // Progress indicator
-                            Positioned(
-                              bottom: 0,
-                              left: 0,
-                              right: 0,
-                              child: VideoProgressIndicator(
-                                _videoController!,
-                                allowScrubbing: true,
-                                colors: const VideoProgressColors(
-                                  playedColor: Color(0xFF9333EA),
-                                  bufferedColor: Colors.white24,
-                                  backgroundColor: Colors.white12,
-                                ),
-                              ),
-                            ),
-                          ],
-                        )
-                      : Container(
-                          color: Colors.grey[900],
-                          child: Center(
-                            child: resource.mediaUrl == null ||
-                                    resource.mediaUrl!.isEmpty
-                                ? Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.video_library_outlined,
-                                        size: 64,
-                                        color: Colors.white54,
-                                      ),
-                                      const SizedBox(height: 16),
-                                      Text(
-                                        'Video content coming soon',
-                                        style: TextStyle(
-                                          color: Colors.white70,
-                                          fontSize: 16,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        'This lesson will be available shortly',
-                                        style: TextStyle(
-                                          color: Colors.white54,
-                                          fontSize: 12,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ],
-                                  )
-                                : const CircularProgressIndicator(
-                                    color: Colors.white,
-                                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          resource.title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                ),
-          // Video Controls
-          if (_videoController != null && _isVideoInitialized)
+                        Text(
+                          '${resource.category} • Lesson 1',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.settings, color: Colors.white),
+                    onPressed: () {},
+                  ),
+                ],
+              ),
+            ),
+            // Video Player
+            _isVideoInitialized && _isYouTubeVideo && _youtubeController != null
+                ? YoutubePlayerBuilder(
+                    onEnterFullScreen: () {
+                      SystemChrome.setPreferredOrientations([
+                        DeviceOrientation.landscapeLeft,
+                        DeviceOrientation.landscapeRight,
+                      ]);
+                    },
+                    onExitFullScreen: () {
+                      SystemChrome.setPreferredOrientations([
+                        DeviceOrientation.portraitUp,
+                        DeviceOrientation.portraitDown,
+                      ]);
+                    },
+                    player: YoutubePlayer(
+                      controller: _youtubeController!,
+                      showVideoProgressIndicator: true,
+                      progressIndicatorColor: const Color(0xFF9333EA),
+                      progressColors: const ProgressBarColors(
+                        playedColor: Color(0xFF9333EA),
+                        handleColor: Color(0xFF9333EA),
+                      ),
+                      bottomActions: [
+                        const SizedBox(width: 14.0),
+                        CurrentPosition(),
+                        const SizedBox(width: 8.0),
+                        ProgressBar(
+                          isExpanded: true,
+                          colors: const ProgressBarColors(
+                            playedColor: Color(0xFF9333EA),
+                            handleColor: Color(0xFF9333EA),
+                          ),
+                        ),
+                        RemainingDuration(),
+                        const SizedBox(width: 8.0),
+                        FullScreenButton(),
+                      ],
+                    ),
+                    builder: (context, player) =>
+                        AspectRatio(aspectRatio: 16 / 9, child: player),
+                  )
+                : AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: _isVideoInitialized && _videoController != null
+                        ? Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              VideoPlayer(_videoController!),
+                              // Play/Pause overlay
+                              Center(
+                                child: GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      if (_videoController!.value.isPlaying) {
+                                        _videoController!.pause();
+                                      } else {
+                                        _videoController!.play();
+                                      }
+                                    });
+                                  },
+                                  child: Container(
+                                    width: 60,
+                                    height: 60,
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.5),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      _videoController!.value.isPlaying
+                                          ? Icons.pause
+                                          : Icons.play_arrow,
+                                      color: Colors.white,
+                                      size: 40,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              // Progress indicator
+                              Positioned(
+                                bottom: 0,
+                                left: 0,
+                                right: 0,
+                                child: VideoProgressIndicator(
+                                  _videoController!,
+                                  allowScrubbing: true,
+                                  colors: const VideoProgressColors(
+                                    playedColor: Color(0xFF9333EA),
+                                    bufferedColor: Colors.white24,
+                                    backgroundColor: Colors.white12,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : Container(
+                            color: Colors.grey[900],
+                            child: Center(
+                              child:
+                                  resource.mediaUrl == null ||
+                                      resource.mediaUrl!.isEmpty
+                                  ? Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.video_library_outlined,
+                                          size: 64,
+                                          color: Colors.white54,
+                                        ),
+                                        const SizedBox(height: 16),
+                                        Text(
+                                          'Video content coming soon',
+                                          style: TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'This lesson will be available shortly',
+                                          style: TextStyle(
+                                            color: Colors.white54,
+                                            fontSize: 12,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ],
+                                    )
+                                  : const CircularProgressIndicator(
+                                      color: Colors.white,
+                                    ),
+                            ),
+                          ),
+                  ),
+            // Video Controls
+            if (_videoController != null && _isVideoInitialized)
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16.0,
@@ -522,7 +563,7 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
                   ],
                 ),
               ),
-        ],
+          ],
         ),
       ),
     );
@@ -552,7 +593,7 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
   Widget _buildOverviewTab(
     BuildContext context,
     Resource resource,
-    ResourceProgress progress,
+    AsyncValue<VideoProgressModel?> progressAsync,
   ) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
@@ -614,30 +655,60 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: () {
-                      // Use attackTypeId if available, otherwise use resource.id
-                      final progressId = widget.attackTypeId != null
-                          ? '${resource.id}_${widget.attackTypeId}'
-                          : resource.id;
-                      ref
-                          .read(progressProvider.notifier)
-                          .markAsComplete(progressId);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Row(
-                            children: [
-                              Icon(Icons.check_circle, color: Colors.white),
-                              SizedBox(width: 8),
-                              Text('Course marked as complete!'),
-                            ],
-                          ),
-                          backgroundColor: const Color(0xFF10B981),
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      );
+                    onPressed: () async {
+                      try {
+                        // Calculate the correct progress ID
+                        final progressId = widget.attackTypeId != null
+                            ? '${resource.id}_${widget.attackTypeId}'
+                            : resource.id;
+
+                        // Update video progress in database
+                        await ref
+                            .read(videoProgressProvider(progressId).notifier)
+                            .markCompleted(progressId);
+
+                        // ALSO update the resource progress provider (for Resources list screen)
+                        ref
+                            .read(progressProvider.notifier)
+                            .markAsComplete(progressId);
+
+                        // Force refresh the video progress provider to update UI
+                        ref.invalidate(videoProgressProvider(progressId));
+
+                        // Trigger UI rebuild
+                        if (mounted) {
+                          setState(() {});
+                        }
+
+                        // Show success message
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Row(
+                                children: [
+                                  Icon(Icons.check_circle, color: Colors.white),
+                                  SizedBox(width: 8),
+                                  Text('Course marked as complete!'),
+                                ],
+                              ),
+                              backgroundColor: const Color(0xFF10B981),
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
                     },
                     icon: const Icon(Icons.check_circle, size: 20),
                     label: const Text('Mark as Complete'),
@@ -665,22 +736,45 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
             ),
           ),
           const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '${progress.progressPercentage.toStringAsFixed(0)}% Complete',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black87,
-                ),
-              ),
-              Text(
-                '${progress.completedLessons} of ${progress.totalLessons} lessons',
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-              ),
-            ],
+          progressAsync.when(
+            data: (videoProgress) {
+              final progressPercentage = videoProgress?.watchPercentage ?? 0.0;
+              final isCompleted = videoProgress?.completed ?? false;
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${progressPercentage.toStringAsFixed(0)}% Complete',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  Text(
+                    isCompleted ? 'Completed' : 'In Progress',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isCompleted ? Colors.green[600] : Colors.grey[600],
+                    ),
+                  ),
+                ],
+              );
+            },
+            loading: () => const Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Loading...', style: TextStyle(fontSize: 16)),
+                Text('--', style: TextStyle(fontSize: 14)),
+              ],
+            ),
+            error: (_, __) => const Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('0% Complete', style: TextStyle(fontSize: 16)),
+                Text('Not Started', style: TextStyle(fontSize: 14)),
+              ],
+            ),
           ),
         ],
       ),

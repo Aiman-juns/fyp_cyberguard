@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../auth/providers/auth_provider.dart';
 
 enum ChallengeStatus { loading, ready, completed, error }
 
@@ -12,7 +13,8 @@ class DailyChallengeState {
   final String? errorMessage;
   final int streakCount; // Days completed in current 7-day cycle
   final int totalDays; // Total days ever played
-  final List<bool> weekAnswers; // Track correct (true) or incorrect (false) for each day
+  final List<bool>
+  weekAnswers; // Track correct (true) or incorrect (false) for each day
 
   DailyChallengeState({
     required this.status,
@@ -53,25 +55,61 @@ class DailyChallengeNotifier extends StateNotifier<DailyChallengeState> {
   final _supabase = Supabase.instance.client;
 
   DailyChallengeNotifier(this.ref)
-      : super(DailyChallengeState(status: ChallengeStatus.loading)) {
+    : super(DailyChallengeState(status: ChallengeStatus.loading)) {
     _checkAndLoadChallenge();
   }
 
   Future<void> _checkAndLoadChallenge() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final lastPlayed = prefs.getString('last_challenge_date');
       final today = DateTime.now().toIso8601String().split('T')[0];
+      final userId = _supabase.auth.currentUser?.id;
 
-      // Get streak data
+      // Get streak data from SharedPreferences (for UI display)
       int streakCount = prefs.getInt('challenge_streak_count') ?? 0;
       int totalDays = prefs.getInt('challenge_total_days') ?? 0;
-      
+
       // Get week answers (comma-separated: "1,0,1,1,0" where 1=correct, 0=incorrect)
       final weekAnswersStr = prefs.getString('challenge_week_answers') ?? '';
-      final weekAnswers = weekAnswersStr.isEmpty 
-          ? <bool>[] 
+      final weekAnswers = weekAnswersStr.isEmpty
+          ? <bool>[]
           : weekAnswersStr.split(',').map((e) => e == '1').toList();
+
+      // First check database for today's progress
+      if (userId != null) {
+        try {
+          final dbProgress = await _supabase
+              .from('daily_challenge_progress')
+              .select('*, daily_challenges(*)')
+              .eq('user_id', userId)
+              .gte('completed_at', '${today}T00:00:00Z')
+              .lt('completed_at', '${today}T23:59:59Z')
+              .maybeSingle();
+
+          if (dbProgress != null) {
+            // Already completed today - load from database
+            final challenge =
+                dbProgress['daily_challenges'] as Map<String, dynamic>?;
+            state = DailyChallengeState(
+              status: ChallengeStatus.completed,
+              challenge: challenge,
+              userGuess:
+                  true, // We don't store the exact guess, but challenge was completed
+              isCorrect: true, // Assume correct since completed
+              streakCount: streakCount,
+              totalDays: totalDays,
+              weekAnswers: weekAnswers,
+            );
+            return;
+          }
+        } catch (e) {
+          // If database check fails, fall back to SharedPreferences
+          print('Database check failed, using SharedPreferences: $e');
+        }
+      }
+
+      // Fall back to SharedPreferences check
+      final lastPlayed = prefs.getString('last_challenge_date');
 
       if (lastPlayed == today) {
         // Already played today
@@ -111,7 +149,7 @@ class DailyChallengeNotifier extends StateNotifier<DailyChallengeState> {
 
         // Fetch new challenge
         await _loadNewChallenge();
-        
+
         // Update state with current streak
         state = state.copyWith(
           streakCount: streakCount,
@@ -158,27 +196,24 @@ class DailyChallengeNotifier extends StateNotifier<DailyChallengeState> {
     if (state.challenge == null) return;
 
     final isCorrect = guess == state.challenge!['is_true'];
+    final userId = _supabase.auth.currentUser?.id;
+
+    if (userId == null) {
+      state = state.copyWith(
+        status: ChallengeStatus.error,
+        errorMessage: 'User not logged in',
+      );
+      return;
+    }
 
     try {
-      // Update user score if correct
-      if (isCorrect) {
-        final userId = _supabase.auth.currentUser?.id;
-        if (userId != null) {
-          // Get current score
-          final userData = await _supabase
-              .from('users')
-              .select('total_score')
-              .eq('id', userId)
-              .single();
-
-          final currentScore = userData['total_score'] ?? 0;
-
-          // Update score
-          await _supabase
-              .from('users')
-              .update({'total_score': currentScore + 50}).eq('id', userId);
-        }
-      }
+      // Record progress directly to database using upsert
+      await _supabase.from('daily_challenge_progress').upsert({
+        'user_id': userId,
+        'challenge_id': state.challenge!['id'],
+        'completed': true,
+        'completed_at': DateTime.now().toIso8601String(),
+      }, onConflict: 'user_id,challenge_id');
 
       // Update streak and total days
       final prefs = await SharedPreferences.getInstance();
@@ -186,11 +221,11 @@ class DailyChallengeNotifier extends StateNotifier<DailyChallengeState> {
 
       int streakCount = prefs.getInt('challenge_streak_count') ?? 0;
       int totalDays = prefs.getInt('challenge_total_days') ?? 0;
-      
+
       // Get and update week answers
       final weekAnswersStr = prefs.getString('challenge_week_answers') ?? '';
-      final weekAnswers = weekAnswersStr.isEmpty 
-          ? <bool>[] 
+      final weekAnswers = weekAnswersStr.isEmpty
+          ? <bool>[]
           : weekAnswersStr.split(',').map((e) => e == '1').toList();
       weekAnswers.add(isCorrect);
 
@@ -204,7 +239,7 @@ class DailyChallengeNotifier extends StateNotifier<DailyChallengeState> {
         weekAnswers.clear();
         weekAnswers.add(isCorrect);
       }
-      
+
       // Save week answers as comma-separated string
       final weekAnswersString = weekAnswers.map((e) => e ? '1' : '0').join(',');
 
@@ -212,8 +247,14 @@ class DailyChallengeNotifier extends StateNotifier<DailyChallengeState> {
       await prefs.setString('last_challenge_date', today);
       await prefs.setBool('last_challenge_guess', guess);
       await prefs.setBool('last_challenge_correct', isCorrect);
-      await prefs.setString('last_challenge_question', state.challenge!['question']);
-      await prefs.setString('last_challenge_explanation', state.challenge!['explanation']);
+      await prefs.setString(
+        'last_challenge_question',
+        state.challenge!['question'],
+      );
+      await prefs.setString(
+        'last_challenge_explanation',
+        state.challenge!['explanation'],
+      );
       await prefs.setInt('challenge_streak_count', streakCount);
       await prefs.setInt('challenge_total_days', totalDays);
       await prefs.setString('challenge_week_answers', weekAnswersString);
@@ -251,5 +292,5 @@ class DailyChallengeNotifier extends StateNotifier<DailyChallengeState> {
 
 final dailyChallengeProvider =
     StateNotifierProvider<DailyChallengeNotifier, DailyChallengeState>((ref) {
-  return DailyChallengeNotifier(ref);
-});
+      return DailyChallengeNotifier(ref);
+    });

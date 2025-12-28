@@ -13,6 +13,7 @@ class AppColors {
   
   // 30% - Secondary/Brand Color (CyberGuard Blue)
   static const Color primaryBlue = Color(0xFF0066CC);
+  static const Color primaryBlueLight = Color(0xFF4D9BE6);
   static const Color primaryBlueDark = Color(0xFF004A99);
   
   // 10% - Accent Color (Electric Blue for CTAs)
