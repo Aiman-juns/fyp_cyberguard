@@ -221,6 +221,7 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
   Widget build(BuildContext context) {
     final resourceAsync = ref.watch(resourceProvider(widget.resourceId));
     final notes = ref.watch(resourceNotesProvider(widget.resourceId));
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     // Use combined ID for progress tracking if attackTypeId is provided
     final progressId = widget.attackTypeId != null
         ? '${widget.resourceId}_${widget.attackTypeId}'
@@ -228,7 +229,7 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
     final progress = ref.watch(videoProgressProvider(progressId));
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: isDark ? Colors.grey.shade900 : Colors.white,
       body: resourceAsync.when(
         data: (resource) {
           // Determine which video URL to use

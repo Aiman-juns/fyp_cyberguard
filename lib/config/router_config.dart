@@ -16,6 +16,7 @@ import '../features/games/screens/games_screen.dart';
 import '../features/assistant/screens/assistant_screen.dart';
 import '../features/performance/screens/performance_screen.dart';
 import '../features/profile/screens/profile_screen.dart';
+import '../features/profile/screens/about_screen.dart';
 import '../features/admin/screens/admin_dashboard_screen.dart';
 import '../shared/widgets/custom_drawer.dart';
 import '../shared/widgets/custom_bottom_nav.dart';
@@ -129,6 +130,7 @@ class RouterConfig {
           body: const TrainingHubScreen(),
         ),
       ),
+      GoRoute(path: '/about', builder: (context, state) => const AboutScreen()),
       GoRoute(
         path: '/device-shield',
         builder: (context, state) => const DeviceShieldScreen(),

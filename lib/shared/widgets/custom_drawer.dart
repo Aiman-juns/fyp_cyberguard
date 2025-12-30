@@ -34,7 +34,10 @@ class CustomDrawer extends ConsumerWidget {
                 child: SafeArea(
                   bottom: false,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 16.0),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 20.0,
+                      horizontal: 16.0,
+                    ),
                     child: Column(
                       children: [
                         // Logo Section
@@ -94,10 +97,7 @@ class CustomDrawer extends ConsumerWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [
-                    Colors.red.shade400,
-                    Colors.red.shade700,
-                  ],
+                  colors: [Colors.red.shade400, Colors.red.shade700],
                 ),
               ),
               child: const Center(
@@ -114,35 +114,23 @@ class CustomDrawer extends ConsumerWidget {
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(Icons.person, color: Colors.blue.shade700),
-                  ),
-                  title: const Text('Profile Settings', style: TextStyle(fontWeight: FontWeight.w500)),
-                  trailing: Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey.shade400),
-                  onTap: () {
-                    Navigator.pop(context);
-                    context.push('/profile');
-                  },
-                ),
-                ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
                       color: Colors.purple.shade50,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(Icons.info, color: Colors.purple.shade700),
                   ),
-                  title: const Text('About App', style: TextStyle(fontWeight: FontWeight.w500)),
-                  trailing: Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey.shade400),
+                  title: const Text(
+                    'About App',
+                    style: TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  trailing: Icon(
+                    Icons.arrow_forward_ios,
+                    size: 16,
+                    color: Colors.grey.shade400,
+                  ),
                   onTap: () {
                     Navigator.pop(context);
-                    // TODO: Navigate to about page
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('About App - Coming Soon')),
-                    );
+                    context.push('/about');
                   },
                 ),
                 ListTile(
@@ -154,8 +142,15 @@ class CustomDrawer extends ConsumerWidget {
                     ),
                     child: Icon(Icons.newspaper, color: Colors.orange.shade700),
                   ),
-                  title: const Text('Cyber News', style: TextStyle(fontWeight: FontWeight.w500)),
-                  trailing: Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey.shade400),
+                  title: const Text(
+                    'Cyber News',
+                    style: TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  trailing: Icon(
+                    Icons.arrow_forward_ios,
+                    size: 16,
+                    color: Colors.grey.shade400,
+                  ),
                   onTap: () {
                     Navigator.pop(context);
                     context.push('/news');
@@ -171,10 +166,20 @@ class CustomDrawer extends ConsumerWidget {
                               color: Colors.red.shade50,
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Icon(Icons.admin_panel_settings, color: Colors.red.shade700),
+                            child: Icon(
+                              Icons.admin_panel_settings,
+                              color: Colors.red.shade700,
+                            ),
                           ),
-                          title: const Text('Admin Dashboard', style: TextStyle(fontWeight: FontWeight.w500)),
-                          trailing: Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey.shade400),
+                          title: const Text(
+                            'Admin Dashboard',
+                            style: TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                          trailing: Icon(
+                            Icons.arrow_forward_ios,
+                            size: 16,
+                            color: Colors.grey.shade400,
+                          ),
                           onTap: () {
                             Navigator.pop(context);
                             context.push('/admin');
@@ -188,20 +193,17 @@ class CustomDrawer extends ConsumerWidget {
           ),
           // Theme Toggle Section
           Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            margin: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 12.0,
+            ),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [
-                  Colors.grey.shade50,
-                  Colors.grey.shade100,
-                ],
+                colors: [Colors.grey.shade50, Colors.grey.shade100],
               ),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Colors.grey.shade200,
-                width: 1,
-              ),
+              border: Border.all(color: Colors.grey.shade200, width: 1),
             ),
             child: Consumer(
               builder: (context, ref, child) {
@@ -226,10 +228,11 @@ class CustomDrawer extends ConsumerWidget {
                         const SizedBox(width: 8),
                         Text(
                           'Theme',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey.shade800,
-                          ),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey.shade800,
+                              ),
                         ),
                       ],
                     ),
@@ -239,7 +242,10 @@ class CustomDrawer extends ConsumerWidget {
                         Expanded(
                           child: ElevatedButton.icon(
                             icon: const Icon(Icons.light_mode, size: 18),
-                            label: const Text('Light', style: TextStyle(fontSize: 13)),
+                            label: const Text(
+                              'Light',
+                              style: TextStyle(fontSize: 13),
+                            ),
                             onPressed: () {
                               ref.read(themeProvider.notifier).setLightMode();
                             },
@@ -247,7 +253,9 @@ class CustomDrawer extends ConsumerWidget {
                               backgroundColor: !isDarkMode
                                   ? Color(0xFF00B4DB)
                                   : Colors.grey.shade300,
-                              foregroundColor: !isDarkMode ? Colors.white : Colors.grey.shade700,
+                              foregroundColor: !isDarkMode
+                                  ? Colors.white
+                                  : Colors.grey.shade700,
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               elevation: !isDarkMode ? 2 : 0,
                               shape: RoundedRectangleBorder(
@@ -260,7 +268,10 @@ class CustomDrawer extends ConsumerWidget {
                         Expanded(
                           child: ElevatedButton.icon(
                             icon: const Icon(Icons.dark_mode, size: 18),
-                            label: const Text('Dark', style: TextStyle(fontSize: 13)),
+                            label: const Text(
+                              'Dark',
+                              style: TextStyle(fontSize: 13),
+                            ),
                             onPressed: () {
                               ref.read(themeProvider.notifier).setDarkMode();
                             },
@@ -268,7 +279,9 @@ class CustomDrawer extends ConsumerWidget {
                               backgroundColor: isDarkMode
                                   ? Color(0xFF1A237E)
                                   : Colors.grey.shade300,
-                              foregroundColor: isDarkMode ? Colors.white : Colors.grey.shade700,
+                              foregroundColor: isDarkMode
+                                  ? Colors.white
+                                  : Colors.grey.shade700,
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               elevation: isDarkMode ? 2 : 0,
                               shape: RoundedRectangleBorder(
@@ -293,7 +306,10 @@ class CustomDrawer extends ConsumerWidget {
               height: 50,
               child: ElevatedButton.icon(
                 icon: const Icon(Icons.logout, size: 20),
-                label: const Text('Logout', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                label: const Text(
+                  'Logout',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red.shade600,
                   foregroundColor: Colors.white,

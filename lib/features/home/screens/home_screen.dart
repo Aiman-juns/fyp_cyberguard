@@ -10,6 +10,9 @@ import '../../resources/providers/resources_provider.dart';
 import '../../resources/providers/progress_provider.dart';
 import '../../training/providers/training_provider.dart';
 import '../../../shared/widgets/security_fab.dart';
+import '../providers/daily_challenge_provider.dart';
+import '../../performance/providers/performance_provider.dart';
+import 'dart:math' as math;
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -169,110 +172,114 @@ class HomeScreen extends ConsumerWidget {
 
                   const SizedBox(height: 24),
 
-                  // Quick Stats Cards
-                  Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: _buildQuickStatCard(
-                                context,
-                                icon: Icons.local_fire_department,
-                                value: '7',
-                                label: 'Day Streak',
-                                color: Color(0xFFFF6B35),
-                                iconColor: Color(0xFFFF6B35),
-                              ),
+                  // Quick Stats Cards - Dynamic Data
+                  Consumer(
+                    builder: (context, ref, child) {
+                      // Get streak from daily challenge
+                      final dailyChallenge = ref.watch(dailyChallengeProvider);
+                      final streakCount = dailyChallenge.streakCount;
+
+                      // Get achievements count
+                      final achievementsAsync = ref.watch(
+                        userAchievementsProvider,
+                      );
+                      final badgeCount = achievementsAsync.when(
+                        data: (achievements) =>
+                            achievements.where((a) => a.isUnlocked).length,
+                        loading: () => 0,
+                        error: (_, __) => 0,
+                      );
+
+                      // Calculate training modules completed (≥80% completion)
+                      int completedModules = 0;
+                      final userId = SupabaseConfig.client.auth.currentUser?.id;
+
+                      if (userId != null) {
+                        // Check phishing module
+                        final phishingStats = ref.watch(
+                          moduleStatsProvider('phishing'),
+                        );
+                        phishingStats.whenData((stats) {
+                          if (stats.completionPercentage >= 80) {
+                            completedModules++;
+                          }
+                        });
+
+                        // Check password module
+                        final passwordStats = ref.watch(
+                          moduleStatsProvider('password'),
+                        );
+                        passwordStats.whenData((stats) {
+                          if (stats.completionPercentage >= 80) {
+                            completedModules++;
+                          }
+                        });
+
+                        // Check attack module
+                        final attackStats = ref.watch(
+                          moduleStatsProvider('attack'),
+                        );
+                        attackStats.whenData((stats) {
+                          if (stats.completionPercentage >= 80) {
+                            completedModules++;
+                          }
+                        });
+                      }
+
+                      return Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16.0,
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _buildQuickStatCard(
-                                context,
-                                icon: Icons.emoji_events,
-                                value: '12',
-                                label: 'Badges',
-                                color: Color(0xFFFBBF24),
-                                iconColor: Color(0xFFF59E0B),
-                              ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: _buildQuickStatCard(
+                                    context,
+                                    icon: Icons.local_fire_department,
+                                    value: streakCount.toString(),
+                                    label: 'Day Streak',
+                                    color: Color(0xFFFF6B35),
+                                    iconColor: Color(0xFFFF6B35),
+                                    isDark: isDark,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _buildQuickStatCard(
+                                    context,
+                                    icon: Icons.emoji_events,
+                                    value: badgeCount.toString(),
+                                    label: 'Badges',
+                                    color: Color(0xFFFBBF24),
+                                    iconColor: Color(0xFFF59E0B),
+                                    isDark: isDark,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _buildQuickStatCard(
+                                    context,
+                                    icon: Icons.check_circle_outline,
+                                    value: completedModules.toString(),
+                                    label: 'Module',
+                                    color: Color(0xFF10B981),
+                                    iconColor: Color(0xFF059669),
+                                    isDark: isDark,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _buildQuickStatCard(
-                                context,
-                                icon: Icons.access_time,
-                                value: '4.5h',
-                                label: 'Learning',
-                                color: Color(0xFF10B981),
-                                iconColor: Color(0xFF059669),
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                      .animate()
-                      .fade(duration: 500.ms, delay: 100.ms)
-                      .slideY(begin: 0.1, end: 0),
+                          )
+                          .animate()
+                          .fade(duration: 500.ms, delay: 100.ms)
+                          .slideY(begin: 0.1, end: 0);
+                    },
+                  ),
 
                   const SizedBox(height: 24),
 
-                  // Daily Security Tip
-                  Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Color(0xFFFEF3C7),
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: Color(0xFFFBBF24).withOpacity(0.3),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Icon(
-                                  Icons.lightbulb,
-                                  color: Color(0xFFF59E0B),
-                                  size: 24,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Today\'s Security Tip',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFF92400E),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Always use unique passwords for each account',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Color(0xFF78350F),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
+                  // Daily Security Tip - Interactive
+                  const _SecurityTipCard()
                       .animate()
                       .fade(duration: 500.ms, delay: 200.ms)
                       .slideY(begin: 0.1, end: 0),
@@ -290,7 +297,9 @@ class HomeScreen extends ConsumerWidget {
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF1E293B),
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF1E293B),
                           ),
                         ),
                         TextButton(
@@ -564,7 +573,9 @@ class HomeScreen extends ConsumerWidget {
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF1E293B),
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF1E293B),
                           ),
                         ),
                         TextButton(
@@ -597,12 +608,14 @@ class HomeScreen extends ConsumerWidget {
                                     child: Container(
                                       height: 140,
                                       decoration: BoxDecoration(
-                                        color: Colors.white,
+                                        color: isDark
+                                            ? Colors.grey.shade800
+                                            : Colors.white,
                                         borderRadius: BorderRadius.circular(20),
                                         boxShadow: [
                                           BoxShadow(
                                             color: Colors.black.withOpacity(
-                                              0.08,
+                                              isDark ? 0.3 : 0.08,
                                             ),
                                             blurRadius: 20,
                                             offset: const Offset(0, 8),
@@ -636,7 +649,9 @@ class HomeScreen extends ConsumerWidget {
                                             style: TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.bold,
-                                              color: Color(0xFF1E293B),
+                                              color: isDark
+                                                  ? Colors.white
+                                                  : Color(0xFF1E293B),
                                             ),
                                           ),
                                           const SizedBox(height: 4),
@@ -644,7 +659,9 @@ class HomeScreen extends ConsumerWidget {
                                             'Learning materials',
                                             style: TextStyle(
                                               fontSize: 12,
-                                              color: Color(0xFF64748B),
+                                              color: isDark
+                                                  ? Colors.grey.shade400
+                                                  : Color(0xFF64748B),
                                             ),
                                           ),
                                         ],
@@ -667,12 +684,14 @@ class HomeScreen extends ConsumerWidget {
                                     child: Container(
                                       height: 140,
                                       decoration: BoxDecoration(
-                                        color: Colors.white,
+                                        color: isDark
+                                            ? Colors.grey.shade800
+                                            : Colors.white,
                                         borderRadius: BorderRadius.circular(20),
                                         boxShadow: [
                                           BoxShadow(
                                             color: Colors.black.withOpacity(
-                                              0.08,
+                                              isDark ? 0.3 : 0.08,
                                             ),
                                             blurRadius: 20,
                                             offset: const Offset(0, 8),
@@ -704,7 +723,9 @@ class HomeScreen extends ConsumerWidget {
                                             style: TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.bold,
-                                              color: Color(0xFF1E293B),
+                                              color: isDark
+                                                  ? Colors.white
+                                                  : Color(0xFF1E293B),
                                             ),
                                           ),
                                           const SizedBox(height: 4),
@@ -712,7 +733,9 @@ class HomeScreen extends ConsumerWidget {
                                             'Practice modules',
                                             style: TextStyle(
                                               fontSize: 12,
-                                              color: Color(0xFF64748B),
+                                              color: isDark
+                                                  ? Colors.grey.shade400
+                                                  : Color(0xFF64748B),
                                             ),
                                           ),
                                         ],
@@ -748,15 +771,16 @@ class HomeScreen extends ConsumerWidget {
     required String label,
     required Color color,
     required Color iconColor,
+    required bool isDark,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? Colors.grey.shade900 : Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -778,12 +802,151 @@ class HomeScreen extends ConsumerWidget {
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1E293B),
+              color: isDark ? Colors.white : const Color(0xFF1E293B),
             ),
           ),
           const SizedBox(height: 2),
-          Text(label, style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+// Interactive Security Tip Card Widget
+class _SecurityTipCard extends StatefulWidget {
+  const _SecurityTipCard();
+
+  @override
+  State<_SecurityTipCard> createState() => _SecurityTipCardState();
+}
+
+class _SecurityTipCardState extends State<_SecurityTipCard> {
+  int _currentTipIndex = 0;
+
+  final List<String> _securityTips = [
+    'Always use unique passwords for each account',
+    'Enable two-factor authentication whenever possible',
+    'Never click on suspicious links in emails or messages',
+    'Keep your software and apps up to date',
+    'Use a password manager to store your passwords securely',
+    'Be cautious when using public Wi-Fi networks',
+    'Regularly backup your important data',
+    'Check the URL before entering sensitive information',
+    'Don\'t share personal information on social media',
+    'Use strong passwords with letters, numbers, and symbols',
+    'Be wary of phishing emails pretending to be from trusted sources',
+    'Lock your devices when not in use',
+    'Use encryption for sensitive files and communications',
+    'Review app permissions before installing',
+    'Don\'t use the same security questions across multiple sites',
+  ];
+
+  void _showNextTip() {
+    setState(() {
+      _currentTipIndex = (_currentTipIndex + 1) % _securityTips.length;
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Show random tip on first load
+    _currentTipIndex = math.Random().nextInt(_securityTips.length);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: GestureDetector(
+        onTap: _showNextTip,
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          transitionBuilder: (Widget child, Animation<double> animation) {
+            return FadeTransition(
+              opacity: animation,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0.0, 0.1),
+                  end: Offset.zero,
+                ).animate(animation),
+                child: child,
+              ),
+            );
+          },
+          child: Container(
+            key: ValueKey<int>(_currentTipIndex),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Color(0xFFFEF3C7),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Color(0xFFFBBF24).withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.lightbulb,
+                    color: Color(0xFFF59E0B),
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'Today\'s Security Tip',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF92400E),
+                            ),
+                          ),
+                          const Spacer(),
+                          Icon(
+                            Icons.touch_app,
+                            size: 16,
+                            color: Color(0xFF92400E).withOpacity(0.6),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _securityTips[_currentTipIndex],
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF78350F),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

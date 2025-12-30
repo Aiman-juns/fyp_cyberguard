@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:audioplayers/audioplayers.dart';
 import '../../../shared/widgets/glitch_effect.dart';
 
 /// Infection Simulator Screen - Educational Malware Simulation
@@ -28,6 +29,10 @@ class _InfectionSimulatorScreenState extends State<InfectionSimulatorScreen>
     with SingleTickerProviderStateMixin {
   // Simulation states
   SimulationState _currentState = SimulationState.bait;
+
+  // Audio player
+  late AudioPlayer _audioPlayer;
+  bool _audioPreloaded = false;
 
   // Timers
   Timer? _progressTimer;
@@ -65,11 +70,26 @@ class _InfectionSimulatorScreenState extends State<InfectionSimulatorScreen>
       vsync: this,
       duration: const Duration(seconds: 3),
     );
+    
+    // Initialize audio player
+    _audioPlayer = AudioPlayer();
+    _preloadSound();
+  }
+
+  Future<void> _preloadSound() async {
+    try {
+      await _audioPlayer.setSource(AssetSource('sounds/glitch_sound.mp3'));
+      await _audioPlayer.setVolume(1.0);
+      _audioPreloaded = true;
+    } catch (e) {
+      debugPrint('Error preloading sound: $e');
+    }
   }
 
   @override
   void dispose() {
     _glitchController.dispose();
+    _audioPlayer.dispose();
     _progressTimer?.cancel();
     _hapticTimer?.cancel();
     _countdownTimer?.cancel();
@@ -80,6 +100,9 @@ class _InfectionSimulatorScreenState extends State<InfectionSimulatorScreen>
     setState(() {
       _currentState = SimulationState.glitch;
     });
+
+    // Play glitch sound immediately
+    _audioPlayer.play(AssetSource('sounds/glitch_sound.mp3'), volume: 1.0);
 
     // Start glitch animation - ramps from 0 to 1 over 3 seconds
     _glitchController.forward(from: 0.0);
@@ -95,6 +118,9 @@ class _InfectionSimulatorScreenState extends State<InfectionSimulatorScreen>
 
     // Transition to data theft after 3 seconds
     Future.delayed(const Duration(seconds: 3), () {
+      // Stop the glitch sound
+      _audioPlayer.stop();
+      
       if (mounted) {
         setState(() {
           _currentState = SimulationState.dataTheft;
@@ -171,6 +197,7 @@ class _InfectionSimulatorScreenState extends State<InfectionSimulatorScreen>
   void _endSimulation() {
     _glitchController.stop();
     _glitchController.reset();
+    _audioPlayer.stop();
     _hapticTimer?.cancel();
     _progressTimer?.cancel();
     _countdownTimer?.cancel();

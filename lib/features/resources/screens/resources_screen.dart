@@ -34,20 +34,24 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
   Widget build(BuildContext context) {
     final resourcesAsync = ref.watch(resourcesProvider);
     final authState = ref.watch(authProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: isDark ? Colors.grey.shade900 : const Color(0xFFF8FAFC),
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: isDark ? Colors.grey.shade900 : Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF1E293B)),
+          icon: Icon(
+            Icons.arrow_back,
+            color: isDark ? Colors.white : const Color(0xFF1E293B),
+          ),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text(
+        title: Text(
           'Resources',
           style: TextStyle(
-            color: Color(0xFF1E293B),
+            color: isDark ? Colors.white : const Color(0xFF1E293B),
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
@@ -163,12 +167,14 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
                           ),
                         ),
                         const SizedBox(width: 10),
-                        const Text(
+                        Text(
                           'Learning Resources',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF1E293B),
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF1E293B),
                           ),
                         ),
                       ],
@@ -206,7 +212,12 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
                     return _buildCyberAttackCard(context, resource, progress);
                   }
 
-                  return _buildResourceCard(context, resource, progress);
+                  return _buildResourceCard(
+                    context,
+                    resource,
+                    progress,
+                    isDark,
+                  );
                 }).toList(),
               ],
             ),
@@ -243,6 +254,7 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
     BuildContext context,
     Resource resource,
     ResourceProgress progress,
+    bool isDark,
   ) {
     final progressPercent = progress.progressPercentage;
     final remainingLessons = progress.totalLessons - progress.completedLessons;
@@ -261,7 +273,7 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
         borderRadius: BorderRadius.circular(16),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: isDark ? Colors.grey.shade800 : Colors.white,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: resourceColor.withOpacity(0.3), width: 2),
             boxShadow: [
@@ -310,18 +322,22 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
                         children: [
                           Text(
                             resource.title,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF1E293B),
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF1E293B),
                             ),
                           ),
                           const SizedBox(height: 6),
                           Text(
                             resource.description ?? '',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 13,
-                              color: Color(0xFF64748B),
+                              color: isDark
+                                  ? Colors.grey.shade400
+                                  : const Color(0xFF64748B),
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -343,9 +359,11 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
                                 remainingLessons > 0
                                     ? '$remainingLessons lesson${remainingLessons > 1 ? 's' : ''} remaining'
                                     : 'Completed',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 12,
-                                  color: Color(0xFF64748B),
+                                  color: isDark
+                                      ? Colors.grey.shade400
+                                      : const Color(0xFF64748B),
                                 ),
                               ),
                               const Spacer(),

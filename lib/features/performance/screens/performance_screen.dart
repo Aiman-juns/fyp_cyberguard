@@ -19,6 +19,8 @@ class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       children: [
         const SizedBox(height: 8),
@@ -29,9 +31,14 @@ class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
             child: Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
+                color: isDark ? Colors.grey.shade800 : const Color(0xFFF1F5F9),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFE2E8F0), width: 2),
+                border: Border.all(
+                  color: isDark
+                      ? Colors.grey.shade700
+                      : const Color(0xFFE2E8F0),
+                  width: 2,
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.06),
@@ -84,6 +91,7 @@ class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
 
   Widget _buildSegmentButton(String label, int index) {
     final isSelected = _selectedView == index;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeInOut,
@@ -116,7 +124,9 @@ class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
             child: Text(
               label,
               style: TextStyle(
-                color: isSelected ? Colors.white : Colors.grey.shade600,
+                color: isSelected
+                    ? Colors.white
+                    : (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
               ),
@@ -134,12 +144,15 @@ class _PerformanceTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final performanceAsyncValue = ref.watch(performanceProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return performanceAsyncValue.when(
       data: (stats) => Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [const Color(0xFFFAFAFA), const Color(0xFFFFFFFF)],
+            colors: isDark
+                ? [Colors.grey.shade900, Colors.grey.shade800]
+                : [const Color(0xFFFAFAFA), const Color(0xFFFFFFFF)],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -1952,16 +1965,20 @@ class _ModuleProgressCard extends StatelessWidget {
                       'Completion',
                       style: TextStyle(
                         fontSize: 11,
-                        color: Colors.grey.shade600,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade600,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       '${stats.completionPercentage.toStringAsFixed(0)}%',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E293B),
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : const Color(0xFF1E293B),
                       ),
                     ),
                   ],
@@ -1973,16 +1990,20 @@ class _ModuleProgressCard extends StatelessWidget {
                       'Accuracy',
                       style: TextStyle(
                         fontSize: 11,
-                        color: Colors.grey.shade600,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade600,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       '${stats.accuracy.toStringAsFixed(0)}%',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E293B),
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : const Color(0xFF1E293B),
                       ),
                     ),
                   ],
@@ -1994,16 +2015,20 @@ class _ModuleProgressCard extends StatelessWidget {
                       'Score',
                       style: TextStyle(
                         fontSize: 11,
-                        color: Colors.grey.shade600,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade600,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       '${stats.totalScore}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E293B),
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : const Color(0xFF1E293B),
                       ),
                     ),
                   ],

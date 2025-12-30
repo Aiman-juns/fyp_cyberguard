@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import '../../features/support/screens/emergency_support_screen.dart';
+import '../../features/tools/screens/breach_checker_screen.dart';
 import '../../features/training/screens/device_shield_screen.dart';
 
 class SecurityFAB extends StatefulWidget {
@@ -15,53 +16,47 @@ class _SecurityFABState extends State<SecurityFAB>
   late AnimationController _mainController;
   late AnimationController _pulseController;
   late AnimationController _rotateController;
-  
+
   late Animation<double> _expandAnimation;
   late Animation<double> _pulseAnimation;
   late Animation<double> _rotateAnimation;
-  
+
   bool _isExpanded = false;
 
   @override
   void initState() {
     super.initState();
-    
+
     // Main expand/collapse animation
     _mainController = AnimationController(
       duration: const Duration(milliseconds: 280),
       vsync: this,
     );
-    
+
     _expandAnimation = CurvedAnimation(
       parent: _mainController,
       curve: Curves.easeOutCubic,
       reverseCurve: Curves.easeInCubic,
     );
-    
+
     // Pulse animation for the main button
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 1800),
       vsync: this,
     )..repeat(reverse: true);
-    
+
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
-      CurvedAnimation(
-        parent: _pulseController,
-        curve: Curves.easeInOut,
-      ),
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
-    
+
     // Rotate animation for icon
     _rotateController = AnimationController(
       duration: const Duration(milliseconds: 250),
       vsync: this,
     );
-    
+
     _rotateAnimation = Tween<double>(begin: 0.0, end: 0.5).animate(
-      CurvedAnimation(
-        parent: _rotateController,
-        curve: Curves.easeInOutCubic,
-      ),
+      CurvedAnimation(parent: _rotateController, curve: Curves.easeInOutCubic),
     );
   }
 
@@ -74,12 +69,13 @@ class _SecurityFABState extends State<SecurityFAB>
   }
 
   void _toggle() {
-    if (_mainController.isAnimating) return; // Prevent multiple taps during animation
-    
+    if (_mainController.isAnimating)
+      return; // Prevent multiple taps during animation
+
     setState(() {
       _isExpanded = !_isExpanded;
     });
-    
+
     if (_isExpanded) {
       _pulseController.stop();
       _mainController.forward();
@@ -104,13 +100,45 @@ class _SecurityFABState extends State<SecurityFAB>
           return FadeTransition(
             opacity: animation,
             child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0.0, 0.3),
-                end: Offset.zero,
-              ).animate(CurvedAnimation(
-                parent: animation,
-                curve: Curves.easeOutCubic,
-              )),
+              position:
+                  Tween<Offset>(
+                    begin: const Offset(0.0, 0.3),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                    ),
+                  ),
+              child: child,
+            ),
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 400),
+      ),
+    );
+  }
+
+  void _openDataBreachChecker() {
+    _toggle();
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const BreachCheckerScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position:
+                  Tween<Offset>(
+                    begin: const Offset(0.0, 0.3),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                    ),
+                  ),
               child: child,
             ),
           );
@@ -130,13 +158,16 @@ class _SecurityFABState extends State<SecurityFAB>
           return FadeTransition(
             opacity: animation,
             child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0.0, 0.3),
-                end: Offset.zero,
-              ).animate(CurvedAnimation(
-                parent: animation,
-                curve: Curves.easeOutCubic,
-              )),
+              position:
+                  Tween<Offset>(
+                    begin: const Offset(0.0, 0.3),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                    ),
+                  ),
               child: child,
             ),
           );
@@ -156,30 +187,46 @@ class _SecurityFABState extends State<SecurityFAB>
           Positioned.fill(
             child: GestureDetector(
               onTap: _toggle,
-              child: Container(
-                color: Colors.transparent,
-              ),
+              child: Container(color: Colors.transparent),
             ),
           ),
         ],
-        
+
         // Menu items
         Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
+            // Data Breach Checker Option
+            _buildMenuItem(
+              index: 2,
+              icon: Icons.shield_outlined,
+              label: 'Breach Checker',
+              subtitle: 'Check email safety',
+              gradientColors: [
+                const Color(0xFF3B82F6),
+                const Color(0xFF2563EB),
+              ],
+              onTap: _openDataBreachChecker,
+            ),
+
+            const SizedBox(height: 12),
+
             // Device Shield Option
             _buildMenuItem(
               index: 1,
               icon: Icons.security,
               label: 'Device Shield',
               subtitle: 'Scan your device',
-              gradientColors: [const Color(0xFF3B82F6), const Color(0xFF2563EB)],
+              gradientColors: [
+                const Color(0xFF10B981),
+                const Color(0xFF059669),
+              ],
               onTap: _openDeviceShield,
             ),
-            
+
             const SizedBox(height: 12),
-            
+
             // Emergency Option
             _buildMenuItem(
               index: 0,
@@ -189,9 +236,9 @@ class _SecurityFABState extends State<SecurityFAB>
               gradientColors: [Colors.red.shade600, Colors.red.shade400],
               onTap: _openEmergencySupport,
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Main FAB Button
             _buildMainFAB(),
           ],
@@ -213,22 +260,22 @@ class _SecurityFABState extends State<SecurityFAB>
       builder: (context, child) {
         final delay = index * 0.1;
         final animationProgress = _expandAnimation.value;
-        final delayedProgress = math.max(0.0, math.min(1.0, (animationProgress - delay) / (1.0 - delay)));
+        final delayedProgress = math.max(
+          0.0,
+          math.min(1.0, (animationProgress - delay) / (1.0 - delay)),
+        );
         final curvedProgress = Curves.easeOutCubic.transform(delayedProgress);
-        
+
         if (animationProgress == 0.0) {
           return const SizedBox.shrink();
         }
-        
+
         return Transform.translate(
           offset: Offset(0, 15 * (1 - curvedProgress)),
           child: Transform.scale(
             scale: 0.3 + (0.7 * curvedProgress),
             alignment: Alignment.bottomRight,
-            child: Opacity(
-              opacity: curvedProgress,
-              child: child,
-            ),
+            child: Opacity(opacity: curvedProgress, child: child),
           ),
         );
       },
@@ -305,10 +352,10 @@ class _SecurityFABState extends State<SecurityFAB>
     return AnimatedBuilder(
       animation: Listenable.merge([_pulseAnimation, _rotateAnimation]),
       builder: (context, child) {
-        final scaleValue = _isExpanded 
-          ? 1.0
-          : 1.0 + (_pulseAnimation.value * 0.08);
-        
+        final scaleValue = _isExpanded
+            ? 1.0
+            : 1.0 + (_pulseAnimation.value * 0.08);
+
         return Transform.scale(
           scale: scaleValue.clamp(0.9, 1.15),
           child: Container(
@@ -325,9 +372,11 @@ class _SecurityFABState extends State<SecurityFAB>
               ),
               boxShadow: [
                 BoxShadow(
-                  color: (_isExpanded 
-                      ? Colors.grey.shade600
-                      : const Color(0xFF667eea)).withOpacity(0.3),
+                  color:
+                      (_isExpanded
+                              ? Colors.grey.shade600
+                              : const Color(0xFF667eea))
+                          .withOpacity(0.3),
                   blurRadius: 12,
                   spreadRadius: 0,
                   offset: const Offset(0, 4),

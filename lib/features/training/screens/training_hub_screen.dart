@@ -385,48 +385,6 @@ class TrainingHubScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 28.0),
 
-          // Tools Section
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.build,
-                  color: Color(0xFF10B981),
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 10),
-              const Text(
-                'Security Tools',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E293B),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16.0),
-          _ToolCard(
-            title: 'Device Shield',
-            description: 'Scan your phone for vulnerabilities',
-            icon: Icons.security_update_good,
-            onTap: () => context.push('/device-shield'),
-          ),
-          const SizedBox(height: 12.0),
-          _ToolCard(
-            title: 'Data Breach Checker',
-            description: 'Check if your email has been compromised',
-            icon: Icons.security,
-            onTap: () => context.push('/breach-checker'),
-          ),
-          const SizedBox(height: 28.0),
-
           // Simulation Games Section
           Row(
             children: [

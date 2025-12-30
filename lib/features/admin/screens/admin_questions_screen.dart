@@ -1,8 +1,11 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
 import '../providers/admin_provider.dart';
 import '../../training/providers/training_provider.dart';
+import '../../../config/supabase_config.dart';
 
 class AdminQuestionsScreen extends ConsumerStatefulWidget {
   const AdminQuestionsScreen({Key? key}) : super(key: key);
@@ -474,7 +477,7 @@ class _QuestionCard extends StatelessWidget {
       try {
         final passwordData = json.decode(question.content);
         final requirements = <String>[];
-        
+
         if (passwordData['minLength'] != null) {
           requirements.add('Min ${passwordData['minLength']} characters');
         }
@@ -482,7 +485,7 @@ class _QuestionCard extends StatelessWidget {
         if (passwordData['lowercase'] == true) requirements.add('Lowercase');
         if (passwordData['numbers'] == true) requirements.add('Numbers');
         if (passwordData['special'] == true) requirements.add('Special chars');
-        
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -492,9 +495,9 @@ class _QuestionCard extends StatelessWidget {
                 const SizedBox(width: 4),
                 Text(
                   'Password Requirements',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500),
                 ),
               ],
             ),
@@ -502,21 +505,28 @@ class _QuestionCard extends StatelessWidget {
             Wrap(
               spacing: 4,
               runSpacing: 4,
-              children: requirements.map((req) => Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: Colors.blue.shade200),
-                ),
-                child: Text(
-                  req,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.blue.shade700,
-                  ),
-                ),
-              )).toList(),
+              children: requirements
+                  .map(
+                    (req) => Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
+                      child: Text(
+                        req,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.blue.shade700,
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
             ),
           ],
         );
@@ -545,7 +555,7 @@ class _QuestionCard extends StatelessWidget {
         final attackData = json.decode(question.content);
         final description = attackData['description'] ?? '';
         final options = attackData['options'] as List<dynamic>? ?? [];
-        
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -599,7 +609,7 @@ class _QuestionCard extends StatelessWidget {
         );
       }
     }
-    
+
     // For other modules, show content normally
     return Text(
       question.content.length > 100
@@ -658,6 +668,11 @@ class _QuestionDialogContentState
   late TextEditingController optionDController;
   String mediaType = 'none'; // 'none', 'image', 'youtube', 'video'
   String? selectedCorrectOption; // 'A', 'B', 'C', or 'D'
+
+  // File upload state
+  String? _selectedMediaFileName;
+  String? _uploadedMediaUrl;
+  bool _isUploadingFile = false;
 
   @override
   void initState() {
@@ -798,6 +813,89 @@ class _QuestionDialogContentState
       optionBController = TextEditingController();
       optionCController = TextEditingController();
       optionDController = TextEditingController();
+    }
+  }
+
+  // File picker method
+  Future<void> _pickMediaFile() async {
+    try {
+      FilePickerResult? result;
+
+      if (mediaType == 'image') {
+        result = await FilePicker.platform.pickFiles(
+          type: FileType.image,
+          allowMultiple: false,
+        );
+      } else if (mediaType == 'video') {
+        result = await FilePicker.platform.pickFiles(
+          type: FileType.video,
+          allowMultiple: false,
+        );
+      }
+
+      if (result != null && result.files.isNotEmpty) {
+        final fileBytes = result.files.single.bytes;
+        final fileName = result.files.single.name;
+        
+        if (fileBytes != null) {
+          setState(() {
+            _selectedMediaFileName = fileName;
+            _uploadedMediaUrl = null;
+          });
+
+          // Automatically upload the file
+          await _uploadMediaFile(fileBytes, fileName);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error picking file: $e')));
+      }
+    }
+  }
+
+  // Upload file to Supabase storage
+  Future<void> _uploadMediaFile(List<int> fileBytes, String fileName) async {
+    setState(() => _isUploadingFile = true);
+
+    try {
+      final fileExtension = fileName.split('.').last;
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final folder = mediaType == 'image' ? 'images' : 'videos';
+      final uniqueFileName = '${widget.moduleType}_${timestamp}.$fileExtension';
+      final path = '$folder/$uniqueFileName';
+
+      // Convert List<int> to Uint8List for web compatibility
+      final uint8ListBytes = Uint8List.fromList(fileBytes);
+
+      // Upload to Supabase storage
+      final bucket = SupabaseConfig.client.storage.from('question-media');
+      await bucket.uploadBinary(path, uint8ListBytes);
+
+      // Get public URL
+      final url = bucket.getPublicUrl(path);
+
+      setState(() {
+        _uploadedMediaUrl = url;
+        mediaUrlController.text = url;
+        _isUploadingFile = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('File uploaded successfully!')),
+        );
+      }
+    } catch (e) {
+      setState(() => _isUploadingFile = false);
+
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
+      }
     }
   }
 
@@ -1014,6 +1112,66 @@ class _QuestionDialogContentState
               ),
               if (mediaType != 'none') ...[
                 const SizedBox(height: 16),
+                if (mediaType == 'image' || mediaType == 'video') ...[
+                  // File upload option for images and videos
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _isUploadingFile ? null : _pickMediaFile,
+                          icon: _isUploadingFile
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.upload_file),
+                          label: Text(
+                            _isUploadingFile
+                                ? 'Uploading...'
+                                : 'Upload ${mediaType == 'image' ? 'Image' : 'Video'} File',
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_selectedMediaFileName != null) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.check_circle,
+                          color: Colors.green,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'File selected: $_selectedMediaFileName',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.green,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'OR enter URL directly:',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 TextField(
                   controller: mediaUrlController,
                   decoration: InputDecoration(
@@ -1025,6 +1183,10 @@ class _QuestionDialogContentState
                     hintText: mediaType == 'youtube'
                         ? 'e.g., https://youtube.com/watch?v=...'
                         : 'e.g., https://...',
+                    suffixIcon:
+                        mediaType != 'youtube' && _uploadedMediaUrl != null
+                        ? const Icon(Icons.check_circle, color: Colors.green)
+                        : null,
                   ),
                 ),
               ],
