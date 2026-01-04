@@ -5,7 +5,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../../core/services/ai_service.dart';
 
 class AssistantScreen extends StatefulWidget {
-  const AssistantScreen({Key? key}) : super(key: key);
+  const AssistantScreen({super.key});
 
   @override
   State<AssistantScreen> createState() => _AssistantScreenState();
@@ -156,7 +156,7 @@ class _AssistantScreenState extends State<AssistantScreen>
 
 // URL Scanner Tab (existing VirusTotal logic)
 class UrlScannerTab extends StatefulWidget {
-  const UrlScannerTab({Key? key}) : super(key: key);
+  const UrlScannerTab({super.key});
 
   @override
   State<UrlScannerTab> createState() => _UrlScannerTabState();
@@ -166,13 +166,7 @@ class _UrlScannerTabState extends State<UrlScannerTab>
     with AutomaticKeepAliveClientMixin, SingleTickerProviderStateMixin {
   final _urlController = TextEditingController();
   bool _isChecking = false;
-  String? _resultStatus;
-  String? _resultMessage;
-  Map<String, dynamic>? _scanStats;
-  List<Map<String, String>>? _threatDetails;
   late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
   late final String _apiKey;
 
   @override
@@ -188,23 +182,6 @@ class _UrlScannerTabState extends State<UrlScannerTab>
     return encoded.replaceAll('=', '');
   }
 
-  List<Map<String, String>> _extractThreatDetails(Map<String, dynamic> analysisResults) {
-    List<Map<String, String>> threats = [];
-    analysisResults.forEach((vendor, result) {
-      if (result is Map<String, dynamic>) {
-        final category = result['category'] as String?;
-        final resultText = result['result'] as String?;
-        if (category == 'malicious' || category == 'suspicious') {
-          threats.add({
-            'vendor': vendor,
-            'category': category ?? 'unknown',
-            'result': resultText ?? 'Flagged as potentially harmful',
-          });
-        }
-      }
-    });
-    return threats;
-  }
 
   Future<void> _checkUrl() async {
     if (_urlController.text.isEmpty) {
@@ -216,10 +193,6 @@ class _UrlScannerTabState extends State<UrlScannerTab>
 
     setState(() {
       _isChecking = true;
-      _resultStatus = null;
-      _resultMessage = null;
-      _scanStats = null;
-      _threatDetails = null;
     });
 
     try {
@@ -236,54 +209,48 @@ class _UrlScannerTabState extends State<UrlScannerTab>
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         final attributes = data['data']?['attributes'] as Map<String, dynamic>?;
         final lastAnalysisStats = attributes?['last_analysis_stats'] as Map<String, dynamic>?;
-        final lastAnalysisResults = attributes?['last_analysis_results'] as Map<String, dynamic>?;
 
         if (lastAnalysisStats != null) {
           final malicious = (lastAnalysisStats['malicious'] ?? 0) as int;
           final suspicious = (lastAnalysisStats['suspicious'] ?? 0) as int;
           final harmless = (lastAnalysisStats['harmless'] ?? 0) as int;
 
-          setState(() {
-            _scanStats = lastAnalysisStats;
-
-            if (malicious + suspicious > 0) {
-              _resultStatus = 'danger';
-              _resultMessage =
-                  '⚠️ Warning! ${malicious + suspicious} security vendor(s) flagged this site as dangerous. Do not visit.';
-              if (lastAnalysisResults != null) {
-                _threatDetails = _extractThreatDetails(lastAnalysisResults);
-              }
-            } else if (harmless > 0) {
-              _resultStatus = 'safe';
-              _resultMessage = '✅ Good news! This website appears safe to visit according to our security scan.';
-            } else {
-              _resultStatus = 'unknown';
-              _resultMessage = '❓ This is a new or unknown link. We have no security data for it yet. Be careful.';
-            }
-          });
+          // Analysis complete - show success message
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  malicious + suspicious > 0
+                      ? '⚠️ Warning! ${malicious + suspicious} vendor(s) flagged this site'
+                      : harmless > 0
+                          ? '✅ This website appears safe'
+                          : '❓ No security data available',
+                ),
+                backgroundColor: malicious + suspicious > 0 ? Colors.red : Colors.green,
+              ),
+            );
+          }
           _animationController.forward(from: 0);
         } else {
-          setState(() {
-            _resultStatus = 'unknown';
-            _resultMessage = '❓ This is a new or unknown link. We have no security data for it yet. Be careful.';
-          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('❓ No security data available for this URL')),
+            );
+          }
           _animationController.forward(from: 0);
         }
       } else if (response.statusCode == 404) {
-        setState(() {
-          _resultStatus = 'unknown';
-          _resultMessage = '❓ This is a new or unknown link. We have no security data for it yet. Be careful.';
-        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('❓ This is a new or unknown link')),
+          );
+        }
         _animationController.forward(from: 0);
       } else {
         throw Exception('API Error: ${response.statusCode}');
       }
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _resultStatus = 'unknown';
-        _resultMessage = '⚠️ Unable to check this URL. Please try again.';
-      });
       _animationController.forward(from: 0);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: ${e.toString()}')),
@@ -312,15 +279,6 @@ class _UrlScannerTabState extends State<UrlScannerTab>
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 600),
       vsync: this,
-    );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
-    );
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
     );
   }
 
@@ -444,7 +402,7 @@ class _UrlScannerTabState extends State<UrlScannerTab>
 
 // New Smish Detector Tab
 class SmishDetectorTab extends StatefulWidget {
-  const SmishDetectorTab({Key? key}) : super(key: key);
+  const SmishDetectorTab({super.key});
 
   @override
   State<SmishDetectorTab> createState() => _SmishDetectorTabState();

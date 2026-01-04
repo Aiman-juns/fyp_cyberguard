@@ -295,6 +295,27 @@ Future<List<Achievement>> fetchUserAchievements(String userId) async {
         description: 'Answer 5 questions in 1 minute',
         iconType: IconType.rocket,
       ),
+      Achievement(
+        id: 'diligent_student',
+        badgeType: 'diligent_student',
+        title: 'Diligent Student',
+        description: 'Watch 5 training videos',
+        iconType: IconType.star,
+      ),
+      Achievement(
+        id: 'knowledge_seeker',
+        badgeType: 'knowledge_seeker',
+        title: 'Knowledge Seeker',
+        description: 'Complete 50 questions',
+        iconType: IconType.flash,
+      ),
+      Achievement(
+        id: 'master_guardian',
+        badgeType: 'master_guardian',
+        title: 'Master Guardian',
+        description: 'Reach level 10',
+        iconType: IconType.shield,
+      ),
     ];
 
     // Fetch user progress to check achievements
@@ -405,6 +426,37 @@ Future<List<Achievement>> fetchUserAchievements(String userId) async {
                 break;
               }
             }
+          }
+          break;
+
+        case 'diligent_student':
+          // Check if user watched 5 videos
+          final videoProgressResponse = await SupabaseConfig.client
+              .from('video_progress')
+              .select()
+              .eq('user_id', userId)
+              .eq('completed', true);
+          if (videoProgressResponse.length >= 5) {
+            isUnlocked = true;
+            final firstVideo = videoProgressResponse.first;
+            if (firstVideo['updated_at'] != null) {
+              earnedDate = DateTime.parse(firstVideo['updated_at'] as String);
+            }
+          }
+          break;
+
+        case 'knowledge_seeker':
+          // Check if user completed 50 questions
+          if (progress.length >= 50) {
+            isUnlocked = true;
+            earnedDate = DateTime.parse(progress[49]['attempt_date'] as String);
+          }
+          break;
+
+        case 'master_guardian':
+          // Check if user reached level 10
+          if (userLevel >= 10) {
+            isUnlocked = true;
           }
           break;
       }

@@ -30,8 +30,9 @@ class _InfectionSimulatorScreenState extends State<InfectionSimulatorScreen>
   // Simulation states
   SimulationState _currentState = SimulationState.bait;
 
-  // Audio player
+  // Audio players
   late AudioPlayer _audioPlayer;
+  late AudioPlayer _uploadAudioPlayer;
   bool _audioPreloaded = false;
 
   // Timers
@@ -70,9 +71,11 @@ class _InfectionSimulatorScreenState extends State<InfectionSimulatorScreen>
       vsync: this,
       duration: const Duration(seconds: 3),
     );
-    
-    // Initialize audio player
+
+    // Initialize audio players
     _audioPlayer = AudioPlayer();
+    _uploadAudioPlayer = AudioPlayer();
+    _uploadAudioPlayer.setReleaseMode(ReleaseMode.loop);
     _preloadSound();
   }
 
@@ -90,6 +93,7 @@ class _InfectionSimulatorScreenState extends State<InfectionSimulatorScreen>
   void dispose() {
     _glitchController.dispose();
     _audioPlayer.dispose();
+    _uploadAudioPlayer.dispose();
     _progressTimer?.cancel();
     _hapticTimer?.cancel();
     _countdownTimer?.cancel();
@@ -120,7 +124,7 @@ class _InfectionSimulatorScreenState extends State<InfectionSimulatorScreen>
     Future.delayed(const Duration(seconds: 3), () {
       // Stop the glitch sound
       _audioPlayer.stop();
-      
+
       if (mounted) {
         setState(() {
           _currentState = SimulationState.dataTheft;
@@ -134,6 +138,9 @@ class _InfectionSimulatorScreenState extends State<InfectionSimulatorScreen>
     // Transition to ransomware after 8 seconds total
     Future.delayed(const Duration(seconds: 8), () {
       if (mounted) {
+        // Stop upload sound
+        _uploadAudioPlayer.stop();
+
         HapticFeedback.vibrate();
         setState(() {
           _currentState = SimulationState.ransomware;
@@ -155,7 +162,31 @@ class _InfectionSimulatorScreenState extends State<InfectionSimulatorScreen>
     });
   }
 
-  void _startUploadProgress() {
+  void _startUploadProgress() async {
+    // Start upload sound on loop
+    try {
+      await _uploadAudioPlayer.setVolume(0.5);
+      // Try upload_sound first, fallback to glitch_sound if it fails
+      try {
+        await _uploadAudioPlayer.setSource(
+          AssetSource('sounds/upload_sound.mp3'),
+        );
+      } catch (e) {
+        debugPrint(
+          'upload_sound.mp3 format error, using glitch_sound.mp3 as fallback',
+        );
+        await _uploadAudioPlayer.setSource(
+          AssetSource('sounds/glitch_sound.mp3'),
+        );
+      }
+      await _uploadAudioPlayer.resume();
+      debugPrint('Upload sound started playing');
+    } catch (e) {
+      debugPrint('Error playing upload sound: $e');
+      debugPrint('Continuing simulation without upload sound...');
+      // Continue simulation even if sound fails
+    }
+
     Timer.periodic(const Duration(milliseconds: 100), (timer) {
       if (_uploadProgress < 0.95 &&
           _currentState == SimulationState.dataTheft) {
@@ -164,6 +195,8 @@ class _InfectionSimulatorScreenState extends State<InfectionSimulatorScreen>
         });
       } else {
         timer.cancel();
+        // Stop upload sound when complete
+        _uploadAudioPlayer.stop();
       }
     });
   }
@@ -198,6 +231,7 @@ class _InfectionSimulatorScreenState extends State<InfectionSimulatorScreen>
     _glitchController.stop();
     _glitchController.reset();
     _audioPlayer.stop();
+    _uploadAudioPlayer.stop();
     _hapticTimer?.cancel();
     _progressTimer?.cancel();
     _countdownTimer?.cancel();
@@ -913,10 +947,7 @@ class _InfectionSimulatorScreenState extends State<InfectionSimulatorScreen>
                         const Text(
                           'All your personal data has been\npermanently erased.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 14,
-                          ),
+                          style: TextStyle(color: Colors.white70, fontSize: 14),
                         ),
                         const SizedBox(height: 16),
                         Container(
@@ -965,10 +996,7 @@ class _InfectionSimulatorScreenState extends State<InfectionSimulatorScreen>
                         ),
                       ],
                     ),
-                  )
-                      .animate()
-                      .fadeIn(duration: 500.ms)
-                      .shake(duration: 300.ms),
+                  ).animate().fadeIn(duration: 500.ms).shake(duration: 300.ms),
                   const SizedBox(height: 8),
                 ],
                 ElevatedButton(

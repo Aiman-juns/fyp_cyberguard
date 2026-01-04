@@ -5,7 +5,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../core/services/avatar_service.dart';
 import '../../../config/supabase_config.dart';
-import '../../support/screens/emergency_support_screen.dart';
 import '../../resources/providers/resources_provider.dart';
 import '../../resources/providers/progress_provider.dart';
 import '../../training/providers/training_provider.dart';

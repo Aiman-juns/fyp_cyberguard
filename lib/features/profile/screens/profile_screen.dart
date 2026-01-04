@@ -4,6 +4,7 @@ import '../../../auth/providers/auth_provider.dart';
 import '../../../core/services/avatar_service.dart';
 import '../../../config/supabase_config.dart';
 import '../../performance/providers/performance_provider.dart';
+import '../../../core/services/achievement_notification_service.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -447,6 +448,86 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
+  void _showAllAchievementsDialog(
+    BuildContext context,
+    List<Achievement> achievements,
+    bool isDark,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.amber.shade400, Colors.amber.shade600],
+                  ),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(24),
+                    topRight: Radius.circular(24),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.emoji_events,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'All Achievements',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              // Achievement Grid
+              Expanded(
+                child: GridView.builder(
+                  padding: const EdgeInsets.all(20),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 0.85,
+                  ),
+                  itemCount: achievements.length,
+                  itemBuilder: (context, index) {
+                    return _AchievementDetailCard(
+                      achievement: achievements[index],
+                      isDark: isDark,
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
@@ -459,7 +540,7 @@ class ProfileScreen extends ConsumerWidget {
         }
 
         final avatar = AvatarService.getAvatarById(user.avatarId);
-        final achievementsAsync = ref.watch(userAchievementsProvider);
+        final performanceAsync = ref.watch(performanceProvider);
 
         return SingleChildScrollView(
           child: Column(
@@ -712,42 +793,55 @@ class ProfileScreen extends ConsumerWidget {
               // About App Button
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: ElevatedButton(
-                  onPressed: () => _showAboutDialog(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isDark
-                        ? const Color(0xFF2563EB)
-                        : const Color(0xFF3B82F6),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 16,
-                      horizontal: 24,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 2,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.info_outline, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        'About CyberGuard',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
+                child: GestureDetector(
+                  onLongPress: () {
+                    // Demo: Show achievement notification
+                    performanceAsync.whenData((stats) {
+                      if (stats.achievements.isNotEmpty) {
+                        AchievementNotificationService.showAchievementUnlocked(
+                          context,
+                          stats.achievements.first,
+                        );
+                      }
+                    });
+                  },
+                  child: ElevatedButton(
+                    onPressed: () => _showAboutDialog(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isDark
+                          ? const Color(0xFF2563EB)
+                          : const Color(0xFF3B82F6),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 16,
+                        horizontal: 24,
                       ),
-                    ],
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      elevation: 2,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.info_outline, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          'About CyberGuard',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
 
               const SizedBox(height: 24),
 
-              // Trophy Case Section
+              // Medals & Achievements Section
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
@@ -775,22 +869,40 @@ class ProfileScreen extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        Text(
-                          'Trophy Case',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: isDark
-                                ? Colors.white
-                                : const Color(0xFF1E293B),
+                        Expanded(
+                          child: Text(
+                            'Medals & Achievements',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF1E293B),
+                            ),
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: () {
+                            performanceAsync.whenData((stats) {
+                              _showAllAchievementsDialog(
+                                context,
+                                stats.achievements,
+                                isDark,
+                              );
+                            });
+                          },
+                          icon: const Icon(Icons.grid_view, size: 18),
+                          label: const Text('View All'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xFF3B82F6),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
-                    achievementsAsync.when(
-                      data: (achievements) {
-                        if (achievements.isEmpty) {
+                    performanceAsync.when(
+                      data: (stats) {
+                        if (stats.achievements.isEmpty) {
                           return Container(
                             padding: const EdgeInsets.all(32),
                             decoration: BoxDecoration(
@@ -813,7 +925,7 @@ class ProfileScreen extends ConsumerWidget {
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
-                                  'No badges yet!',
+                                  'No achievements yet!',
                                   style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
@@ -822,7 +934,7 @@ class ProfileScreen extends ConsumerWidget {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  'Complete training modules to earn your first badge',
+                                  'Complete training modules to earn your first achievement',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                     fontSize: 14,
@@ -834,34 +946,26 @@ class ProfileScreen extends ConsumerWidget {
                           );
                         }
 
-                        return GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 3,
-                                crossAxisSpacing: 12,
-                                mainAxisSpacing: 12,
-                                childAspectRatio: 0.9,
-                              ),
-                          itemCount: achievements.length,
-                          itemBuilder: (context, index) {
-                            final achievement = achievements[index];
-                            return _BadgeCard(
-                              title: achievement.title,
-                              icon: _getAchievementIcon(achievement.badgeType),
-                              color: _getAchievementColor(
-                                achievement.badgeType,
-                              ),
-                              earnedAt: achievement.earnedAt ?? DateTime.now(),
-                              isDark: isDark,
-                            );
-                          },
+                        return SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              ...stats.achievements.map((achievement) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 12.0),
+                                  child: _ProfileAchievementCard(
+                                    achievement: achievement,
+                                    isDark: isDark,
+                                  ),
+                                );
+                              }),
+                            ],
+                          ),
                         );
                       },
                       loading: () =>
                           const Center(child: CircularProgressIndicator()),
-                      error: (e, _) => Text('Error loading badges: $e'),
+                      error: (e, _) => Text('Error loading achievements: $e'),
                     ),
                   ],
                 ),
@@ -876,90 +980,378 @@ class ProfileScreen extends ConsumerWidget {
       error: (error, _) => Center(child: Text('Error: $error')),
     );
   }
+}
 
-  IconData _getAchievementIcon(String type) {
-    switch (type) {
-      case 'perfect_score':
-        return Icons.stars;
-      case 'speed_demon':
-        return Icons.flash_on;
-      case 'first_module':
-        return Icons.school;
-      case 'streak_master':
-        return Icons.local_fire_department;
-      default:
-        return Icons.emoji_events;
-    }
+class _ProfileAchievementCard extends StatelessWidget {
+  final Achievement achievement;
+  final bool isDark;
+
+  const _ProfileAchievementCard({
+    required this.achievement,
+    required this.isDark,
+  });
+
+  IconData _getIconData(IconType type) {
+    return switch (type) {
+      IconType.trophy => Icons.emoji_events,
+      IconType.flash => Icons.flash_on,
+      IconType.verified => Icons.verified,
+      IconType.star => Icons.star,
+      IconType.shield => Icons.shield,
+      IconType.rocket => Icons.rocket_launch,
+    };
   }
 
-  Color _getAchievementColor(String type) {
-    switch (type) {
-      case 'perfect_score':
-        return Colors.amber;
-      case 'speed_demon':
-        return Colors.orange;
-      case 'first_module':
-        return Colors.blue;
-      case 'streak_master':
-        return Colors.red;
-      default:
-        return Colors.purple;
-    }
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        _showAchievementDetails(context, achievement, isDark);
+      },
+      child: Container(
+        width: 120,
+        decoration: BoxDecoration(
+          gradient: achievement.isUnlocked
+              ? const LinearGradient(
+                  colors: [Color(0xFFFEF3C7), Color(0xFFFDE68A)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          color: achievement.isUnlocked
+              ? null
+              : (isDark ? Colors.grey.shade800 : const Color(0xFFF1F5F9)),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: achievement.isUnlocked
+                ? const Color(0xFFFDE68A)
+                : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+            width: 2,
+          ),
+          boxShadow: achievement.isUnlocked
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFFF59E0B).withOpacity(0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Large circular icon container
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: achievement.isUnlocked
+                      ? const LinearGradient(
+                          colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        )
+                      : null,
+                  color: achievement.isUnlocked
+                      ? null
+                      : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                ),
+                child: Icon(
+                  _getIconData(achievement.iconType),
+                  color: achievement.isUnlocked
+                      ? Colors.white
+                      : (isDark ? Colors.grey.shade500 : Colors.grey.shade400),
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 12.0),
+              Text(
+                achievement.title,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : const Color(0xFF1E293B),
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4.0),
+              Text(
+                achievement.description,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (achievement.isUnlocked) ...[
+                const SizedBox(height: 8.0),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF59E0B),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'Unlocked',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showAchievementDetails(
+    BuildContext context,
+    Achievement achievement,
+    bool isDark,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: achievement.isUnlocked
+                      ? const LinearGradient(
+                          colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                        )
+                      : null,
+                  color: achievement.isUnlocked ? null : Colors.grey.shade300,
+                ),
+                child: Icon(
+                  _getIconData(achievement.iconType),
+                  color: Colors.white,
+                  size: 50,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                achievement.title,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : const Color(0xFF1E293B),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                achievement.description,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: isDark ? Colors.grey.shade300 : Colors.grey.shade600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              if (achievement.isUnlocked)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.white),
+                      SizedBox(width: 8),
+                      Text(
+                        'Unlocked!',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.lock, color: Colors.grey.shade600),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Locked',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
-class _BadgeCard extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final Color color;
-  final DateTime earnedAt;
+class _AchievementDetailCard extends StatelessWidget {
+  final Achievement achievement;
   final bool isDark;
 
-  const _BadgeCard({
-    required this.title,
-    required this.icon,
-    required this.color,
-    required this.earnedAt,
+  const _AchievementDetailCard({
+    required this.achievement,
     required this.isDark,
   });
+
+  IconData _getIconData(IconType type) {
+    return switch (type) {
+      IconType.trophy => Icons.emoji_events,
+      IconType.flash => Icons.flash_on,
+      IconType.verified => Icons.verified,
+      IconType.star => Icons.star,
+      IconType.shield => Icons.shield,
+      IconType.rocket => Icons.rocket_launch,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isDark ? Colors.grey.shade900 : Colors.white,
+        gradient: achievement.isUnlocked
+            ? const LinearGradient(
+                colors: [Color(0xFFFEF3C7), Color(0xFFFDE68A)],
+              )
+            : null,
+        color: achievement.isUnlocked
+            ? null
+            : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3), width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(
+          color: achievement.isUnlocked
+              ? const Color(0xFFFDE68A)
+              : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+          width: 2,
+        ),
       ),
+      padding: const EdgeInsets.all(12),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            width: 50,
+            height: 50,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
               shape: BoxShape.circle,
+              gradient: achievement.isUnlocked
+                  ? const LinearGradient(
+                      colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                    )
+                  : null,
+              color: achievement.isUnlocked
+                  ? null
+                  : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
             ),
-            child: Icon(icon, color: color, size: 32),
+            child: Icon(
+              _getIconData(achievement.iconType),
+              color: achievement.isUnlocked
+                  ? Colors.white
+                  : (isDark ? Colors.grey.shade500 : Colors.grey.shade400),
+              size: 26,
+            ),
           ),
           const SizedBox(height: 8),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: isDark ? Colors.white : const Color(0xFF1E293B),
+          Flexible(
+            child: Text(
+              achievement.title,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : const Color(0xFF1E293B),
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Flexible(
+            child: Text(
+              achievement.description,
+              style: TextStyle(
+                fontSize: 10,
+                color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: achievement.isUnlocked
+                  ? const Color(0xFFF59E0B)
+                  : Colors.grey.shade400,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              achievement.isUnlocked ? 'Unlocked' : 'Locked',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],

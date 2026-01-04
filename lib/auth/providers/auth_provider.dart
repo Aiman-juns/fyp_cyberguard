@@ -47,7 +47,7 @@ class AuthProvider extends StateNotifier<AsyncValue<UserModel?>> {
           .eq('id', userId)
           .single();
 
-      return UserModel.fromJson(response as Map<String, dynamic>);
+      return UserModel.fromJson(response);
     } catch (e) {
       throw AuthException('Failed to fetch user profile: $e');
     }

@@ -64,7 +64,7 @@ Future<News> fetchNewsById(String id) async {
         .eq('id', id)
         .single();
 
-    return News.fromJson(response as Map<String, dynamic>);
+    return News.fromJson(response);
   } catch (e) {
     throw Exception('Failed to fetch news: $e');
   }

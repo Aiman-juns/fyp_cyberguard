@@ -41,29 +41,32 @@ class DailyChallengeCard extends ConsumerWidget {
               children: [
                 const Text(
                   '🔥',
-                  style: TextStyle(fontSize: 28),
+                  style: TextStyle(fontSize: 24),
                 ),
                 const SizedBox(width: 8),
-                const Text(
-                  'Daily Cyber Challenge',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E293B),
+                const Flexible(
+                  child: Text(
+                    'Daily Cyber Challenge',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E293B),
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 8),
                 if (challengeState.status == ChallengeStatus.completed &&
                     challengeState.isCorrect == true)
                   const Text(
                     '+50 pts',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFFF97316),
                     ),
                   ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 4),
                 // Collapse/Expand button
                 IconButton(
                   onPressed: () {
@@ -72,9 +75,11 @@ class DailyChallengeCard extends ConsumerWidget {
                   icon: Icon(
                     isExpanded ? Icons.expand_less : Icons.expand_more,
                     color: Color(0xFF64748B),
-                    size: 28,
+                    size: 24,
                   ),
                   tooltip: isExpanded ? 'Collapse' : 'Expand',
+                  padding: EdgeInsets.all(8),
+                  constraints: BoxConstraints(),
                 ),
               ],
             ),
@@ -105,16 +110,19 @@ class DailyChallengeCard extends ConsumerWidget {
         children: [
           const Icon(
             Icons.calendar_today,
-            size: 16,
+            size: 14,
             color: Color(0xFFF97316),
           ),
-          const SizedBox(width: 8),
-          Text(
-            'Week Progress: $streakCount/7',
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1E293B),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              'Week Progress: $streakCount/7',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF1E293B),
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           const SizedBox(width: 12),

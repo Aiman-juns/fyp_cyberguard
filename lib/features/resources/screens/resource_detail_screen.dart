@@ -36,13 +36,33 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
   final TextEditingController _noteController = TextEditingController();
   bool _isVideoInitialized = false;
   String? _currentMediaUrl; // Track current URL
-
+  bool _showVideoOverlay = true; // Control overlay visibility
   DateTime? _lastUpdateTime;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _startOverlayTimer();
+  }
+
+  void _startOverlayTimer() {
+    Future.delayed(const Duration(seconds: 4), () {
+      if (mounted) {
+        setState(() {
+          _showVideoOverlay = false;
+        });
+      }
+    });
+  }
+
+  void _toggleOverlay() {
+    setState(() {
+      _showVideoOverlay = !_showVideoOverlay;
+    });
+    if (_showVideoOverlay) {
+      _startOverlayTimer();
+    }
   }
 
   @override
@@ -114,19 +134,40 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
                   final progressId = widget.attackTypeId != null
                       ? '${widget.resourceId}_${widget.attackTypeId}'
                       : widget.resourceId;
+
+                  print('🔍 Loading progress for: $progressId');
+
+                  // Wait for progress to load from database/local storage
+                  await ref
+                      .read(videoProgressProvider(progressId).notifier)
+                      .getProgress(progressId);
+
+                  // Small delay to ensure state is updated
+                  await Future.delayed(const Duration(milliseconds: 100));
+
+                  // Now read the loaded progress
                   final progressAsync = ref.read(
                     videoProgressProvider(progressId),
                   );
-                  progressAsync.whenData((progress) async {
-                    if (progress != null && progress.watchPercentage > 0) {
-                      final duration = _videoController!.value.duration;
-                      final savedPosition =
-                          duration * (progress.watchPercentage / 100);
-                      await _videoController!.seekTo(savedPosition);
-                    }
-                  });
+
+                  print('🔍 Progress state: ${progressAsync.runtimeType}');
+
+                  // Handle the AsyncValue properly
+                  final progress = progressAsync.valueOrNull;
+
+                  if (progress != null && progress.watchPercentage > 0) {
+                    final duration = _videoController!.value.duration;
+                    final savedPosition =
+                        duration * (progress.watchPercentage / 100);
+                    await _videoController!.seekTo(savedPosition);
+                    print(
+                      '✅ Restored video position: ${progress.watchPercentage}% at ${savedPosition.inSeconds}s',
+                    );
+                  } else {
+                    print('ℹ️ No saved progress found for $progressId');
+                  }
                 } catch (e) {
-                  print('Error restoring video progress: $e');
+                  print('❌ Error restoring video progress: $e');
                 }
               }
             })
@@ -310,162 +351,70 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
   }
 
   Widget _buildVideoPlayerSection(BuildContext context, Resource resource) {
+    final screenSize = MediaQuery.of(context).size;
+    final orientation = MediaQuery.of(context).orientation;
+    
     return Container(
       color: Colors.black,
-      child: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16.0,
-                vertical: 8.0,
-              ),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () {
-                      SystemChrome.setPreferredOrientations([
-                        DeviceOrientation.portraitUp,
-                        DeviceOrientation.portraitDown,
-                      ]);
-                      context.pop();
-                    },
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          resource.title,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          '${resource.category} • Lesson 1',
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.settings, color: Colors.white),
-                    onPressed: () {},
-                  ),
-                ],
-              ),
-            ),
-            // Video Player
-            _isVideoInitialized && _isYouTubeVideo && _youtubeController != null
-                ? YoutubePlayerBuilder(
-                    onEnterFullScreen: () {
-                      SystemChrome.setPreferredOrientations([
-                        DeviceOrientation.landscapeLeft,
-                        DeviceOrientation.landscapeRight,
-                      ]);
-                    },
-                    onExitFullScreen: () {
-                      SystemChrome.setPreferredOrientations([
-                        DeviceOrientation.portraitUp,
-                        DeviceOrientation.portraitDown,
-                      ]);
-                    },
-                    player: YoutubePlayer(
-                      controller: _youtubeController!,
-                      showVideoProgressIndicator: true,
-                      progressIndicatorColor: const Color(0xFF9333EA),
-                      progressColors: const ProgressBarColors(
-                        playedColor: Color(0xFF9333EA),
-                        handleColor: Color(0xFF9333EA),
-                      ),
-                      bottomActions: [
-                        const SizedBox(width: 14.0),
-                        CurrentPosition(),
-                        const SizedBox(width: 8.0),
-                        ProgressBar(
-                          isExpanded: true,
-                          colors: const ProgressBarColors(
+      width: double.infinity,
+      height: orientation == Orientation.landscape 
+          ? screenSize.height 
+          : screenSize.width * 9 / 16, // 16:9 aspect ratio for portrait
+      child: Stack(
+        children: [
+          // Video Player
+          Positioned.fill(
+            child: _isVideoInitialized && _isYouTubeVideo && _youtubeController != null
+            ? YoutubePlayerBuilder(
+                        onEnterFullScreen: () {
+                          SystemChrome.setPreferredOrientations([
+                            DeviceOrientation.landscapeLeft,
+                            DeviceOrientation.landscapeRight,
+                          ]);
+                        },
+                        onExitFullScreen: () {
+                          SystemChrome.setPreferredOrientations([
+                            DeviceOrientation.portraitUp,
+                            DeviceOrientation.portraitDown,
+                          ]);
+                        },
+                        player: YoutubePlayer(
+                          controller: _youtubeController!,
+                          showVideoProgressIndicator: true,
+                          progressIndicatorColor: const Color(0xFF9333EA),
+                          progressColors: const ProgressBarColors(
                             playedColor: Color(0xFF9333EA),
                             handleColor: Color(0xFF9333EA),
                           ),
+                          bottomActions: [
+                            const SizedBox(width: 14.0),
+                            CurrentPosition(),
+                            const SizedBox(width: 8.0),
+                            ProgressBar(
+                              isExpanded: true,
+                              colors: const ProgressBarColors(
+                                playedColor: Color(0xFF9333EA),
+                                handleColor: Color(0xFF9333EA),
+                              ),
+                            ),
+                            RemainingDuration(),
+                            const SizedBox(width: 8.0),
+                            FullScreenButton(),
+                          ],
                         ),
-                        RemainingDuration(),
-                        const SizedBox(width: 8.0),
-                        FullScreenButton(),
-                      ],
-                    ),
-                    builder: (context, player) =>
-                        AspectRatio(aspectRatio: 16 / 9, child: player),
-                  )
-                : AspectRatio(
-                    aspectRatio: 16 / 9,
-                    child: _isVideoInitialized && _videoController != null
-                        ? Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              VideoPlayer(_videoController!),
-                              // Play/Pause overlay
-                              Center(
-                                child: GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      if (_videoController!.value.isPlaying) {
-                                        _videoController!.pause();
-                                      } else {
-                                        _videoController!.play();
-                                      }
-                                    });
-                                  },
-                                  child: Container(
-                                    width: 60,
-                                    height: 60,
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withOpacity(0.5),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Icon(
-                                      _videoController!.value.isPlaying
-                                          ? Icons.pause
-                                          : Icons.play_arrow,
-                                      color: Colors.white,
-                                      size: 40,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              // Progress indicator
-                              Positioned(
-                                bottom: 0,
-                                left: 0,
-                                right: 0,
-                                child: VideoProgressIndicator(
-                                  _videoController!,
-                                  allowScrubbing: true,
-                                  colors: const VideoProgressColors(
-                                    playedColor: Color(0xFF9333EA),
-                                    bufferedColor: Colors.white24,
-                                    backgroundColor: Colors.white12,
-                                  ),
-                                ),
-                              ),
-                            ],
+                        builder: (context, player) => player,
+                      )
+                    : _isVideoInitialized && _videoController != null
+                        ? GestureDetector(
+                            onTap: _toggleOverlay,
+                            child: VideoPlayer(_videoController!),
                           )
                         : Container(
                             color: Colors.grey[900],
                             child: Center(
-                              child:
-                                  resource.mediaUrl == null ||
-                                      resource.mediaUrl!.isEmpty
+                              child: resource.mediaUrl == null || resource.mediaUrl!.isEmpty
                                   ? Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
+                                      mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
                                         Icon(
                                           Icons.video_library_outlined,
@@ -497,75 +446,260 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
                             ),
                           ),
                   ),
-            // Video Controls
-            if (_videoController != null && _isVideoInitialized)
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16.0,
-                  vertical: 8.0,
+                  
+                  // Back Button (Always Visible)
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: SafeArea(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.arrow_back, color: Colors.white),
+                          onPressed: () {
+                            SystemChrome.setPreferredOrientations([
+                              DeviceOrientation.portraitUp,
+                              DeviceOrientation.portraitDown,
+                            ]);
+                            context.pop();
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+              
+                  // Auto-hiding Overlay Header
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: AnimatedOpacity(
+                      opacity: _showVideoOverlay ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 300),
+                      child: IgnorePointer(
+                        ignoring: !_showVideoOverlay,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.black.withOpacity(0.7),
+                                Colors.transparent,
+                              ],
+                            ),
+                          ),
+                          child: SafeArea(
+                            child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Row(
+                                children: [
+                                  const SizedBox(width: 48), // Space for back button
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          resource.title,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            shadows: [
+                                              Shadow(
+                                                offset: Offset(0, 1),
+                                                blurRadius: 3.0,
+                                                color: Colors.black,
+                                              ),
+                                            ],
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        Text(
+                                          '${resource.category} • Lesson 1',
+                                          style: const TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 12,
+                                            shadows: [
+                                              Shadow(
+                                                offset: Offset(0, 1),
+                                                blurRadius: 3.0,
+                                                color: Colors.black,
+                                              ),
+                                            ],
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.3),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: IconButton(
+                                      icon: const Icon(Icons.settings, color: Colors.white),
+                                      onPressed: () {},
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  
+                  // Play/Pause overlay for local videos
+                  if (_isVideoInitialized && _videoController != null && _showVideoOverlay)
+                    Center(
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            if (_videoController!.value.isPlaying) {
+                              _videoController!.pause();
+                            } else {
+                              _videoController!.play();
+                            }
+                          });
+                        },
+                        child: Container(
+                          width: 60,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.5),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            _videoController!.value.isPlaying
+                                ? Icons.pause
+                                : Icons.play_arrow,
+                            color: Colors.white,
+                            size: 40,
+                          ),
+                        ),
+                      ),
+                    ),
+                  
+                  // Progress indicator at bottom for local videos
+                  if (_isVideoInitialized && _videoController != null)
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: VideoProgressIndicator(
+                        _videoController!,
+                        allowScrubbing: true,
+                        colors: const VideoProgressColors(
+                          playedColor: Color(0xFF9333EA),
+                          bufferedColor: Colors.white24,
+                          backgroundColor: Colors.white12,
+                        ),
+                      ),
+                    ),
+                  
+                  // Auto-hiding Bottom Controls
+                  if (_isVideoInitialized && _videoController != null)
+                    Positioned(
+                      bottom: 20,
+                      left: 0,
+                      right: 0,
+                      child: AnimatedOpacity(
+                        opacity: _showVideoOverlay ? 1.0 : 0.0,
+                        duration: const Duration(milliseconds: 300),
+                        child: IgnorePointer(
+                          ignoring: !_showVideoOverlay,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                            child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.5),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: TextButton.icon(
+                                onPressed: () {
+                                  final currentPosition = _videoController!.value.position;
+                                  final newPosition = currentPosition - const Duration(seconds: 10);
+                                  _videoController!.seekTo(
+                                    newPosition < Duration.zero ? Duration.zero : newPosition,
+                                  );
+                                },
+                                icon: const Icon(Icons.replay_10, color: Colors.white, size: 20),
+                                label: const Text(
+                                  '-10s',
+                                  style: TextStyle(color: Colors.white, fontSize: 12),
+                                ),
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                ),
+                              ),
+                            ),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.5),
+                                shape: BoxShape.circle,
+                              ),
+                              child: IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    if (_videoController!.value.isPlaying) {
+                                      _videoController!.pause();
+                                    } else {
+                                      _videoController!.play();
+                                    }
+                                  });
+                                },
+                                icon: Icon(
+                                  _videoController!.value.isPlaying
+                                      ? Icons.pause
+                                      : Icons.play_arrow,
+                                  color: Colors.white,
+                                  size: 32,
+                                ),
+                              ),
+                            ),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.5),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: TextButton.icon(
+                                onPressed: () {
+                                  final currentPosition = _videoController!.value.position;
+                                  final duration = _videoController!.value.duration;
+                                  final newPosition = currentPosition + const Duration(seconds: 10);
+                                  _videoController!.seekTo(
+                                    newPosition > duration ? duration : newPosition,
+                                  );
+                                },
+                                icon: const Icon(Icons.forward_10, color: Colors.white, size: 20),
+                                label: const Text(
+                                  '+10s',
+                                  style: TextStyle(color: Colors.white, fontSize: 12),
+                                ),
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton.icon(
-                      onPressed: () {
-                        final currentPosition =
-                            _videoController!.value.position;
-                        final newPosition =
-                            currentPosition - const Duration(seconds: 10);
-                        _videoController!.seekTo(
-                          newPosition < Duration.zero
-                              ? Duration.zero
-                              : newPosition,
-                        );
-                      },
-                      icon: const Icon(Icons.replay_10, color: Colors.white),
-                      label: const Text(
-                        '-10s',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                    // Play/Pause button
-                    IconButton(
-                      onPressed: () {
-                        setState(() {
-                          if (_videoController!.value.isPlaying) {
-                            _videoController!.pause();
-                          } else {
-                            _videoController!.play();
-                          }
-                        });
-                      },
-                      icon: Icon(
-                        _videoController!.value.isPlaying
-                            ? Icons.pause_circle_filled
-                            : Icons.play_circle_filled,
-                        color: Colors.white,
-                        size: 40,
-                      ),
-                    ),
-                    TextButton.icon(
-                      onPressed: () {
-                        final currentPosition =
-                            _videoController!.value.position;
-                        final duration = _videoController!.value.duration;
-                        final newPosition =
-                            currentPosition + const Duration(seconds: 10);
-                        _videoController!.seekTo(
-                          newPosition > duration ? duration : newPosition,
-                        );
-                      },
-                      icon: const Icon(Icons.forward_10, color: Colors.white),
-                      label: const Text(
-                        '+10s',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
+        ],
       ),
     );
   }

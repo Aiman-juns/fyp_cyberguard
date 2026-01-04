@@ -7,6 +7,7 @@ import '../features/home/screens/home_screen.dart';
 import '../features/training/screens/training_hub_screen.dart';
 import '../features/training/screens/device_shield_screen.dart';
 import '../features/training/screens/infection_simulator_screen.dart';
+import '../features/training/screens/adware_simulation_screen.dart';
 import '../features/tools/screens/breach_checker_screen.dart';
 import '../features/resources/screens/resources_screen.dart';
 import '../features/resources/screens/resource_detail_screen.dart';
@@ -23,7 +24,7 @@ import '../shared/widgets/custom_bottom_nav.dart';
 
 /// Main Dashboard after login - Shows user features
 class UserDashboardScreen extends ConsumerStatefulWidget {
-  const UserDashboardScreen({Key? key}) : super(key: key);
+  const UserDashboardScreen({super.key});
 
   @override
   ConsumerState<UserDashboardScreen> createState() =>
@@ -39,14 +40,6 @@ class _UserDashboardScreenState extends ConsumerState<UserDashboardScreen> {
     AssistantScreen(),
     PerformanceScreen(),
     ProfileScreen(),
-  ];
-
-  static const List<String> _titles = [
-    'CyberGuard HQ',
-    'Games',
-    'Assistant',
-    'Performance',
-    'Profile',
   ];
 
   void _onItemTapped(int index) {
@@ -138,6 +131,10 @@ class RouterConfig {
       GoRoute(
         path: '/infection-simulator',
         builder: (context, state) => const InfectionSimulatorScreen(),
+      ),
+      GoRoute(
+        path: '/adware-simulator',
+        builder: (context, state) => const AdwareSimulationScreen(),
       ),
       GoRoute(
         path: '/breach-checker',
