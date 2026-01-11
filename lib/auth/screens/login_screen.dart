@@ -398,27 +398,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                         ),
                                 ),
                               ),
-                              const SizedBox(height: 16),
-                              // Forgot password link
-                              TextButton(
-                                onPressed: () {
-                                  // TODO: Implement forgot password
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Forgot password - Coming Soon',
-                                      ),
-                                    ),
-                                  );
-                                },
-                                child: Text(
-                                  'Forgot your password?',
-                                  style: TextStyle(
-                                    color: Color(0xFF6B8DD6),
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
                               const SizedBox(height: 24),
                               // Sign up link
                               Row(

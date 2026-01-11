@@ -724,6 +724,9 @@ class ProfileScreen extends ConsumerWidget {
                                                             fontSize: 18,
                                                             fontWeight:
                                                                 FontWeight.bold,
+                                                            color: isDark
+                                                                ? Colors.white
+                                                                : Colors.black,
                                                           ),
                                                         ),
                                                       ],
@@ -787,6 +790,9 @@ class ProfileScreen extends ConsumerWidget {
                                                             fontSize: 18,
                                                             fontWeight:
                                                                 FontWeight.bold,
+                                                            color: isDark
+                                                                ? Colors.white
+                                                                : Colors.black,
                                                           ),
                                                         ),
                                                       ],

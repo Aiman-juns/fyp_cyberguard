@@ -393,7 +393,9 @@ class _UrlScannerTabState extends State<UrlScannerTab>
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [const Color(0xFFFAFAFA), const Color(0xFFFFFFFF)],
+          colors: isDark
+              ? [const Color(0xFF1A1A2E), const Color(0xFF16213E)]
+              : [const Color(0xFFFAFAFA), const Color(0xFFFFFFFF)],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
@@ -539,9 +541,16 @@ class _UrlScannerTabState extends State<UrlScannerTab>
             Container(
               padding: const EdgeInsets.all(16.0),
               decoration: BoxDecoration(
-                color: Colors.blue.shade50,
+                color: isDark
+                    ? Colors.blue.shade900.withOpacity(0.3)
+                    : Colors.blue.shade50,
                 borderRadius: BorderRadius.circular(12.0),
-                border: Border.all(color: Colors.blue.shade200, width: 1.5),
+                border: Border.all(
+                  color: isDark
+                      ? Colors.blue.shade700
+                      : Colors.blue.shade200,
+                  width: 1.5,
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -559,7 +568,7 @@ class _UrlScannerTabState extends State<UrlScannerTab>
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
-                          color: Colors.blue.shade900,
+                          color: isDark ? Colors.blue.shade200 : Colors.blue.shade900,
                         ),
                       ),
                     ],
@@ -573,7 +582,7 @@ class _UrlScannerTabState extends State<UrlScannerTab>
                     style: TextStyle(
                       fontSize: 13,
                       height: 1.4,
-                      color: Colors.blue.shade900,
+                      color: isDark ? Colors.blue.shade100 : Colors.blue.shade900,
                     ),
                   ),
                 ],
@@ -1137,7 +1146,9 @@ class _SmishDetectorTabState extends State<SmishDetectorTab>
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [const Color(0xFFFAFAFA), const Color(0xFFFFFFFF)],
+          colors: isDark
+              ? [const Color(0xFF1A1A2E), const Color(0xFF16213E)]
+              : [const Color(0xFFFAFAFA), const Color(0xFFFFFFFF)],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),

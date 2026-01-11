@@ -121,11 +121,18 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
           debugPrint(
             '🔍 STEP 1: Fetching achievements BEFORE recording progress...',
           );
-          final achievementsBefore = await ref.read(
-            userAchievementsProvider.future,
-          );
+          
+          // CRITICAL FIX: Fetch fresh BEFORE state from database (not cached)
+          final userId = SupabaseConfig.client.auth.currentUser?.id;
+          if (userId == null) {
+            debugPrint('❌ No user ID found');
+            return;
+          }
+          
+          // Get FRESH state directly from database
+          final achievementsBefore = await fetchUserAchievements(userId);
           debugPrint(
-            '  Before: ${achievementsBefore.where((a) => a.isUnlocked).length} unlocked',
+            '  Before (FRESH): ${achievementsBefore.where((a) => a.isUnlocked).length} unlocked',
           );
 
           final scoreAwarded = correct
@@ -296,14 +303,14 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
           }
 
           return SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 16),
-                  // Progress indicator
-                  Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 16),
+                // Progress indicator
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
@@ -334,9 +341,12 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  // Difficulty indicator bars
-                  Row(
+                ),
+                const SizedBox(height: 12),
+                // Difficulty indicator bars
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
                     children: List.generate(
                       5,
                       (i) => Expanded(
@@ -354,336 +364,447 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  // Scenario content card with enhanced styling
-                  Card(
-                    elevation: 4,
-                    shadowColor: Colors.black.withOpacity(0.1),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Media display based on type
-                          if (mediaType == 'youtube' &&
-                              _youtubeController != null)
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: YoutubePlayer(
-                                    controller: _youtubeController!,
-                                    showVideoProgressIndicator: true,
-                                  ),
+                ),
+                const SizedBox(height: 24),
+                // Scenario content card with enhanced styling
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.blue.shade100, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.08),
+                        blurRadius: 20,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Media display based on type
+                      if (mediaType == 'youtube' && _youtubeController != null)
+                        YoutubePlayer(
+                          controller: _youtubeController!,
+                          showVideoProgressIndicator: true,
+                          aspectRatio: 16 / 9,
+                        )
+                      else if (mediaType == 'video' &&
+                          _chewieController != null)
+                        AspectRatio(
+                          aspectRatio: 16 / 9,
+                          child: Chewie(controller: _chewieController!),
+                        )
+                      else if (mediaType == 'image' &&
+                          question.mediaUrl != null)
+                        Image.network(
+                          question.mediaUrl!,
+                          width: double.infinity,
+                          height: 280,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Container(
+                              width: double.infinity,
+                              height: 280,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.grey.shade200,
+                                    Colors.grey.shade300,
+                                  ],
                                 ),
-                                const SizedBox(height: 20),
-                              ],
-                            )
-                          else if (mediaType == 'video' &&
-                              _chewieController != null)
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: AspectRatio(
-                                    aspectRatio: 16 / 9,
-                                    child: Chewie(
-                                      controller: _chewieController!,
+                              ),
+                              child: const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              width: double.infinity,
+                              height: 280,
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade200,
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.image_not_supported,
+                                    size: 48,
+                                    color: Colors.grey.shade400,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Image not available',
+                                    style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 14,
                                     ),
                                   ),
-                                ),
-                                const SizedBox(height: 16),
-                              ],
-                            )
-                          else if (mediaType == 'image' &&
-                              question.mediaUrl != null)
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.network(
-                                    question.mediaUrl!,
-                                    width: double.infinity,
-                                    height: 250,
-                                    fit: BoxFit.cover,
-                                    loadingBuilder:
-                                        (context, child, loadingProgress) {
-                                          if (loadingProgress == null)
-                                            return child;
-                                          return Container(
-                                            width: double.infinity,
-                                            height: 250,
-                                            color: Colors.grey.shade200,
-                                            child: const Center(
-                                              child:
-                                                  CircularProgressIndicator(),
-                                            ),
-                                          );
-                                        },
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Container(
-                                        width: double.infinity,
-                                        height: 250,
-                                        color: Colors.grey.shade200,
-                                        child: const Icon(
-                                          Icons.image_not_supported,
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                              ],
-                            ),
-                          // Scenario description
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.orange.shade50,
-                              border: Border.all(
-                                color: Colors.orange.shade200,
-                                width: 1.5,
+                                ],
                               ),
-                              borderRadius: BorderRadius.circular(12),
+                            );
+                          },
+                        ),
+                      // Spacing after media
+                      const SizedBox(height: 24),
+                      // Scenario description with enhanced styling
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Colors.orange.shade50,
+                                Colors.deepOrange.shade50,
+                              ],
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
+                            border: Border.all(
+                              color: Colors.orange.shade300,
+                              width: 2,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.orange.withOpacity(0.1),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Colors.deepOrange,
+                                      Colors.orange.shade700,
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(
                                       Icons.info_outline,
                                       size: 20,
-                                      color: Colors.deepOrange,
+                                      color: Colors.white,
                                     ),
-                                    const SizedBox(width: 12),
+                                    const SizedBox(width: 8),
                                     Text(
                                       'Scenario:',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .labelMedium
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.deepOrange,
-                                          ),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                        fontSize: 15,
+                                      ),
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 12),
-                                Text(
+                              ),
+                              const SizedBox(height: 16),
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Colors.orange.shade200,
+                                  ),
+                                ),
+                                child: Text(
                                   description.isNotEmpty
                                       ? description
                                       : 'Analyze this cyberattack scenario.',
-                                  style: Theme.of(context).textTheme.bodyMedium
+                                  style: Theme.of(context).textTheme.bodyLarge
                                       ?.copyWith(
-                                        height: 1.5,
+                                        height: 1.6,
                                         color: Colors.grey.shade800,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
                                       ),
                                 ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  // Answer options
-                  if (options.isNotEmpty)
-                    ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: options.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final answer = options[index];
-                        final isSelected = _selectedAnswer == answer;
-                        final isCorrectAnswer =
-                            question.correctAnswer == answer;
-                        final showResult =
-                            _isAnswered && (isSelected || isCorrectAnswer);
-                        final resultIsCorrect = isCorrectAnswer;
-
-                        return GestureDetector(
-                          onTap: _isAnswered
-                              ? null
-                              : () => _handleAnswer(answer),
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: showResult
-                                  ? resultIsCorrect
-                                        ? Colors.green.shade50
-                                        : Colors.red.shade50
-                                  : isSelected
-                                  ? Colors.blue.shade50
-                                  : Colors.white,
-                              border: Border.all(
-                                color: showResult
-                                    ? resultIsCorrect
-                                          ? Colors.green.shade400
-                                          : Colors.red.shade400
-                                    : isSelected
-                                    ? Colors.blue.shade300
-                                    : Colors.grey.shade300,
-                                width: showResult || isSelected ? 2 : 1,
                               ),
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                if (isSelected && !_isAnswered)
-                                  BoxShadow(
-                                    color: Colors.blue.withOpacity(0.2),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                // Answer options
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    children: [
+                      if (options.isNotEmpty)
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: options.length,
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            final answer = options[index];
+                            final isSelected = _selectedAnswer == answer;
+                            final isCorrectAnswer =
+                                question.correctAnswer == answer;
+                            final showResult =
+                                _isAnswered && (isSelected || isCorrectAnswer);
+                            final resultIsCorrect = isCorrectAnswer;
+
+                            return GestureDetector(
+                              onTap: _isAnswered
+                                  ? null
+                                  : () => _handleAnswer(answer),
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: showResult
+                                      ? resultIsCorrect
+                                            ? Colors.green.shade50
+                                            : Colors.red.shade50
+                                      : isSelected
+                                      ? Colors.blue.shade50
+                                      : Colors.white,
+                                  border: Border.all(
+                                    color: showResult
+                                        ? resultIsCorrect
+                                              ? Colors.green.shade400
+                                              : Colors.red.shade400
+                                        : isSelected
+                                        ? Colors.blue.shade300
+                                        : Colors.grey.shade300,
+                                    width: showResult || isSelected ? 2 : 1,
                                   ),
-                                if (showResult)
-                                  BoxShadow(
-                                    color:
-                                        (resultIsCorrect
-                                                ? Colors.green
-                                                : Colors.red)
-                                            .withOpacity(0.15),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                              ],
-                            ),
-                            child: Row(
-                              children: [
-                                if (!showResult && !isSelected)
-                                  Container(
-                                    width: 20,
-                                    height: 20,
-                                    margin: const EdgeInsets.only(right: 12),
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Colors.grey.shade400,
-                                        width: 2,
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: [
+                                    if (isSelected && !_isAnswered)
+                                      BoxShadow(
+                                        color: Colors.blue.withOpacity(0.2),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
                                       ),
-                                    ),
-                                  )
-                                else if (!showResult && isSelected)
-                                  Container(
-                                    width: 20,
-                                    height: 20,
-                                    margin: const EdgeInsets.only(right: 12),
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Colors.blue,
-                                      border: Border.all(
-                                        color: Colors.blue,
-                                        width: 2,
+                                    if (showResult)
+                                      BoxShadow(
+                                        color:
+                                            (resultIsCorrect
+                                                    ? Colors.green
+                                                    : Colors.red)
+                                                .withOpacity(0.15),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
                                       ),
-                                    ),
-                                    child: const Icon(
-                                      Icons.check,
-                                      size: 12,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                else
-                                  Padding(
-                                    padding: const EdgeInsets.only(right: 12),
-                                    child: Icon(
-                                      resultIsCorrect
-                                          ? Icons.check_circle
-                                          : Icons.cancel,
-                                      color: resultIsCorrect
-                                          ? Colors.green.shade600
-                                          : Colors.red.shade600,
-                                      size: 24,
-                                    ),
-                                  ),
-                                Expanded(
-                                  child: Text(
-                                    answer,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyMedium
-                                        ?.copyWith(
-                                          fontWeight: FontWeight.w500,
-                                          color: showResult
-                                              ? resultIsCorrect
-                                                    ? Colors.green.shade700
-                                                    : Colors.red.shade700
-                                              : Colors.grey.shade800,
+                                  ],
+                                ),
+                                child: Row(
+                                  children: [
+                                    if (!showResult && !isSelected)
+                                      Container(
+                                        width: 20,
+                                        height: 20,
+                                        margin: const EdgeInsets.only(
+                                          right: 12,
                                         ),
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: Colors.grey.shade400,
+                                            width: 2,
+                                          ),
+                                        ),
+                                      )
+                                    else if (!showResult && isSelected)
+                                      Container(
+                                        width: 20,
+                                        height: 20,
+                                        margin: const EdgeInsets.only(
+                                          right: 12,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Colors.blue,
+                                          border: Border.all(
+                                            color: Colors.blue,
+                                            width: 2,
+                                          ),
+                                        ),
+                                        child: const Icon(
+                                          Icons.check,
+                                          size: 12,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    else
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          right: 12,
+                                        ),
+                                        child: Icon(
+                                          resultIsCorrect
+                                              ? Icons.check_circle
+                                              : Icons.cancel,
+                                          color: resultIsCorrect
+                                              ? Colors.green.shade600
+                                              : Colors.red.shade600,
+                                          size: 24,
+                                        ),
+                                      ),
+                                    Expanded(
+                                      child: Text(
+                                        answer,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w500,
+                                              color: showResult
+                                                  ? resultIsCorrect
+                                                        ? Colors.green.shade700
+                                                        : Colors.red.shade700
+                                                  : Colors.grey.shade800,
+                                            ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        )
+                      else
+                        Center(
+                          child: Text(
+                            'No options available for this question',
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: Colors.grey),
+                          ),
+                        ),
+                      const SizedBox(height: 24),
+                      // Feedback and explanation
+                      if (_isAnswered)
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: _isCorrect
+                                ? Colors.blue.shade50
+                                : Colors.orange.shade50,
+                            border: Border.all(
+                              color: _isCorrect ? Colors.blue : Colors.orange,
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _isCorrect ? '✓ Correct!' : '✗ Incorrect',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: _isCorrect
+                                      ? Colors.blue
+                                      : Colors.orange,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Correct Answer: ${question.correctAnswer}',
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(fontWeight: FontWeight.bold),
+                              ),
+                              if (question.explanation.isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.7),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: _isCorrect
+                                          ? Colors.blue.shade200
+                                          : Colors.orange.shade200,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.lightbulb_outline,
+                                            size: 18,
+                                            color: _isCorrect
+                                                ? Colors.blue
+                                                : Colors.orange,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'Explanation:',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: _isCorrect
+                                                  ? Colors.blue
+                                                  : Colors.orange,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        question.explanation,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium
+                                            ?.copyWith(
+                                              height: 1.5,
+                                              color: Colors.grey.shade800,
+                                            ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
+                            ],
+                          ),
+                        ),
+                      const SizedBox(height: 24),
+                      // Next button
+                      if (_isAnswered)
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: _nextQuestion,
+                            child: Text(
+                              _currentIndex + 1 >= questions.length
+                                  ? 'View Results'
+                                  : 'Next Scenario',
                             ),
                           ),
-                        );
-                      },
-                    )
-                  else
-                    Center(
-                      child: Text(
-                        'No options available for this question',
-                        style: Theme.of(
-                          context,
-                        ).textTheme.bodyMedium?.copyWith(color: Colors.grey),
-                      ),
-                    ),
-                  const SizedBox(height: 24),
-                  // Feedback and explanation
-                  if (_isAnswered)
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: _isCorrect
-                            ? Colors.blue.shade50
-                            : Colors.orange.shade50,
-                        border: Border.all(
-                          color: _isCorrect ? Colors.blue : Colors.orange,
                         ),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _isCorrect ? '✓ Correct!' : '✗ Incorrect',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: _isCorrect ? Colors.blue : Colors.orange,
-                              fontSize: 16,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Correct Answer: ${question.correctAnswer}',
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                    ),
-                  const SizedBox(height: 24),
-                  // Next button
-                  if (_isAnswered)
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _nextQuestion,
-                        child: Text(
-                          _currentIndex + 1 >= questions.length
-                              ? 'View Results'
-                              : 'Next Scenario',
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 16),
-                ],
-              ),
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+              ],
             ),
           );
         },
@@ -820,20 +941,20 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
               ),
               const SizedBox(height: 32),
 
-              // Score Card
+              // Score Card - Matching Phishing Module (Blue Theme)
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Colors.deepOrange.shade50, Colors.orange.shade100],
+                    colors: [Colors.blue.shade50, Colors.blue.shade100],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.orange.shade300, width: 2),
+                  border: Border.all(color: Colors.blue.shade200, width: 2),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.orange.withOpacity(0.1),
+                      color: Colors.blue.withOpacity(0.1),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -854,7 +975,7 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
                       style: Theme.of(context).textTheme.displayMedium
                           ?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: Colors.deepOrange.shade700,
+                            color: Colors.blue.shade700,
                           ),
                     ),
                     const SizedBox(height: 8),
@@ -864,7 +985,7 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.deepOrange.shade700,
+                        color: Colors.blue.shade700,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(

@@ -8,6 +8,7 @@ class AdminUsersScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final usersAsync = ref.watch(allUsersProvider);
 
     return usersAsync.when(
@@ -82,7 +83,7 @@ class AdminUsersScreen extends ConsumerWidget {
             return Container(
               margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: const Color(0xFF3B82F6).withOpacity(0.3),
@@ -129,9 +130,10 @@ class AdminUsersScreen extends ConsumerWidget {
                         children: [
                           Text(
                             user['full_name'] ?? 'Unknown',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : Colors.black,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -139,7 +141,7 @@ class AdminUsersScreen extends ConsumerWidget {
                             user['email'] ?? 'No email',
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.grey.shade600,
+                              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
                             ),
                           ),
                           const SizedBox(height: 12),

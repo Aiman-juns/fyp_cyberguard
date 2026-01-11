@@ -24,7 +24,7 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
 
   SimulationPhase _phase = SimulationPhase.input;
   PasswordAnalysis? _analysis;
-  
+
   // Simulation state
   double _hackProgress = 0.0;
   int _elapsedSeconds = 0;
@@ -33,7 +33,6 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
   Timer? _simulationTimer;
   Timer? _progressTimer;
   int _currentScore = 0;
-  int _highScore = 0;
   bool _soundEnabled = true;
 
   // Animations
@@ -51,7 +50,6 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
       duration: const Duration(seconds: 3),
       vsync: this,
     )..repeat();
-    _loadHighScore();
   }
 
   @override
@@ -65,22 +63,6 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
     super.dispose();
   }
 
-  Future<void> _loadHighScore() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _highScore = prefs.getInt('hack_simulator_high_score') ?? 0;
-    });
-  }
-
-  Future<void> _saveHighScore(int score) async {
-    if (score > _highScore) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt('hack_simulator_high_score', score);
-      setState(() {
-        _highScore = score;
-      });
-    }
-  }
 
   void _startSimulation() {
     final password = _passwordController.text;
@@ -116,7 +98,9 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
 
       _addTerminalLine('> Analysis complete');
       _addTerminalLine('> Password strength: ${analysis.strengthText}');
-      _addTerminalLine('> Estimated crack time: ${analysis.crackTimeFormatted}');
+      _addTerminalLine(
+        '> Estimated crack time: ${analysis.crackTimeFormatted}',
+      );
       _addTerminalLine('> Initiating attack sequence...');
       _addTerminalLine('');
 
@@ -130,7 +114,7 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
     // Calculate simulation duration (accelerated for UX)
     final realCrackSeconds = _analysis!.estimatedCrackTime.inSeconds;
     int simulationDuration;
-    
+
     if (realCrackSeconds < 60) {
       simulationDuration = 3; // 3 seconds for very weak
     } else if (realCrackSeconds < 86400) {
@@ -153,9 +137,12 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
 
     // Simulate hacking progress
     int progressUpdates = 0;
-    final updateInterval = (simulationDuration * 1000) ~/ 20; // 20 updates total
+    final updateInterval =
+        (simulationDuration * 1000) ~/ 20; // 20 updates total
 
-    _simulationTimer = Timer.periodic(Duration(milliseconds: updateInterval), (timer) {
+    _simulationTimer = Timer.periodic(Duration(milliseconds: updateInterval), (
+      timer,
+    ) {
       progressUpdates++;
       final progress = progressUpdates / 20;
 
@@ -171,8 +158,10 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
           final method = attacks[attackIndex];
           _currentAttackMethod = PasswordAnalyzer.getAttackName(method);
           _addTerminalLine('> ${PasswordAnalyzer.getAttackName(method)}');
-          _addTerminalLine('  ${PasswordAnalyzer.getAttackDescription(method)}');
-          
+          _addTerminalLine(
+            '  ${PasswordAnalyzer.getAttackDescription(method)}',
+          );
+
           if (_soundEnabled) {
             _playSound('alert');
           }
@@ -194,24 +183,24 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
 
   void _completeSimulation() {
     _progressTimer?.cancel();
-    
+
     if (_analysis!.strength == PasswordStrength.strong) {
       _addTerminalLine('');
       _addTerminalLine('> ERROR: Password complexity too high');
       _addTerminalLine('> Attack failed - System overload');
       _addTerminalLine('> Target survived the attack!');
-      
+
       if (_soundEnabled) {
         _audioPlayer.play(AssetSource('sounds/glitch_sound.mp3'));
       }
-      
+
       _glitchController.forward(from: 0.0);
     } else {
       _addTerminalLine('');
       _addTerminalLine('> PASSWORD CRACKED!');
       _addTerminalLine('> Access granted');
       _addTerminalLine('> Time elapsed: $_elapsedSeconds seconds');
-      
+
       if (_soundEnabled) {
         _playSound('success');
       }
@@ -224,7 +213,6 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
         _currentScore = _analysis!.score;
         _phase = SimulationPhase.result;
       });
-      _saveHighScore(_currentScore);
     });
   }
 
@@ -285,11 +273,8 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
-          'Hack Attack Simulator',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
+          'Password Cracker',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -313,10 +298,7 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
           final glitchOffset = _glitchController.isAnimating
               ? Offset(_random.nextDouble() * 4 - 2, 0)
               : Offset.zero;
-          return Transform.translate(
-            offset: glitchOffset,
-            child: child,
-          );
+          return Transform.translate(offset: glitchOffset, child: child);
         },
         child: Container(
           decoration: BoxDecoration(
@@ -335,7 +317,7 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
             children: [
               // Matrix background
               _buildMatrixBackground(),
-              
+
               // Gradient overlay
               Positioned.fill(
                 child: Container(
@@ -344,18 +326,16 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
                       center: Alignment.center,
                       radius: 1.0,
                       colors: [
-                        Colors.cyan.withOpacity(0.05),
+                        Colors.white.withOpacity(0.02),
                         Colors.transparent,
                       ],
                     ),
                   ),
                 ),
               ),
-              
+
               // Main content
-              SafeArea(
-                child: _buildPhaseContent(),
-              ),
+              SafeArea(child: _buildPhaseContent()),
             ],
           ),
         ),
@@ -367,9 +347,7 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
     return Positioned.fill(
       child: Opacity(
         opacity: 0.1,
-        child: CustomPaint(
-          painter: MatrixPainter(_particleController),
-        ),
+        child: CustomPaint(painter: MatrixPainter(_particleController)),
       ),
     );
   }
@@ -398,14 +376,14 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [Colors.cyan.shade700, Colors.cyan.shade900],
+                colors: [const Color(0xFF1E3A5F), const Color(0xFF0D1B2A)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.cyan.withOpacity(0.3),
+                  color: Colors.black.withOpacity(0.3),
                   blurRadius: 20,
                   spreadRadius: 2,
                 ),
@@ -413,15 +391,15 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
             ),
             child: Column(
               children: [
-                const Icon(
-                  Icons.security,
-                  size: 64,
-                  color: Colors.white,
-                ).animate(onPlay: (controller) => controller.repeat())
-                    .shimmer(duration: 2000.ms, color: Colors.cyan.shade200),
+                const Icon(Icons.security, size: 64, color: Colors.white)
+                    .animate(onPlay: (controller) => controller.repeat())
+                    .shimmer(
+                      duration: 2000.ms,
+                      color: Colors.white.withOpacity(0.5),
+                    ),
                 const SizedBox(height: 16),
                 const Text(
-                  'HACK ATTACK SIMULATOR',
+                  'PASSWORD CRACKER',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 24,
@@ -432,7 +410,7 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Test your password against simulated hacker attacks',
+                  'Test your password against password cracking attacks',
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.8),
                     fontSize: 14,
@@ -476,18 +454,15 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [
-                  const Color(0xFF1A1F3A),
-                  const Color(0xFF0D1B2A),
-                ],
+                colors: [const Color(0xFF1A1F3A), const Color(0xFF0D1B2A)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.cyan, width: 2),
+              border: Border.all(color: const Color(0xFF4A5568), width: 2),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.cyan.withOpacity(0.2),
+                  color: Colors.black.withOpacity(0.2),
                   blurRadius: 10,
                   spreadRadius: 1,
                 ),
@@ -501,7 +476,7 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
                 fontFamily: 'Courier',
                 fontWeight: FontWeight.w500,
               ),
-              cursorColor: Colors.cyan,
+              cursorColor: const Color(0xFF64748B),
               decoration: InputDecoration(
                 hintText: 'Enter password to test...',
                 hintStyle: TextStyle(
@@ -509,7 +484,10 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
                   fontFamily: 'Courier',
                   fontSize: 16,
                 ),
-                prefixIcon: const Icon(Icons.lock_outline, color: Colors.cyan),
+                prefixIcon: const Icon(
+                  Icons.lock_outline,
+                  color: Color(0xFF64748B),
+                ),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.all(16),
                 filled: false,
@@ -553,10 +531,12 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
 
           // Start button
           ElevatedButton(
-            onPressed: _passwordController.text.isEmpty ? null : _startSimulation,
+            onPressed: _passwordController.text.isEmpty
+                ? null
+                : _startSimulation,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.cyan,
-              foregroundColor: Colors.black,
+              backgroundColor: const Color(0xFF3B82F6),
+              foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -564,7 +544,7 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
               elevation: 8,
             ),
             child: const Text(
-              'START HACK SIMULATION',
+              'START CRACKING',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -575,31 +555,6 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
 
           const SizedBox(height: 24),
 
-          // High score
-          if (_highScore > 0)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.purple.withOpacity(0.1),
-                border: Border.all(color: Colors.purple, width: 1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.emoji_events, color: Colors.amber, size: 24),
-                  const SizedBox(width: 12),
-                  Text(
-                    'High Score: $_highScore',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
         ],
       ),
     );
@@ -608,7 +563,7 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
   Widget _buildStrengthMeter(String password) {
     final analysis = PasswordAnalyzer.analyzePassword(password);
     Color color;
-    
+
     switch (analysis.strength) {
       case PasswordStrength.veryWeak:
         color = Colors.red;
@@ -647,10 +602,7 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
               ),
               Text(
                 'Score: ${analysis.score}/100',
-                style: TextStyle(
-                  color: color,
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: color, fontSize: 14),
               ),
             ],
           ),
@@ -667,19 +619,12 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
           const SizedBox(height: 12),
           Row(
             children: [
-              Icon(
-                Icons.vpn_key,
-                color: color,
-                size: 16,
-              ),
+              Icon(Icons.vpn_key, color: color, size: 16),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   'Length: ${analysis.length} chars | ${analysis.hasUppercase ? '✓' : '✗'} Upper | ${analysis.hasLowercase ? '✓' : '✗'} Lower | ${analysis.hasNumbers ? '✓' : '✗'} Numbers | ${analysis.hasSymbols ? '✓' : '✗'} Symbols',
-                  style: TextStyle(
-                    color: Colors.grey.shade300,
-                    fontSize: 11,
-                  ),
+                  style: TextStyle(color: Colors.grey.shade300, fontSize: 11),
                 ),
               ),
             ],
@@ -707,10 +652,7 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
     return Container(
       decoration: BoxDecoration(
         gradient: RadialGradient(
-          colors: [
-            Colors.cyan.withOpacity(0.2),
-            Colors.transparent,
-          ],
+          colors: [Colors.white.withOpacity(0.05), Colors.transparent],
           stops: const [0.0, 0.7],
         ),
       ),
@@ -719,36 +661,40 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(30),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    Colors.cyan.withOpacity(0.3),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-              child: SizedBox(
-                width: 100,
-                height: 100,
-                child: CircularProgressIndicator(
-                  strokeWidth: 8,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.cyan),
-                ),
-              ),
-            ).animate(onPlay: (controller) => controller.repeat())
+                  padding: const EdgeInsets.all(30),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        Colors.white.withOpacity(0.1),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                  child: SizedBox(
+                    width: 100,
+                    height: 100,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 8,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Color(0xFF64748B),
+                      ),
+                    ),
+                  ),
+                )
+                .animate(onPlay: (controller) => controller.repeat())
                 .rotate(duration: 2000.ms),
             const SizedBox(height: 32),
             const Text(
-              'ANALYZING PASSWORD...',
-              style: TextStyle(
-                color: Colors.cyan,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 2,
-              ),
-            ).animate(onPlay: (controller) => controller.repeat())
+                  'ANALYZING PASSWORD...',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 2,
+                  ),
+                )
+                .animate(onPlay: (controller) => controller.repeat())
                 .fadeIn(duration: 1000.ms)
                 .then()
                 .fadeOut(duration: 1000.ms),
@@ -769,31 +715,34 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [Colors.red.shade700, Colors.red.shade900],
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.red.withOpacity(0.5),
-                        blurRadius: 30,
-                        spreadRadius: 10,
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(
+                          colors: [Colors.red.shade700, Colors.red.shade900],
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.red.withOpacity(0.5),
+                            blurRadius: 30,
+                            spreadRadius: 10,
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.person,
-                    size: 64,
-                    color: Colors.white,
-                  ),
-                ).animate(onPlay: (controller) => controller.repeat())
+                      child: const Icon(
+                        Icons.person,
+                        size: 64,
+                        color: Colors.white,
+                      ),
+                    )
+                    .animate(onPlay: (controller) => controller.repeat())
                     .shake(duration: 500.ms, hz: 2),
                 const SizedBox(height: 16),
                 Text(
-                  _currentAttackMethod.isEmpty ? 'HACKING...' : _currentAttackMethod,
+                  _currentAttackMethod.isEmpty
+                      ? 'HACKING...'
+                      : _currentAttackMethod,
                   style: const TextStyle(
                     color: Colors.red,
                     fontSize: 20,
@@ -805,10 +754,7 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
                 const SizedBox(height: 8),
                 Text(
                   'Elapsed: $_elapsedSeconds sec',
-                  style: TextStyle(
-                    color: Colors.grey.shade400,
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
                 ),
               ],
             ),
@@ -863,10 +809,7 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [
-                  Colors.black,
-                  const Color(0xFF0A1A0A),
-                ],
+                colors: [Colors.black, const Color(0xFF0A1A0A)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -1021,18 +964,15 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [
-                  const Color(0xFF1A1F3A),
-                  Colors.grey.shade900,
-                ],
+                colors: [const Color(0xFF1A1F3A), Colors.grey.shade900],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.cyan, width: 2),
+              border: Border.all(color: const Color(0xFF4A5568), width: 2),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.cyan.withOpacity(0.2),
+                  color: Colors.black.withOpacity(0.3),
                   blurRadius: 15,
                   spreadRadius: 1,
                 ),
@@ -1041,11 +981,13 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildScoreStat('Score', _currentScore.toString(), Colors.cyan),
+                _buildScoreStat(
+                  'Score',
+                  _currentScore.toString(),
+                  const Color(0xFF3B82F6),
+                ),
                 Container(width: 1, height: 40, color: Colors.grey.shade700),
                 _buildScoreStat('Time', '$_elapsedSeconds sec', Colors.orange),
-                Container(width: 1, height: 40, color: Colors.grey.shade700),
-                _buildScoreStat('Best', _highScore.toString(), Colors.amber),
               ],
             ),
           ),
@@ -1113,8 +1055,8 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
                   icon: const Icon(Icons.refresh),
                   label: const Text('TRY AGAIN'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.cyan,
-                    foregroundColor: Colors.black,
+                    backgroundColor: const Color(0xFF3B82F6),
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -1128,7 +1070,9 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
                   // Share functionality
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Score: $_currentScore - ${survived ? "Password Survived!" : "Password Cracked!"}'),
+                      content: Text(
+                        'Score: $_currentScore - ${survived ? "Password Survived!" : "Password Cracked!"}',
+                      ),
                     ),
                   );
                 },
@@ -1137,7 +1081,10 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.grey.shade800,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 14,
+                    horizontal: 20,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -1209,24 +1156,23 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
         const SizedBox(height: 4),
         Text(
           label,
-          style: TextStyle(
-            color: Colors.grey.shade400,
-            fontSize: 12,
-          ),
+          style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
         ),
       ],
     );
   }
 
-  Widget _buildAnalysisCard(String title, IconData icon, Color color, List<String> items) {
+  Widget _buildAnalysisCard(
+    String title,
+    IconData icon,
+    Color color,
+    List<String> items,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            color.withOpacity(0.1),
-            color.withOpacity(0.05),
-          ],
+          colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -1258,16 +1204,15 @@ class _HackSimulatorScreenState extends State<HackSimulatorScreen>
             ],
           ),
           const SizedBox(height: 12),
-          ...items.map((item) => Padding(
-                padding: const EdgeInsets.only(bottom: 6.0),
-                child: Text(
-                  item,
-                  style: TextStyle(
-                    color: Colors.grey.shade300,
-                    fontSize: 13,
-                  ),
-                ),
-              )),
+          ...items.map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 6.0),
+              child: Text(
+                item,
+                style: TextStyle(color: Colors.grey.shade300, fontSize: 13),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -1289,13 +1234,11 @@ class MatrixPainter extends CustomPainter {
 
     for (int i = 0; i < 20; i++) {
       final x = random.nextDouble() * size.width;
-      final y = (random.nextDouble() * size.height + animation.value * size.height) % size.height;
-      
-      canvas.drawCircle(
-        Offset(x, y),
-        2,
-        paint,
-      );
+      final y =
+          (random.nextDouble() * size.height + animation.value * size.height) %
+          size.height;
+
+      canvas.drawCircle(Offset(x, y), 2, paint);
     }
   }
 

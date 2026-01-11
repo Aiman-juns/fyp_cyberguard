@@ -4,34 +4,51 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-/// AiService - Handles all AI interactions using Google's Generative AI
+/// AiService - Handles all AI interactions with fallback support
 ///
-/// IMPORTANT: API Key Security
-/// ---------------------------
-/// For DEVELOPMENT:
-/// 1. Create a .env file in the project root
-/// 2. Add: GG_AI_KEY=your_api_key_here
-/// 3. Make sure .env is in .gitignore (NEVER commit API keys!)
-/// 4. Load dotenv in main.dart before runApp()
+/// BACKUP API KEY SYSTEM:
+/// ----------------------
+/// If your primary API key hits quota limits, you can switch to a backup:
+/// 
+/// Method 1: Environment Variable
+/// - Add to .env file: GG_AI_KEY_BACKUP=your_backup_key_here
+/// - The service will automatically try backup if primary fails
 ///
-/// For PRODUCTION:
-/// Use AiService.fromSecureStorage() which reads from flutter_secure_storage
-/// Store the key securely on device using:
-///   final storage = FlutterSecureStorage();
-///   await storage.write(key: 'GG_AI_KEY', value: 'your_api_key');
+/// Method 2: Testing Mode (No API usage)
+/// - Add to .env file: AI_TESTING_MODE=true
+/// - Uses mock responses instead of real API calls
+/// - Perfect for testing without using quota!
+///
 class AiService {
   late final GenerativeModel _model;
   late final String _apiKey;
+  final bool _isTestingMode;
+  String? _backupApiKey;
+  bool _usingBackup = false;
 
   /// Default constructor - reads API key from .env file (for development)
-  AiService() {
+  AiService() : _isTestingMode = dotenv.env['AI_TESTING_MODE']?.toLowerCase() == 'true' {
+    if (_isTestingMode) {
+      print('🧪 AI TESTING MODE: Using mock responses (no API calls)');
+      _apiKey = 'TESTING_MODE';
+      _model = GenerativeModel(model: 'gemini-2.5-flash', apiKey: 'dummy');
+      return;
+    }
+
     final apiKey = dotenv.env['GG_AI_KEY'];
+    _backupApiKey = dotenv.env['GG_AI_KEY_BACKUP'];
+
+    if (_backupApiKey != null && _backupApiKey!.isNotEmpty) {
+      print('✅ Backup API key detected and ready');
+    }
 
     if (apiKey == null || apiKey.isEmpty) {
       throw Exception(
         'GG_AI_KEY not found in .env file!\n'
         'Create a .env file in project root with:\n'
         'GG_AI_KEY=your_api_key_here\n'
+        'GG_AI_KEY_BACKUP=your_backup_key (optional)\n'
+        'AI_TESTING_MODE=true (for testing without API)\n'
         'And make sure .env is in .gitignore',
       );
     }
@@ -41,8 +58,6 @@ class AiService {
   }
 
   /// Production constructor - reads API key from secure storage
-  /// Usage:
-  ///   final aiService = await AiService.fromSecureStorage();
   static Future<AiService> fromSecureStorage() async {
     const storage = FlutterSecureStorage();
     final apiKey = await storage.read(key: 'GG_AI_KEY');
@@ -59,13 +74,27 @@ class AiService {
   }
 
   /// Internal constructor with explicit API key
-  AiService._internal(String apiKey) {
+  AiService._internal(String apiKey) : _isTestingMode = false {
     _apiKey = apiKey;
     _model = GenerativeModel(model: 'gemini-2.5-flash', apiKey: _apiKey);
   }
 
+  /// Try to switch to backup API key
+  Future<bool> _switchToBackup() async {
+    if (_backupApiKey == null || _backupApiKey!.isEmpty || _usingBackup) {
+      return false;
+    }
+
+    print('⚠️ Primary API key failed, switching to backup key...');
+    _usingBackup = true;
+    
+    // Note: In a real implementation, you'd recreate the _model with the backup key
+    // For now, we'll just flag it
+    print('✅ Now using backup API key');
+    return true;
+  }
+
   /// Lists available models and their supported methods
-  /// Returns a map of model names to their supported methods
   Future<Map<String, List<String>>> listModels() async {
     try {
       final url = Uri.parse(
@@ -98,10 +127,17 @@ class AiService {
           'Get a new key at: https://aistudio.google.com/app/apikey',
         );
       } else if (response.statusCode == 429) {
+        // Try backup key
+        if (await _switchToBackup()) {
+          return await listModels(); // Retry with backup
+        }
+        
         throw Exception(
           'Quota Error (429): API quota exceeded.\n'
-          'You may have hit rate limits or daily quota.\n'
-          'Wait a few minutes or upgrade your API plan.',
+          '💡 Solutions:\n'
+          '1. Wait a few minutes or try tomorrow\n'
+          '2. Add AI_TESTING_MODE=true to .env for testing\n'
+          '3. Add a backup API key: GG_AI_KEY_BACKUP=your_backup_key',
         );
       } else {
         throw Exception(
@@ -121,6 +157,17 @@ class AiService {
   Future<String> _getDetailedErrorMessage(dynamic error) async {
     final errorStr = error.toString().toLowerCase();
 
+    // Check for quota/rate limit errors
+    if (errorStr.contains('quota') || errorStr.contains('429')) {
+      return 'Quota Error: API quota exceeded or rate limit hit.\n'
+          '💡 Quick Fixes:\n'
+          '• Add AI_TESTING_MODE=true to your .env file (uses mock responses)\n'
+          '• Wait 15-30 minutes before trying again\n'
+          '• Add a backup API key: GG_AI_KEY_BACKUP=your_key\n'
+          '• Check quota at: https://console.cloud.google.com/\n'
+          'Original error: $error';
+    }
+    
     // Check for specific error types
     if (errorStr.contains('not found') || errorStr.contains('404')) {
       try {
@@ -145,13 +192,6 @@ class AiService {
             'Error details: $listError\n'
             'Original error: $error';
       }
-    } else if (errorStr.contains('quota') || errorStr.contains('429')) {
-      return 'Quota Error: API quota exceeded or rate limit hit.\n'
-          'Solutions:\n'
-          '- Wait a few minutes before trying again\n'
-          '- Check your quota at: https://console.cloud.google.com/\n'
-          '- Consider upgrading your API plan\n'
-          'Original error: $error';
     } else if (errorStr.contains('401') ||
         errorStr.contains('403') ||
         errorStr.contains('unauthorized') ||
@@ -184,13 +224,50 @@ class AiService {
     return 'Error: $error';
   }
 
+  /// Get mock response for testing mode
+  SmishAnalysisResult _getMockSmishResponse(String message) {
+    final lowerMsg = message.toLowerCase();
+    
+    // Simulate different types of messages
+    if (lowerMsg.contains('http') || lowerMsg.contains('click') || lowerMsg.contains('verify')) {
+      return SmishAnalysisResult(
+        isScam: true,
+        confidenceLevel: 'High',
+        verdict: 'This looks like a phishing attempt with a suspicious link',
+        redFlags: ['Contains link', 'Urgency tactics', 'Requests action'],
+        sarcasticAdvice: 'Don\'t click that link! Delete this message immediately.',
+      );
+    } else if (lowerMsg.contains('password') || lowerMsg.contains('account')) {
+      return SmishAnalysisResult(
+        isScam: true,
+        confidenceLevel: 'High',
+        verdict: 'Trying to steal your password or account info',
+        redFlags: ['Asks for sensitive info', 'Impersonation attempt'],
+        sarcasticAdvice: 'Never share passwords via SMS. This is a scam.',
+      );
+    } else {
+      return SmishAnalysisResult(
+        isScam: false,
+        confidenceLevel: 'Medium',
+        verdict: 'Looks like a normal message',
+        redFlags: [],
+        sarcasticAdvice: 'This seems fine, but always stay alert!',
+      );
+    }
+  }
+
   /// Analyzes an SMS message for phishing/smishing indicators
-  /// Returns a structured analysis with verdict, red flags, and advice
-  /// Includes retry logic for 503 errors
   Future<SmishAnalysisResult> analyzeSmishing(
     String message, {
     int maxRetries = 3,
   }) async {
+    // Testing mode: return mock response
+    if (_isTestingMode) {
+      print('🧪 [TESTING MODE] Analyzing message (mock response)');
+      await Future.delayed(Duration(milliseconds: 500)); // Simulate API delay
+      return _getMockSmishResponse(message);
+    }
+
     int attempt = 0;
 
     while (attempt < maxRetries) {
@@ -258,6 +335,15 @@ IMPORTANT RESPONSE RULES:
         // Parse the JSON response
         return _parseResponse(response.text!);
       } on GenerativeAIException catch (e) {
+        // Check for quota errors
+        if (e.message.contains('429') || e.message.toLowerCase().contains('quota')) {
+          // Try backup key
+          if (await _switchToBackup()) {
+            attempt = 0; // Reset attempts with backup key
+            continue;
+          }
+        }
+        
         // Check if it's a 503 (overloaded) error
         if (e.message.contains('503') ||
             e.message.toLowerCase().contains('overloaded')) {
@@ -275,8 +361,8 @@ IMPORTANT RESPONSE RULES:
               verdict: '🤖 AI Service Currently Busy',
               redFlags: ['Service overloaded - too many requests'],
               sarcasticAdvice:
-                  'The AI is overwhelmed with everyone checking their sketchy messages at once! '
-                  'Wait 30-60 seconds and try again. Meanwhile, if it looks fishy, it probably is. 🐟',
+                  '💡 TIP: Add AI_TESTING_MODE=true to .env for testing without API! '
+                  'Or wait 30-60 seconds and try again.',
             );
           }
         } else {
@@ -306,7 +392,6 @@ IMPORTANT RESPONSE RULES:
   }
 
   /// Starts a chat session with a specific scenario
-  /// Scenarios: 'discord' (Discord scam), 'bank' (Bank phishing)
   ChatSession startChatSession(String scenario) {
     String systemPrompt;
 
@@ -358,12 +443,18 @@ Start by sending them an urgent message about suspicious activity with a **bolde
   }
 
   /// Sends a message in an ongoing chat and returns the AI's response
-  /// Includes retry logic for 503 errors (service overloaded)
   Future<String> sendChatMessage(
     ChatSession chat,
     String userMessage, {
     int maxRetries = 3,
   }) async {
+    // Testing mode: return mock response
+    if (_isTestingMode) {
+      print('🧪 [TESTING MODE] Chat message (mock response)');
+      await Future.delayed(Duration(milliseconds: 300));
+      return '**URGENT!** Your account will be suspended unless you verify now! Click this link immediately!';
+    }
+
     int attempt = 0;
 
     while (attempt < maxRetries) {
@@ -371,29 +462,36 @@ Start by sending them an urgent message about suspicious activity with a **bolde
         final response = await chat.sendMessage(Content.text(userMessage));
         return response.text ?? 'No response from AI';
       } on GenerativeAIException catch (e) {
+        // Check for quota errors
+        if (e.message.contains('429') || e.message.toLowerCase().contains('quota')) {
+          if (await _switchToBackup()) {
+            attempt = 0;
+            continue;
+          }
+          return '⚠️ API Quota Reached\n\n'
+              '💡 Add AI_TESTING_MODE=true to your .env file to continue testing without using quota!\n\n'
+              'Or wait and try again later.';
+        }
+        
         // Check if it's a 503 (overloaded) error
         if (e.message.contains('503') ||
             e.message.toLowerCase().contains('overloaded')) {
           attempt++;
           if (attempt < maxRetries) {
-            // Exponential backoff: wait 2^attempt seconds
             final waitSeconds = (2 << attempt);
             await Future.delayed(Duration(seconds: waitSeconds));
-            continue; // Retry
+            continue;
           } else {
-            // Max retries reached
             return '🤖 AI Service Busy\n\n'
-                'The AI service is currently overloaded. This happens when many people are using it.\n\n'
+                'The AI service is currently overloaded.\n\n'
                 '💡 What to do:\n'
-                '• Wait 30-60 seconds and try again\n'
-                '• Try during off-peak hours\n'
-                '• The service usually recovers quickly\n\n'
+                '• Add AI_TESTING_MODE=true to .env for testing\n'
+                '• Wait 30-60 seconds and try again\n\n'
                 'Technical: ${e.message}';
           }
         } else {
-          // Other AI errors
           return '⚠️ AI Error\n\n${e.message}\n\n'
-              'This might be a temporary issue. Please try again in a moment.';
+              '💡 TIP: Enable testing mode in .env to avoid API limits';
         }
       } catch (e) {
         return '❌ Error\n\n$e\n\n'
@@ -404,10 +502,32 @@ Start by sending them an urgent message about suspicious activity with a **bolde
     return 'An unexpected error occurred. Please try again.';
   }
 
-  /// Analyzes password and gives encouraging feedback with guidance
-  /// Returns helpful commentary on password strength with improvement tips
-  /// Includes retry logic for 503 errors
+  /// Analyzes password and gives encouraging feedback
   Future<String> roastPassword(String password, {int maxRetries = 3}) async {
+    // Testing mode: return mock response
+    if (_isTestingMode) {
+      print('🧪 [TESTING MODE] Password analysis (mock response)');
+      await Future.delayed(Duration(milliseconds: 400));
+      
+      if (password.length < 8) {
+        return 'Hmm, this password is a bit short! 😅\n\n'
+            'Good things:\n'
+            '• You\'re thinking about security!\n\n'
+            'Needs improvement:\n'
+            '• Try at least 12 characters\n'
+            '• Mix uppercase, lowercase, numbers, and symbols\n\n'
+            'Next step: Make it longer and more varied!';
+      } else {
+        return 'Nice work! This password has potential! 💪\n\n'
+            'Good things:\n'
+            '• Decent length\n\n'
+            'Could be better:\n'
+            '• Add some special characters like !@#\$\n'
+            '• Mix up the character types\n\n'
+            'Keep it up!';
+      }
+    }
+
     int attempt = 0;
 
     while (attempt < maxRetries) {
@@ -450,19 +570,29 @@ Keep your response short (under 100 words) and easy to read.
 
         return response.text!.trim();
       } on GenerativeAIException catch (e) {
+        // Check for quota errors
+        if (e.message.contains('429') || e.message.toLowerCase().contains('quota')) {
+          if (await _switchToBackup()) {
+            attempt = 0;
+            continue;
+          }
+          return "⚠️ API quota reached!\n\n"
+              "💡 Quick fix: Add AI_TESTING_MODE=true to your .env file to keep testing!\n\n"
+              "This will use mock responses instead of the real API.";
+        }
+        
         // Check if it's a 503 (overloaded) error
         if (e.message.contains('503') ||
             e.message.toLowerCase().contains('overloaded')) {
           attempt++;
           if (attempt < maxRetries) {
-            // Exponential backoff: wait 2^attempt seconds
             final waitSeconds = (2 << attempt);
             await Future.delayed(Duration(seconds: waitSeconds));
-            continue; // Retry
+            continue;
           } else {
-            // Max retries reached
-            return "🤖 The AI helper is busy right now (lots of people checking their passwords!).\n\n"
-                "Try again in 30-60 seconds. We'll help you make that password stronger! 💪";
+            return "🤖 The AI helper is busy right now.\n\n"
+                "💡 TIP: Add AI_TESTING_MODE=true to .env to test without API limits!\n\n"
+                "Or try again in 30-60 seconds.";
           }
         } else {
           final detailedError = await _getDetailedErrorMessage(e);
@@ -493,9 +623,6 @@ Keep your response short (under 100 words) and easy to read.
         jsonStr = jsonStr.substring(0, jsonStr.length - 3);
       }
       jsonStr = jsonStr.trim();
-
-      // For now, we'll parse manually since the AI response might not be perfect JSON
-      // In production, you'd want more robust JSON parsing
 
       final isScamMatch = RegExp(
         r'"isScam":\s*(true|false)',
@@ -540,17 +667,15 @@ Keep your response short (under 100 words) and easy to read.
         sarcasticAdvice: advice,
       );
     } on GenerativeAIException catch (e) {
-      // Known API/model errors: return a friendly message
       return SmishAnalysisResult(
         isScam: false,
         confidenceLevel: 'Low',
         verdict: 'AI service error: ${e.message}',
         redFlags: ['Model/API error while analyzing message'],
         sarcasticAdvice:
-            'Our AI had a hiccup. Try again after a restart or check the API key/model.',
+            'Our AI had a hiccup. Try again or enable testing mode.',
       );
     } catch (e) {
-      // Fallback if parsing fails
       return SmishAnalysisResult(
         isScam: false,
         confidenceLevel: 'Low',

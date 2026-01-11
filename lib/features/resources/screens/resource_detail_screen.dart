@@ -15,6 +15,7 @@ import '../../performance/providers/performance_provider.dart';
 import '../../profile/providers/profile_analytics_provider.dart';
 import '../../../core/widgets/achievement_dialog.dart';
 import '../../../core/services/achievement_detector.dart';
+import '../../../config/supabase_config.dart';
 
 class ResourceDetailScreen extends ConsumerStatefulWidget {
   final String resourceId;
@@ -788,8 +789,12 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
                   child: ElevatedButton.icon(
                     onPressed: () async {
                       try {
-                        // Get achievements BEFORE marking complete
-                        final achievementsBefore = await ref.read(userAchievementsProvider.future);
+                        // Get current user ID
+                        final userId = SupabaseConfig.client.auth.currentUser?.id;
+                        if (userId == null) return;
+                        
+                        // CRITICAL FIX: Get FRESH state directly from database (not cached)
+                        final achievementsBefore = await fetchUserAchievements(userId);
                         
                         // Calculate the correct progress ID
                         final progressId = widget.attackTypeId != null

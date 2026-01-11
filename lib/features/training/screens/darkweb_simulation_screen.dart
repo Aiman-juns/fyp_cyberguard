@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'dart:async';
 
 class DarkWebSimulationScreen extends StatefulWidget {
@@ -27,6 +28,7 @@ class _DarkWebSimulationScreenState extends State<DarkWebSimulationScreen>
   final ScrollController _scrollController = ScrollController();
   int _captchaAnswer = 0;
   final TextEditingController _captchaController = TextEditingController();
+  final AudioPlayer _backgroundAudioPlayer = AudioPlayer();
 
   @override
   void initState() {
@@ -40,6 +42,7 @@ class _DarkWebSimulationScreenState extends State<DarkWebSimulationScreen>
     _flashTimer?.cancel();
     _scrollController.dispose();
     _captchaController.dispose();
+    _backgroundAudioPlayer.dispose();
     super.dispose();
   }
 
@@ -61,6 +64,7 @@ class _DarkWebSimulationScreenState extends State<DarkWebSimulationScreen>
       _acceptedWarning = true;
       _phase = 1;
     });
+    _startBackgroundMusic(); // Start music when entering simulation
     _startPhase1Connection();
   }
 
@@ -163,6 +167,36 @@ class _DarkWebSimulationScreenState extends State<DarkWebSimulationScreen>
         _flashRed = true;
         _canGoBack = true;
       });
+    }
+  }
+  
+  Future<void> _startBackgroundMusic() async {
+    debugPrint('🎵 Attempting to start background music...');
+    try {
+      await _backgroundAudioPlayer.setPlayerMode(PlayerMode.lowLatency);
+      await _backgroundAudioPlayer.setReleaseMode(ReleaseMode.loop);
+      await _backgroundAudioPlayer.setVolume(0.5);
+      
+      // Try to play the audio file
+      debugPrint('🎵 Loading: sounds/dark_web_bg.mp3');
+      final source = AssetSource('sounds/dark_web_bg.mp3');
+      await _backgroundAudioPlayer.play(source);
+      
+      debugPrint('🎵 Background music started successfully!');
+    } catch (e) {
+      debugPrint('❌ Error playing background music: $e');
+      // If MP3 fails, it might be a web compatibility issue
+      // The music will just not play, but won't crash the app
+    }
+  }
+
+  Future<void> _stopBackgroundMusic() async {
+    debugPrint('🎵 Stopping background music...');
+    try {
+      await _backgroundAudioPlayer.stop();
+      debugPrint('🎵 Background music stopped');
+    } catch (e) {
+      debugPrint('❌ Error stopping background music: $e');
     }
   }
 
@@ -529,7 +563,10 @@ class _DarkWebSimulationScreenState extends State<DarkWebSimulationScreen>
               ),
               const SizedBox(height: 16),
               GestureDetector(
-                onTap: () => Navigator.pop(context),
+                onTap: () {
+                  _stopBackgroundMusic();
+                  Navigator.pop(context);
+                },
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -624,7 +661,10 @@ class _DarkWebSimulationScreenState extends State<DarkWebSimulationScreen>
                 children: [
                   IconButton(
                     icon: const Icon(Icons.arrow_back, color: Colors.red, size: 18),
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () {
+                      _stopBackgroundMusic();
+                      Navigator.pop(context);
+                    },
                   ),
                   const Icon(Icons.lock, color: Colors.green, size: 14),
                   const SizedBox(width: 8),

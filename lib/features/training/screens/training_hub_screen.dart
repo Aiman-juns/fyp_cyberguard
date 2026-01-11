@@ -2815,7 +2815,7 @@ class _FeaturedSimulatorCard extends StatelessWidget {
                           SizedBox(width: 8),
                           Flexible(
                             child: Text(
-                              'Malware Infection Simulator',
+                              'Ransomware Attack Simulation',
                               style: TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,

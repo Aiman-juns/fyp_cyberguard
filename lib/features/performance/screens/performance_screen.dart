@@ -428,14 +428,14 @@ class _PerformanceTab extends ConsumerWidget {
                       child: Container(
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [Color(0xFF9333EA), Color(0xFFA855F7)],
+                            colors: [Color(0xFF14B8A6), Color(0xFF06B6D4)],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF9333EA).withOpacity(0.3),
+                              color: const Color(0xFF14B8A6).withOpacity(0.3),
                               blurRadius: 12,
                               offset: const Offset(0, 6),
                             ),
@@ -500,7 +500,7 @@ class _PerformanceTab extends ConsumerWidget {
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E293B),
+                        color: Colors.white,
                       ),
                     ),
                   ],

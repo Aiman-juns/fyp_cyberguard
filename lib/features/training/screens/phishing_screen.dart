@@ -61,9 +61,8 @@ class _PhishingScreenState extends ConsumerState<PhishingScreen>
         if (userId != null) {
           // Wrap in async IIFE to capture achievements before recording
           (() async {
-            final achievementsBefore = await ref.read(
-              userAchievementsProvider.future,
-            );
+            // CRITICAL FIX: Get FRESH state directly from database (not cached)
+            final achievementsBefore = await fetchUserAchievements(userId);
 
             final progress = UserProgress(
               id: 'temp',

@@ -154,7 +154,6 @@ class _GamesScreenState extends State<GamesScreen>
     );
   }
 
-  // Games Tab Content
   Widget _buildGamesTab(bool isDark) {
     final games = [
       {
@@ -241,7 +240,10 @@ class _GamesScreenState extends State<GamesScreen>
               itemBuilder: (context, index) {
                 final game = games[index];
                 return GestureDetector(
-                  onTap: () => _launchUrl(game['url'] as String, context),
+                  onTap: () {
+                    // Launch external URL
+                    _launchUrl(game['url'] as String, context);
+                  },
                   child: Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -336,7 +338,7 @@ class _GamesScreenState extends State<GamesScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 8),
-            
+
             // Section Header
             Row(
               children: [
@@ -374,11 +376,11 @@ class _GamesScreenState extends State<GamesScreen>
             ),
             const SizedBox(height: 24),
 
-            // Featured: Malware Infection Simulator
+            // Featured: Ransomware Attack Simulation
             _buildFeaturedSimulationCard(
               context: context,
               isDark: isDark,
-              title: 'Malware Infection Simulator',
+              title: 'Ransomware Attack Simulation',
               description:
                   'Experience what happens when you click malicious links. Feel the panic. Learn the lesson.',
               icon: Icons.bug_report,
@@ -419,12 +421,12 @@ class _GamesScreenState extends State<GamesScreen>
                   child: _buildCompactSimulationCard(
                     context: context,
                     isDark: isDark,
-                    title: 'Hack Attack',
+                    title: 'Password Cracker',
                     description: 'Test your password',
                     icon: Icons.security,
                     gradientColors: const [
-                      Color(0xFF00BCD4),
-                      Color(0xFF0097A7),
+                      Color(0xFF42A5F5),
+                      Color(0xFF2196F3),
                     ],
                     badge: 'INTERACTIVE',
                     onTap: () => context.push('/hack-simulator'),
@@ -439,7 +441,7 @@ class _GamesScreenState extends State<GamesScreen>
             _buildCompactSimulationCard(
               context: context,
               isDark: isDark,
-              title: 'Infinite Adware Attack',
+              title: 'Fake Booster App Simulation',
               description: 'Experience the chaos of malicious ad spam',
               icon: Icons.bug_report_outlined,
               gradientColors: const [Color(0xFFFF6B6B), Color(0xFFEE5A6F)],
@@ -820,7 +822,7 @@ class _GamesScreenState extends State<GamesScreen>
                   ),
                 ),
               ),
-              
+
               // Glowing corner effect
               Positioned(
                 top: -30,
@@ -1001,20 +1003,12 @@ class CyberGridPainter extends CustomPainter {
 
     // Draw vertical lines
     for (double x = 0; x < size.width; x += gridSize) {
-      canvas.drawLine(
-        Offset(x, 0),
-        Offset(x, size.height),
-        paint,
-      );
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
     }
 
     // Draw horizontal lines
     for (double y = 0; y < size.height; y += gridSize) {
-      canvas.drawLine(
-        Offset(0, y),
-        Offset(size.width, y),
-        paint,
-      );
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
     }
   }
 

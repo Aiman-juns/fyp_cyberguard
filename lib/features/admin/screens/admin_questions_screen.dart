@@ -470,6 +470,8 @@ class _QuestionCardState extends State<_QuestionCard> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     // Determine module type from question content
     try {
       if (widget.question.content.isNotEmpty) {
@@ -497,7 +499,7 @@ class _QuestionCardState extends State<_QuestionCard> {
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: difficultyColor.withOpacity(0.3), width: 2),
           boxShadow: [
@@ -639,7 +641,7 @@ class _QuestionCardState extends State<_QuestionCard> {
                     child: Text(
                       'Answer: ${widget.question.correctAnswer}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.green.shade900,
+                        color: isDark ? Colors.green.shade200 : Colors.green.shade900,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
