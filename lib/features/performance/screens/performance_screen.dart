@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:confetti/confetti.dart';
 import 'dart:ui';
+import 'dart:math';
 import '../providers/performance_provider.dart';
 import '../providers/leaderboard_provider.dart';
 import '../../../core/services/avatar_service.dart';
@@ -147,353 +150,385 @@ class _PerformanceTab extends ConsumerWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return performanceAsyncValue.when(
-      data: (stats) => Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: isDark
-                ? [Colors.grey.shade900, Colors.grey.shade800]
-                : [const Color(0xFFFAFAFA), const Color(0xFFFFFFFF)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 8),
-              // Hero Stats Card - Enhanced
-              Container(
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF2563EB), Color(0xFF3B82F6)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.blue.withOpacity(0.3),
-                      blurRadius: 12,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Stack(
-                  children: [
-                    // Decorative elements
-                    Positioned(
-                      top: -20,
-                      right: -20,
-                      child: Container(
-                        width: 100,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withOpacity(0.1),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(28.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  child: const Icon(
-                                    Icons.star,
-                                    color: Colors.white,
-                                    size: 32,
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Current Level',
-                                        style: TextStyle(
-                                          color: Colors.white.withOpacity(0.7),
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'Level ${stats.level}',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 22,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                Flexible(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Text(
-                                        'Total Score',
-                                        style: TextStyle(
-                                          color: Colors.white.withOpacity(0.7),
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        '${stats.totalScore}',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 36,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      Text(
-                                        'pts',
-                                        style: TextStyle(
-                                          color: Colors.white.withOpacity(0.8),
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  child: const Icon(
-                                    Icons.emoji_events,
-                                    color: Colors.white,
-                                    size: 32,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20.0),
+      data: (stats) {
+        // Calculate XP values for level progression
+        final currentLevelXP = _getXPForLevel(stats.level);
+        final nextLevelXP = _getXPForLevel(stats.level + 1);
+        final xpForNextLevel = nextLevelXP - currentLevelXP;
+        final xpProgress = stats.totalScore - currentLevelXP;
+        final progressPercent = xpForNextLevel > 0
+            ? (xpProgress / xpForNextLevel * 100).clamp(0, 100)
+            : 0.0;
 
-              // Quick Stats Row - Enhanced
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFFF97316), Color(0xFFFB923C)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFFF97316).withOpacity(0.3),
-                            blurRadius: 12,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(24.0),
-                        child: Column(
-                          children: [
-                            const Icon(
-                              Icons.track_changes,
-                              color: Colors.white,
-                              size: 40,
-                            ),
-                            const SizedBox(height: 12.0),
-                            Text(
-                              'Accuracy',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.7),
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 6.0),
-                            Text(
-                              '${stats.accuracyPercentage.toStringAsFixed(1)}%',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 32,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16.0),
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF9333EA), Color(0xFFA855F7)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF9333EA).withOpacity(0.3),
-                            blurRadius: 12,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(24.0),
-                        child: Column(
-                          children: [
-                            const Icon(
-                              Icons.format_list_numbered,
-                              color: Colors.white,
-                              size: 40,
-                            ),
-                            const SizedBox(height: 12.0),
-                            Text(
-                              'Attempts',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.7),
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 6.0),
-                            Text(
-                              '${stats.totalAttempts}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 32,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16.0),
-              // Certificate Button
-              _buildCertificateButton(context, ref, stats),
-              const SizedBox(height: 32.0),
-              // Module Progress Header
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade100,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      Icons.bar_chart,
-                      color: const Color(0xFF3B82F6),
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'Module Progress',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E293B),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16.0),
-              // Module Progress Cards
-              _ModuleProgressCard(
-                title: 'Phishing Detection',
-                stats: stats.moduleStats['phishing'],
-                color: const Color(0xFF3B82F6),
-              ),
-              const SizedBox(height: 12.0),
-              _ModuleProgressCard(
-                title: 'Password Dojo',
-                stats: stats.moduleStats['password'],
-                color: const Color(0xFF8B5CF6),
-              ),
-              const SizedBox(height: 12.0),
-              _ModuleProgressCard(
-                title: 'Cyber Attack Analyst',
-                stats: stats.moduleStats['attack'],
-                color: const Color(0xFFEF4444),
-              ),
-              const SizedBox(height: 24.0),
-              // Achievements Header
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFEF3C7), Color(0xFFFDE68A)],
-                      ),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      Icons.emoji_events,
-                      color: Color(0xFFF59E0B),
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'Medals & Achievements',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E293B),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16.0),
-              _AchievementsView(stats: stats),
-            ],
+        return Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: isDark
+                  ? [Colors.grey.shade900, Colors.grey.shade800]
+                  : [const Color(0xFFFAFAFA), const Color(0xFFFFFFFF)],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
           ),
-        ),
-      ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 8),
+                // Hero Stats Card - Enhanced
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF2563EB), Color(0xFF3B82F6)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.blue.withOpacity(0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Stack(
+                    children: [
+                      // Decorative elements
+                      Positioned(
+                        top: -20,
+                        right: -20,
+                        child: Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withOpacity(0.1),
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(28.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: const Icon(
+                                      Icons.star,
+                                      color: Colors.white,
+                                      size: 32,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Current Level',
+                                          style: TextStyle(
+                                            color: Colors.white.withOpacity(
+                                              0.7,
+                                            ),
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Level ${stats.level}',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        // Progress bar to next level
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Container(
+                                              height: 6,
+                                              width: 120,
+                                              decoration: BoxDecoration(
+                                                color: Colors.white.withOpacity(
+                                                  0.2,
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(3),
+                                              ),
+                                              child: FractionallySizedBox(
+                                                alignment: Alignment.centerLeft,
+                                                widthFactor:
+                                                    (progressPercent / 100)
+                                                        .clamp(0.0, 1.0),
+                                                child: Container(
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.white,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          3,
+                                                        ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              '${progressPercent.toInt()}% to next',
+                                              style: TextStyle(
+                                                color: Colors.white.withOpacity(
+                                                  0.7,
+                                                ),
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  Flexible(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
+                                      children: [
+                                        Text(
+                                          'Total Score',
+                                          style: TextStyle(
+                                            color: Colors.white.withOpacity(
+                                              0.7,
+                                            ),
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          '${stats.totalScore}',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 36,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        Text(
+                                          'pts',
+                                          style: TextStyle(
+                                            color: Colors.white.withOpacity(
+                                              0.8,
+                                            ),
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: const Icon(
+                                      Icons.emoji_events,
+                                      color: Colors.white,
+                                      size: 32,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20.0),
+
+                // Quick Stats Row - Enhanced
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFF97316), Color(0xFFFB923C)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFF97316).withOpacity(0.3),
+                              blurRadius: 12,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Column(
+                            children: [
+                              const Icon(
+                                Icons.track_changes,
+                                color: Colors.white,
+                                size: 40,
+                              ),
+                              const SizedBox(height: 12.0),
+                              Text(
+                                'Accuracy',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.7),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 6.0),
+                              Text(
+                                '${stats.accuracyPercentage.toStringAsFixed(1)}%',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16.0),
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF9333EA), Color(0xFFA855F7)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF9333EA).withOpacity(0.3),
+                              blurRadius: 12,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Column(
+                            children: [
+                              const Icon(
+                                Icons.format_list_numbered,
+                                color: Colors.white,
+                                size: 40,
+                              ),
+                              const SizedBox(height: 12.0),
+                              Text(
+                                'Attempts',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.7),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 6.0),
+                              Text(
+                                '${stats.totalAttempts}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16.0),
+                // Certificate Button
+                _buildCertificateButton(context, ref, stats),
+                const SizedBox(height: 32.0),
+                // Module Progress Header
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade100,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.bar_chart,
+                        color: const Color(0xFF3B82F6),
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Module Progress',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1E293B),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16.0),
+                // Module Progress Cards
+                _ModuleProgressCard(
+                  title: 'Phishing Detection',
+                  stats: stats.moduleStats['phishing'],
+                  color: const Color(0xFF3B82F6),
+                ),
+                const SizedBox(height: 12.0),
+                _ModuleProgressCard(
+                  title: 'Password Dojo',
+                  stats: stats.moduleStats['password'],
+                  color: const Color(0xFF8B5CF6),
+                ),
+                const SizedBox(height: 12.0),
+                _ModuleProgressCard(
+                  title: 'Threat Recognition',
+                  stats: stats.moduleStats['attack'],
+                  color: const Color(0xFFEF4444),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
       loading: () => Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -524,6 +559,12 @@ class _PerformanceTab extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  // Calculate XP required for a specific level
+  static int _getXPForLevel(int level) {
+    if (level == 1) return 0;
+    return (level - 1) * 100 + ((level - 2) * (level - 1) ~/ 2) * 50;
   }
 }
 
@@ -763,7 +804,7 @@ Widget _buildCertificateCard(
                                 ),
                                 const SizedBox(height: 8),
                                 _buildRequirement(
-                                  'Cyber Attack Analyst',
+                                  'Threat Recognition',
                                   attackStats?.accuracy ?? 0,
                                 ),
                                 const SizedBox(height: 16),
@@ -1399,7 +1440,7 @@ class _CertificateDialog extends ConsumerWidget {
                         ),
                         const SizedBox(height: 8),
                         _buildRequirementRow(
-                          'Cyber Attack Analyst',
+                          'Threat Recognition',
                           attackStats?.accuracy ?? 0,
                         ),
                       ],
@@ -1536,7 +1577,7 @@ class CertificateViewScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 12),
                         _buildRequirement(
-                          'Cyber Attack Analyst',
+                          'Threat Recognition',
                           attackStats?.accuracy ?? 0,
                           isEligible,
                         ),
@@ -2185,64 +2226,189 @@ class _AchievementCard extends StatelessWidget {
 }
 
 // Leaderboard Tab
-class _LeaderboardTab extends ConsumerWidget {
+class _LeaderboardTab extends ConsumerStatefulWidget {
   const _LeaderboardTab({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_LeaderboardTab> createState() => _LeaderboardTabState();
+}
+
+class _LeaderboardTabState extends ConsumerState<_LeaderboardTab> {
+  late ConfettiController _confettiController;
+
+  @override
+  void initState() {
+    super.initState();
+    _confettiController = ConfettiController(
+      duration: const Duration(seconds: 3),
+    );
+    // Start confetti after a delay to match the animation
+    Future.delayed(const Duration(milliseconds: 1000), () {
+      if (mounted) {
+        _confettiController.play();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _confettiController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final leaderboardAsync = ref.watch(leaderboardProvider);
 
     return leaderboardAsync.when(
-      data: (leaderboard) => RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(leaderboardProvider);
-        },
-        color: const Color(0xFF3B82F6),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                const Color(0xFFF8FAFC),
-                const Color(0xFFE2E8F0).withOpacity(0.3),
-              ],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
+      data: (leaderboard) => Stack(
+        children: [
+          RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(leaderboardProvider);
+              // Replay confetti on refresh
+              Future.delayed(const Duration(milliseconds: 1000), () {
+                if (mounted) {
+                  _confettiController.play();
+                }
+              });
+            },
+            color: const Color(0xFF3B82F6),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFFF8FAFC),
+                    const Color(0xFFE2E8F0).withOpacity(0.3),
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 8),
+                    // Elegant Header with Trophy
+                    _buildLeaderboardHeader(),
+                    const SizedBox(height: 24),
+                    // User Rank Card (if not in top 3) - Redesigned
+                    if (leaderboard.currentUser != null &&
+                        leaderboard.currentUser!.rank > 3)
+                      _buildModernUserRankCard(
+                        leaderboard.currentUser!,
+                        leaderboard.percentageBetter,
+                      ),
+                    if (leaderboard.currentUser != null &&
+                        leaderboard.currentUser!.rank > 3)
+                      const SizedBox(height: 24),
+                    // Elegant Podium Section
+                    _buildElegantPodium(leaderboard.topUsers.take(3).toList()),
+                    const SizedBox(height: 32),
+                    // Modern Rankings List
+                    if (leaderboard.topUsers.length > 3)
+                      _buildModernRankingsList(
+                        leaderboard.topUsers.skip(3).toList(),
+                        leaderboard.currentUser?.id,
+                      ),
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
             ),
           ),
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 8),
-                // Elegant Header with Trophy
-                _buildLeaderboardHeader(),
-                const SizedBox(height: 24),
-                // User Rank Card (if not in top 3) - Redesigned
-                if (leaderboard.currentUser != null &&
-                    leaderboard.currentUser!.rank > 3)
-                  _buildModernUserRankCard(
-                    leaderboard.currentUser!,
-                    leaderboard.percentageBetter,
-                  ),
-                if (leaderboard.currentUser != null &&
-                    leaderboard.currentUser!.rank > 3)
-                  const SizedBox(height: 24),
-                // Elegant Podium Section
-                _buildElegantPodium(leaderboard.topUsers.take(3).toList()),
-                const SizedBox(height: 32),
-                // Modern Rankings List
-                if (leaderboard.topUsers.length > 3)
-                  _buildModernRankingsList(
-                    leaderboard.topUsers.skip(3).toList(),
-                    leaderboard.currentUser?.id,
-                  ),
-                const SizedBox(height: 16),
+          // Confetti overlay - Multiple sources for even spread
+          Align(
+            alignment: Alignment.topCenter,
+            child: ConfettiWidget(
+              confettiController: _confettiController,
+              blastDirection: pi / 2, // downward
+              blastDirectionality: BlastDirectionality.explosive, // 360 degrees
+              maxBlastForce: 15,
+              minBlastForce: 8,
+              emissionFrequency: 0.03,
+              numberOfParticles: 15,
+              gravity: 0.2,
+              shouldLoop: false,
+              colors: const [
+                Color(0xFFFFD700), // Gold
+                Color(0xFF7C3AED), // Purple
+                Color(0xFFEC4899), // Pink
+                Color(0xFF3B82F6), // Blue
+                Color(0xFF10B981), // Green
               ],
             ),
           ),
-        ),
+          // Left side confetti
+          Align(
+            alignment: Alignment.centerLeft,
+            child: ConfettiWidget(
+              confettiController: _confettiController,
+              blastDirection: 0, // right
+              blastDirectionality: BlastDirectionality.explosive,
+              maxBlastForce: 12,
+              minBlastForce: 6,
+              emissionFrequency: 0.03,
+              numberOfParticles: 12,
+              gravity: 0.2,
+              shouldLoop: false,
+              colors: const [
+                Color(0xFFFFD700),
+                Color(0xFF7C3AED),
+                Color(0xFFEC4899),
+                Color(0xFF3B82F6),
+                Color(0xFF10B981),
+              ],
+            ),
+          ),
+          // Right side confetti
+          Align(
+            alignment: Alignment.centerRight,
+            child: ConfettiWidget(
+              confettiController: _confettiController,
+              blastDirection: pi, // left
+              blastDirectionality: BlastDirectionality.explosive,
+              maxBlastForce: 12,
+              minBlastForce: 6,
+              emissionFrequency: 0.03,
+              numberOfParticles: 12,
+              gravity: 0.2,
+              shouldLoop: false,
+              colors: const [
+                Color(0xFFFFD700),
+                Color(0xFF7C3AED),
+                Color(0xFFEC4899),
+                Color(0xFF3B82F6),
+                Color(0xFF10B981),
+              ],
+            ),
+          ),
+          // Bottom confetti
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: ConfettiWidget(
+              confettiController: _confettiController,
+              blastDirection: -pi / 2, // upward
+              blastDirectionality: BlastDirectionality.explosive,
+              maxBlastForce: 15,
+              minBlastForce: 8,
+              emissionFrequency: 0.03,
+              numberOfParticles: 15,
+              gravity: 0.2,
+              shouldLoop: false,
+              colors: const [
+                Color(0xFFFFD700),
+                Color(0xFF7C3AED),
+                Color(0xFFEC4899),
+                Color(0xFF3B82F6),
+                Color(0xFF10B981),
+              ],
+            ),
+          ),
+        ],
       ),
       loading: () => Container(
         decoration: BoxDecoration(
@@ -2556,44 +2722,331 @@ class _LeaderboardTab extends ConsumerWidget {
     final second = topUsers.length > 1 ? topUsers[1] : null;
     final third = topUsers.length > 2 ? topUsers[2] : null;
 
-    return Container(
-      padding: const EdgeInsets.all(28),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [const Color(0xFF1E293B), const Color(0xFF334155)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(32),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 30,
-            offset: const Offset(0, 15),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          if (first != null) _buildChampionPlace(first),
-          const SizedBox(height: 32),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              if (second != null)
-                Expanded(child: _buildRunnerUpPlace(second, 2))
-              else
-                const Expanded(child: SizedBox()),
-              const SizedBox(width: 16),
-              if (third != null)
-                Expanded(child: _buildRunnerUpPlace(third, 3))
-              else
-                const Expanded(child: SizedBox()),
+    // Get avatar colors for podium bases
+    final firstColor = first != null
+        ? AvatarService.getAvatarById(first.avatarId).color
+        : const Color(0xFF3B82F6);
+    final secondColor = second != null
+        ? AvatarService.getAvatarById(second.avatarId).color
+        : const Color(0xFF3B82F6);
+    final thirdColor = third != null
+        ? AvatarService.getAvatarById(third.avatarId).color
+        : const Color(0xFF3B82F6);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(32),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+        child: Container(
+          padding: const EdgeInsets.only(left: 16, right: 16, top: 32),
+          decoration: BoxDecoration(
+            image: DecorationImage(
+              image: const AssetImage(
+                'assets/images/card_bg/top player pg.png',
+              ),
+              fit: BoxFit.cover,
+              colorFilter: ColorFilter.mode(
+                Colors.white.withOpacity(0.85),
+                BlendMode.modulate,
+              ),
+            ),
+            borderRadius: BorderRadius.circular(32),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF7C3AED).withOpacity(0.4),
+                blurRadius: 30,
+                offset: const Offset(0, 15),
+              ),
             ],
           ),
-        ],
+          child: Column(
+            children: [
+              // Top row with avatars at different heights
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  // 2nd Place (lower position)
+                  if (second != null)
+                    Expanded(
+                      child:
+                          Padding(
+                                padding: const EdgeInsets.only(top: 70),
+                                child: _buildPodiumPosition(second, 2, 60),
+                              )
+                              .animate()
+                              .fadeIn(duration: 600.ms, delay: 200.ms)
+                              .slideY(
+                                begin: 0.5,
+                                end: 0,
+                                duration: 600.ms,
+                                delay: 200.ms,
+                              ),
+                    ),
+                  const SizedBox(width: 8),
+                  // 1st Place (highest position)
+                  if (first != null)
+                    Expanded(child: _buildPodiumPosition(first, 1, 90))
+                        .animate()
+                        .fadeIn(duration: 700.ms, delay: 600.ms)
+                        .slideY(
+                          begin: 0.5,
+                          end: 0,
+                          duration: 700.ms,
+                          delay: 600.ms,
+                        )
+                        .scale(
+                          begin: const Offset(0.8, 0.8),
+                          end: const Offset(1.0, 1.0),
+                          duration: 700.ms,
+                          delay: 600.ms,
+                        ),
+                  const SizedBox(width: 8),
+                  // 3rd Place (lowest position)
+                  if (third != null)
+                    Expanded(
+                      child:
+                          Padding(
+                                padding: const EdgeInsets.only(top: 100),
+                                child: _buildPodiumPosition(third, 3, 55),
+                              )
+                              .animate()
+                              .fadeIn(duration: 600.ms)
+                              .slideY(begin: 0.5, end: 0, duration: 600.ms),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              // Podium base
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  // 2nd place base
+                  Expanded(
+                    child:
+                        Container(
+                              height: 100,
+                              decoration: BoxDecoration(
+                                color: secondColor,
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(16),
+                                  topRight: Radius.circular(16),
+                                  bottomLeft: Radius.circular(32),
+                                ),
+                              ),
+                              child: const Center(
+                                child: Text(
+                                  '2',
+                                  style: TextStyle(
+                                    fontSize: 48,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            )
+                            .animate()
+                            .fadeIn(duration: 500.ms, delay: 400.ms)
+                            .slideY(
+                              begin: 1,
+                              end: 0,
+                              duration: 500.ms,
+                              delay: 400.ms,
+                            ),
+                  ),
+                  const SizedBox(width: 8),
+                  // 1st place base (tallest)
+                  Expanded(
+                    child:
+                        Container(
+                              height: 140,
+                              decoration: BoxDecoration(
+                                color: firstColor,
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(16),
+                                  topRight: Radius.circular(16),
+                                  bottomLeft: Radius.circular(32),
+                                  bottomRight: Radius.circular(32),
+                                ),
+                              ),
+                              child: const Center(
+                                child: Text(
+                                  '1',
+                                  style: TextStyle(
+                                    fontSize: 56,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            )
+                            .animate()
+                            .fadeIn(duration: 600.ms, delay: 800.ms)
+                            .slideY(
+                              begin: 1,
+                              end: 0,
+                              duration: 600.ms,
+                              delay: 800.ms,
+                            ),
+                  ),
+                  const SizedBox(width: 8),
+                  // 3rd place base
+                  Expanded(
+                    child:
+                        Container(
+                              height: 80,
+                              decoration: BoxDecoration(
+                                color: thirdColor,
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(16),
+                                  topRight: Radius.circular(16),
+                                  bottomRight: Radius.circular(32),
+                                ),
+                              ),
+                              child: const Center(
+                                child: Text(
+                                  '3',
+                                  style: TextStyle(
+                                    fontSize: 40,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            )
+                            .animate()
+                            .fadeIn(duration: 500.ms, delay: 200.ms)
+                            .slideY(
+                              begin: 1,
+                              end: 0,
+                              duration: 500.ms,
+                              delay: 200.ms,
+                            ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
+    );
+  }
+
+  Widget _buildPodiumPosition(
+    LeaderboardUser user,
+    int rank,
+    double avatarSize,
+  ) {
+    final avatar = AvatarService.getAvatarById(user.avatarId);
+    final bool isFirst = rank == 1;
+
+    return Column(
+      children: [
+        // Avatar with crown for first place
+        Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.center,
+          children: [
+            // Glow effect
+            Container(
+              width: avatarSize + 20,
+              height: avatarSize + 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: isFirst
+                        ? const Color(0xFFFFD700).withOpacity(0.5)
+                        : Colors.white.withOpacity(0.3),
+                    blurRadius: 20,
+                    spreadRadius: 5,
+                  ),
+                ],
+              ),
+            ),
+            // Avatar
+            Container(
+              width: avatarSize,
+              height: avatarSize,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 4),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: CircleAvatar(
+                radius: avatarSize / 2,
+                backgroundColor: avatar.color,
+                child: Icon(
+                  avatar.icon,
+                  size: avatarSize * 0.5,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            // Crown for first place
+            if (isFirst)
+              Positioned(
+                top: -15,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFD700),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFFFD700).withOpacity(0.6),
+                        blurRadius: 12,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.workspace_premium,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        // Name
+        Text(
+          user.username,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 4),
+        // Score
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.25),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            '${user.totalScore} DP',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -3331,14 +3784,7 @@ class _PodiumSection extends StatelessWidget {
           width: 90,
           height: 120, // Taller for 1st place
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Colors.white.withOpacity(0.6),
-                Colors.white.withOpacity(0.4),
-              ],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
+            color: Colors.white,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
           ),
           child: const Center(
@@ -3457,14 +3903,7 @@ class _PodiumSection extends StatelessWidget {
           width: 75,
           height: 90, // Increased height
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Colors.white.withOpacity(0.5),
-                Colors.white.withOpacity(0.3),
-              ],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
+            color: Colors.white,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
           ),
           child: const Center(
@@ -3576,14 +4015,7 @@ class _PodiumSection extends StatelessWidget {
           width: 75,
           height: 90, // Increased height
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Colors.white.withOpacity(0.5),
-                Colors.white.withOpacity(0.3),
-              ],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
+            color: Colors.white,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
           ),
           child: const Center(
@@ -3760,6 +4192,476 @@ class _RankingsList extends StatelessWidget {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// ProfileAchievementCard - Achievement card with unlock status
+class _ProfileAchievementCard extends StatelessWidget {
+  final Achievement achievement;
+  final bool isDark;
+
+  const _ProfileAchievementCard({
+    required this.achievement,
+    required this.isDark,
+  });
+
+  IconData _getIconData(IconType type) {
+    return switch (type) {
+      IconType.trophy => Icons.emoji_events,
+      IconType.flash => Icons.flash_on,
+      IconType.verified => Icons.verified,
+      IconType.star => Icons.star,
+      IconType.shield => Icons.shield,
+      IconType.rocket => Icons.rocket_launch,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        _showAchievementDetails(context, achievement, isDark);
+      },
+      child: Container(
+        width: 120,
+        decoration: BoxDecoration(
+          gradient: achievement.isUnlocked
+              ? const LinearGradient(
+                  colors: [Color(0xFFFEF3C7), Color(0xFFFDE68A)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          color: achievement.isUnlocked
+              ? null
+              : (isDark ? Colors.grey.shade800 : const Color(0xFFF1F5F9)),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: achievement.isUnlocked
+                ? const Color(0xFFFDE68A)
+                : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+            width: 2,
+          ),
+          boxShadow: achievement.isUnlocked
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFFF59E0B).withOpacity(0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Large circular icon container
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: achievement.isUnlocked
+                      ? const LinearGradient(
+                          colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        )
+                      : null,
+                  color: achievement.isUnlocked
+                      ? null
+                      : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                ),
+                child: Icon(
+                  _getIconData(achievement.iconType),
+                  color: achievement.isUnlocked
+                      ? Colors.white
+                      : (isDark ? Colors.grey.shade500 : Colors.grey.shade400),
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 12.0),
+              Text(
+                achievement.title,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : const Color(0xFF1E293B),
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4.0),
+              Text(
+                achievement.description,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (achievement.isUnlocked) ...[
+                const SizedBox(height: 8.0),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF59E0B),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'Unlocked',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showAchievementDetails(
+    BuildContext context,
+    Achievement achievement,
+    bool isDark,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: achievement.isUnlocked
+                      ? const LinearGradient(
+                          colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                        )
+                      : null,
+                  color: achievement.isUnlocked ? null : Colors.grey.shade300,
+                ),
+                child: Icon(
+                  _getIconData(achievement.iconType),
+                  color: Colors.white,
+                  size: 50,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                achievement.title,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : const Color(0xFF1E293B),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                achievement.description,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: isDark ? Colors.grey.shade300 : Colors.grey.shade600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              if (achievement.isUnlocked)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.white),
+                      SizedBox(width: 8),
+                      Text(
+                        'Unlocked!',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.lock, color: Colors.grey.shade600),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Locked',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// AllAchievementsDialog - Shows all achievements in a grid
+class _AllAchievementsDialog extends StatelessWidget {
+  final List<Achievement> achievements;
+  final bool isDark;
+
+  const _AllAchievementsDialog({
+    required this.achievements,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.amber.shade400, Colors.amber.shade600],
+                ),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(24),
+                  topRight: Radius.circular(24),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.emoji_events, color: Colors.white, size: 28),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'All Achievements',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            // Achievement Grid
+            Expanded(
+              child: GridView.builder(
+                padding: const EdgeInsets.all(20),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                  childAspectRatio: 0.85,
+                ),
+                itemCount: achievements.length,
+                itemBuilder: (context, index) {
+                  return _AchievementDetailCard(
+                    achievement: achievements[index],
+                    isDark: isDark,
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// AchievementDetailCard - Card for grid view in the dialog
+class _AchievementDetailCard extends StatelessWidget {
+  final Achievement achievement;
+  final bool isDark;
+
+  const _AchievementDetailCard({
+    required this.achievement,
+    required this.isDark,
+  });
+
+  IconData _getIconData(IconType type) {
+    return switch (type) {
+      IconType.trophy => Icons.emoji_events,
+      IconType.flash => Icons.flash_on,
+      IconType.verified => Icons.verified,
+      IconType.star => Icons.star,
+      IconType.shield => Icons.shield,
+      IconType.rocket => Icons.rocket_launch,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: achievement.isUnlocked
+            ? const LinearGradient(
+                colors: [Color(0xFFFEF3C7), Color(0xFFFDE68A)],
+              )
+            : null,
+        color: achievement.isUnlocked
+            ? null
+            : (isDark ? Colors.grey.shade800 : const Color(0xFFF1F5F9)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: achievement.isUnlocked
+              ? const Color(0xFFFDE68A)
+              : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+          width: 2,
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: achievement.isUnlocked
+                        ? const LinearGradient(
+                            colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                          )
+                        : null,
+                    color: achievement.isUnlocked
+                        ? null
+                        : (isDark
+                              ? Colors.grey.shade700
+                              : Colors.grey.shade300),
+                  ),
+                  child: Icon(
+                    _getIconData(achievement.iconType),
+                    color: achievement.isUnlocked
+                        ? Colors.white
+                        : (isDark
+                              ? Colors.grey.shade500
+                              : Colors.grey.shade400),
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  achievement.title,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : const Color(0xFF1E293B),
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  achievement.description,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (achievement.isUnlocked) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF59E0B),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'Unlocked',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

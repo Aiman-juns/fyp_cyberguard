@@ -23,8 +23,8 @@ class _AdwareSimulationScreenState extends State<AdwareSimulationScreen> {
   Timer? _adTimer;
   int _adCount = 0;
   int _timerInterval = 800; // Start at 800ms
-  final AudioPlayer _audioPlayer = AudioPlayer();
   bool _canPop = true;
+  final List<AudioPlayer> _audioPlayers = []; // Track all players for disposal
 
   // Random generators
   final Random _random = Random();
@@ -57,7 +57,9 @@ class _AdwareSimulationScreenState extends State<AdwareSimulationScreen> {
   @override
   void dispose() {
     _adTimer?.cancel();
-    _audioPlayer.dispose();
+    for (var player in _audioPlayers) {
+      player.dispose();
+    }
     super.dispose();
   }
 
@@ -85,7 +87,7 @@ class _AdwareSimulationScreenState extends State<AdwareSimulationScreen> {
     });
 
     // Play sound and vibrate
-    _playErrorSound();
+    _playPopSound();
     HapticFeedback.heavyImpact();
 
     // Speed up over time (800ms -> 100ms)
@@ -101,31 +103,62 @@ class _AdwareSimulationScreenState extends State<AdwareSimulationScreen> {
     });
   }
 
-  void _playErrorSound() async {
+  void _playPopSound() async {
     try {
-      // Using glitch_sound.mp3 which already exists in assets
-      await _audioPlayer.play(AssetSource('sounds/glitch_sound.mp3'));
+      // Create a new audio player for each popup to avoid channel congestion
+      final player = AudioPlayer();
+      _audioPlayers.add(player);
+      await player.setPlayerMode(PlayerMode.lowLatency);
+      await player.play(AssetSource('sounds/upload_sound.mp3'), volume: 0.2);
+      
+      // Dispose after playing to free resources
+      player.onPlayerComplete.listen((_) {
+        player.dispose();
+        _audioPlayers.remove(player);
+      });
     } catch (e) {
       // Ignore if sound not available
       debugPrint('Error playing sound: $e');
     }
+    // Also trigger system beep for popup effect
+    HapticFeedback.selectionClick();
   }
 
-  void _triggerSystemCrash() {
+  void _triggerSystemCrash() async {
     _adTimer?.cancel();
 
+    // Show crash screen first
     setState(() {
-      _currentState = 3;
+      _currentState = 4; // New crash state
     });
 
-    // Auto-show safe mode after 2 seconds
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          _canPop = true;
-        });
-      }
-    });
+    // Play crash sound and vibrate
+    try {
+      final crashPlayer = AudioPlayer();
+      _audioPlayers.add(crashPlayer);
+      await crashPlayer.play(AssetSource('sounds/glitch_sound.mp3'), volume: 1.0);
+      crashPlayer.onPlayerComplete.listen((_) {
+        crashPlayer.dispose();
+        _audioPlayers.remove(crashPlayer);
+      });
+    } catch (e) {
+      debugPrint('Error playing crash sound: $e');
+    }
+    HapticFeedback.heavyImpact();
+    
+    // Wait for crash effect to complete
+    await Future.delayed(const Duration(milliseconds: 1500));
+    HapticFeedback.heavyImpact();
+    
+    await Future.delayed(const Duration(milliseconds: 1500));
+
+    // Show educational screen
+    if (mounted) {
+      setState(() {
+        _currentState = 3;
+        _canPop = true;
+      });
+    }
   }
 
   Widget _buildAdPopup() {
@@ -193,6 +226,7 @@ class _AdwareSimulationScreenState extends State<AdwareSimulationScreen> {
             if (_currentState == 1) _buildBaitScreen(),
             if (_currentState == 2) _buildAttackScreen(),
             if (_currentState == 3) _buildReliefScreen(),
+            if (_currentState == 4) _buildCrashScreen(),
           ],
         ),
       ),
@@ -556,6 +590,79 @@ class _AdwareSimulationScreenState extends State<AdwareSimulationScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // State 4: The Crash
+  Widget _buildCrashScreen() {
+    return Container(
+      color: Colors.black,
+      child: Stack(
+        children: [
+          // Glitching background
+          Positioned.fill(
+            child: Container(
+              color: Colors.red.withOpacity(0.2),
+            ).animate(onPlay: (controller) => controller.repeat())
+              .fadeIn(duration: 100.ms)
+              .fadeOut(duration: 100.ms),
+          ),
+          
+          // Center crash warning
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 120,
+                  color: Colors.red,
+                ).animate(onPlay: (controller) => controller.repeat())
+                  .shake(duration: 200.ms, hz: 10),
+                
+                const SizedBox(height: 24),
+                
+                Text(
+                  'SYSTEM ERROR',
+                  style: const TextStyle(
+                    color: Colors.red,
+                    fontSize: 36,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 2,
+                  ),
+                ).animate(onPlay: (controller) => controller.repeat())
+                  .fadeIn(duration: 200.ms)
+                  .fadeOut(duration: 200.ms),
+                
+                const SizedBox(height: 16),
+                
+                Text(
+                  'DEVICE OVERLOADED',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 20,
+                    letterSpacing: 1,
+                  ),
+                ).animate(onPlay: (controller) => controller.repeat())
+                  .fadeIn(duration: 300.ms)
+                  .fadeOut(duration: 300.ms),
+              ],
+            ),
+          ),
+          
+          // Glitching artifacts
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              height: 100,
+              color: Colors.red.withOpacity(0.3),
+            ).animate(onPlay: (controller) => controller.repeat())
+              .moveY(begin: -100, end: 800, duration: 800.ms),
+          ),
+        ],
       ),
     );
   }

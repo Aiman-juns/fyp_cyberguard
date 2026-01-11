@@ -5,6 +5,11 @@ import '../../../core/services/avatar_service.dart';
 import '../../../config/supabase_config.dart';
 import '../../performance/providers/performance_provider.dart';
 import '../../../core/services/achievement_notification_service.dart';
+import '../providers/profile_analytics_provider.dart';
+import '../widgets/daily_goal_card.dart';
+import '../widgets/weekly_challenge_card.dart';
+import '../widgets/module_stat_card.dart';
+import '../widgets/activity_timeline.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -542,221 +547,540 @@ class ProfileScreen extends ConsumerWidget {
         final avatar = AvatarService.getAvatarById(user.avatarId);
         final performanceAsync = ref.watch(performanceProvider);
 
-        return SingleChildScrollView(
-          child: Column(
+        return Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                const Color(0xFF1976D2), // Deep Blue
+                const Color(0xFF2196F3), // Bright Blue
+                const Color(0xFF42A5F5), // Light Blue
+              ],
+            ),
+          ),
+          child: Stack(
             children: [
-              // Header with Avatar - Blue Gradient Background
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      const Color(0xFF2196F3), // Material Blue
-                      const Color(0xFF1976D2), // Darker Blue
-                    ],
-                  ),
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(30),
-                    bottomRight: Radius.circular(30),
+              // Cyber Background Elements
+              Positioned(
+                top: 20,
+                right: 20,
+                child: Icon(
+                  Icons.hexagon_outlined,
+                  size: 80,
+                  color: Colors.white.withOpacity(0.1),
+                ),
+              ),
+              Positioned(
+                top: 60,
+                left: 30,
+                child: Icon(
+                  Icons.shield_outlined,
+                  size: 60,
+                  color: Colors.white.withOpacity(0.08),
+                ),
+              ),
+              Positioned(
+                top: 100,
+                right: 40,
+                child: Icon(
+                  Icons.security,
+                  size: 50,
+                  color: Colors.white.withOpacity(0.08),
+                ),
+              ),
+              Positioned(
+                top: 40,
+                left: 100,
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.1),
+                      width: 2,
+                    ),
                   ),
                 ),
-                child: SafeArea(
-                  bottom: false,
+              ),
+              Positioned(
+                top: 120,
+                left: 50,
+                child: Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.1),
+                      width: 2,
+                    ),
+                  ),
+                ),
+              ),
+
+              // White Card Container with all content
+              Expanded(
+                child: SingleChildScrollView(
                   child: Column(
                     children: [
-                      const SizedBox(height: 20),
-                      // Name and Quote
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: Column(
-                          children: [
-                            Text(
-                              user.fullName,
-                              style: const TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              user.quote,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.white.withOpacity(0.9),
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      // Avatar with Edit button
+                      const SizedBox(height: 120), // Space at top
                       Stack(
+                        clipBehavior: Clip.none,
                         children: [
                           Container(
-                            width: 110,
-                            height: 110,
+                            width: double.infinity,
+                            margin: const EdgeInsets.fromLTRB(
+                              16,
+                              60,
+                              16,
+                              24,
+                            ), // Horizontal gaps + space for avatar + bottom margin
                             decoration: BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 4),
+                              color: isDark
+                                  ? const Color(0xFF1E1E1E)
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(30),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.2),
+                                  color: Colors.black.withOpacity(0.1),
                                   blurRadius: 20,
-                                  offset: const Offset(0, 8),
+                                  spreadRadius: 5,
+                                  offset: const Offset(0, -5),
                                 ),
                               ],
                             ),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: avatar.color,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                avatar.icon,
-                                size: 56,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: GestureDetector(
-                              onTap: () => _showAvatarPicker(
-                                context,
-                                ref,
-                                user.avatarId,
-                              ),
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF2196F3),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.white,
-                                    width: 2,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.2),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
+                            child: Padding(
+                              padding: const EdgeInsets.only(bottom: 24),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const SizedBox(
+                                    height: 80,
+                                  ), // Space for overlapping avatar
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 24,
                                     ),
-                                  ],
-                                ),
-                                child: const Icon(
-                                  Icons.edit,
-                                  size: 16,
-                                  color: Colors.white,
-                                ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        // User Info Section
+                                        Container(
+                                          padding: const EdgeInsets.all(20),
+                                          decoration: BoxDecoration(
+                                            color: isDark
+                                                ? Colors.grey.shade900
+                                                : Colors.grey.shade50,
+                                            borderRadius: BorderRadius.circular(
+                                              16,
+                                            ),
+                                            border: Border.all(
+                                              color: isDark
+                                                  ? Colors.grey.shade800
+                                                  : Colors.grey.shade200,
+                                            ),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              // Username with edit button
+                                              Row(
+                                                children: [
+                                                  Icon(
+                                                    Icons.person,
+                                                    color: Colors.blue,
+                                                    size: 24,
+                                                  ),
+                                                  const SizedBox(width: 12),
+                                                  Expanded(
+                                                    child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                        Text(
+                                                          'Username',
+                                                          style: TextStyle(
+                                                            fontSize: 12,
+                                                            color: isDark
+                                                                ? Colors
+                                                                      .grey
+                                                                      .shade400
+                                                                : Colors
+                                                                      .grey
+                                                                      .shade600,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                          height: 4,
+                                                        ),
+                                                        Text(
+                                                          user.fullName,
+                                                          style: TextStyle(
+                                                            fontSize: 18,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  IconButton(
+                                                    icon: Icon(
+                                                      Icons.edit,
+                                                      color: Colors.blue,
+                                                    ),
+                                                    onPressed: () =>
+                                                        _showEditNameDialog(
+                                                          context,
+                                                          ref,
+                                                          user.fullName,
+                                                        ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 20),
+                                              Divider(
+                                                color: isDark
+                                                    ? Colors.grey.shade800
+                                                    : Colors.grey.shade300,
+                                              ),
+                                              const SizedBox(height: 20),
+                                              // Email (read-only)
+                                              Row(
+                                                children: [
+                                                  Icon(
+                                                    Icons.email,
+                                                    color: Colors.green,
+                                                    size: 24,
+                                                  ),
+                                                  const SizedBox(width: 12),
+                                                  Expanded(
+                                                    child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                        Text(
+                                                          'Email',
+                                                          style: TextStyle(
+                                                            fontSize: 12,
+                                                            color: isDark
+                                                                ? Colors
+                                                                      .grey
+                                                                      .shade400
+                                                                : Colors
+                                                                      .grey
+                                                                      .shade600,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                          height: 4,
+                                                        ),
+                                                        Text(
+                                                          user.email,
+                                                          style: TextStyle(
+                                                            fontSize: 18,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+
+                                        const SizedBox(height: 24),
+
+                                        // Goals & Milestones Section
+                                        ref.watch(profileAnalyticsProvider).when(
+                                          data: (analytics) => Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Container(
+                                                    padding: const EdgeInsets.all(8),
+                                                    decoration: BoxDecoration(
+                                                      gradient: LinearGradient(
+                                                        colors: [Colors.purple.shade400, Colors.blue.shade400],
+                                                      ),
+                                                      borderRadius: BorderRadius.circular(10),
+                                                    ),
+                                                    child: const Icon(Icons.emoji_events, color: Colors.white, size: 20),
+                                                  ),
+                                                  const SizedBox(width: 12),
+                                                  Text(
+                                                    'Goals & Milestones',
+                                                    style: TextStyle(
+                                                      fontSize: 20,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: isDark ? Colors.white : Colors.grey.shade900,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 20),
+                                              DailyGoalCard(
+                                                questionsAnswered: analytics.dailyProgress.questionsAnswered,
+                                                dailyGoal: analytics.dailyProgress.dailyGoal,
+                                                streak: analytics.dailyProgress.streak,
+                                                isCompleted: analytics.dailyProgress.isCompleted,
+                                                progressPercent: analytics.dailyProgress.progressPercent,
+                                              ),
+                                              const SizedBox(height: 16),
+                                              WeeklyChallenge(
+                                                questionsAnswered: analytics.weeklyProgress.questionsAnswered,
+                                                weeklyGoal: analytics.weeklyProgress.weeklyGoal,
+                                                bonusXP: analytics.weeklyProgress.bonusXP,
+                                                isCompleted: analytics.weeklyProgress.isCompleted,
+                                                progressPercent: analytics.weeklyProgress.progressPercent,
+                                              ),
+                                              const SizedBox(height: 24),
+                                            ],
+                                          ),
+                                          loading: () => const Center(
+                                            child: Padding(
+                                              padding: EdgeInsets.all(40),
+                                              child: CircularProgressIndicator(),
+                                            ),
+                                          ),
+                                          error: (error, _) => Container(
+                                            padding: const EdgeInsets.all(20),
+                                            decoration: BoxDecoration(
+                                              color: Colors.red.shade50,
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                            child: Text(
+                                              'Unable to load analytics: $error',
+                                              style: TextStyle(color: Colors.red.shade700),
+                                            ),
+                                          ),
+                                        ),
+
+                                        const SizedBox(height: 24),
+
+                                        // Medals & Achievements Section
+                                        Row(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(8),
+                                              decoration: BoxDecoration(
+                                                gradient: LinearGradient(
+                                                  colors: [
+                                                    Colors.amber.shade400,
+                                                    Colors.amber.shade600,
+                                                  ],
+                                                  begin: Alignment.topLeft,
+                                                  end: Alignment.bottomRight,
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                              ),
+                                              child: const Icon(
+                                                Icons.emoji_events,
+                                                color: Colors.white,
+                                                size: 24,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Text(
+                                                'Medals & Achievements',
+                                                style: TextStyle(
+                                                  fontSize: 20,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: isDark
+                                                      ? Colors.white
+                                                      : const Color(0xFF1E293B),
+                                                ),
+                                              ),
+                                            ),
+                                            TextButton.icon(
+                                              onPressed: () {
+                                                performanceAsync.whenData((stats) {
+                                                  showDialog(
+                                                    context: context,
+                                                    builder: (context) => _AllAchievementsDialog(
+                                                      achievements: stats.achievements,
+                                                      isDark: isDark,
+                                                    ),
+                                                  );
+                                                });
+                                              },
+                                              icon: const Icon(
+                                                Icons.grid_view,
+                                                size: 18,
+                                              ),
+                                              label: const Text('View All'),
+                                              style: TextButton.styleFrom(
+                                                foregroundColor: const Color(
+                                                  0xFF3B82F6,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 16),
+                                        performanceAsync.when(
+                                          data: (stats) {
+                                            if (stats.achievements.isEmpty) {
+                                              return Container(
+                                                padding: const EdgeInsets.all(32),
+                                                decoration: BoxDecoration(
+                                                  color: isDark
+                                                      ? Colors.grey.shade900
+                                                      : Colors.grey.shade100,
+                                                  borderRadius:
+                                                      BorderRadius.circular(16),
+                                                  border: Border.all(
+                                                    color: isDark
+                                                        ? Colors.grey.shade800
+                                                        : Colors.grey.shade300,
+                                                  ),
+                                                ),
+                                                child: Column(
+                                                  children: [
+                                                    Icon(
+                                                      Icons.emoji_events_outlined,
+                                                      size: 64,
+                                                      color: Colors.grey.shade400,
+                                                    ),
+                                                    const SizedBox(height: 16),
+                                                    Text(
+                                                      'No achievements yet!',
+                                                      style: TextStyle(
+                                                        fontSize: 18,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: Colors.grey.shade600,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    Text(
+                                                      'Complete training modules to earn your first achievement',
+                                                      textAlign: TextAlign.center,
+                                                      style: TextStyle(
+                                                        fontSize: 14,
+                                                        color: Colors.grey.shade500,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+                                            }
+
+                                            return SingleChildScrollView(
+                                              scrollDirection: Axis.horizontal,
+                                              child: Row(
+                                                children: [
+                                                  ...stats.achievements.map((achievement) {
+                                                    return Padding(
+                                                      padding: const EdgeInsets.only(right: 12.0),
+                                                      child: _ProfileAchievementCard(
+                                                        achievement: achievement,
+                                                        isDark: isDark,
+                                                      ),
+                                                    );
+                                                  }),
+                                                ],
+                                              ),
+                                            );
+                                          },
+                                          loading: () => const Center(
+                                            child: CircularProgressIndicator(),
+                                          ),
+                                          error: (e, _) => Text(
+                                            'Error loading achievements: $e',
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 40),
-                    ],
-                  ),
-                ),
-              ),
 
-              const SizedBox(height: 24),
-
-              // User Info Section (replacing Stats Row)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.grey.shade900 : Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Username with edit button
-                      Row(
-                        children: [
-                          Icon(Icons.person, color: Colors.blue, size: 24),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                          // Avatar positioned on top of the card
+                          Positioned(
+                            top: 0,
+                            left:
+                                MediaQuery.of(context).size.width / 2 -
+                                68, // Adjust for 16px margin
+                            child: Stack(
                               children: [
-                                Text(
-                                  'Username',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: isDark
-                                        ? Colors.grey.shade400
-                                        : Colors.grey.shade600,
+                                Container(
+                                  width: 120,
+                                  height: 120,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 4,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.3),
+                                        blurRadius: 20,
+                                        offset: const Offset(0, 8),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: avatar.color,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      avatar.icon,
+                                      size: 60,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  user.fullName,
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.edit, color: Colors.blue),
-                            onPressed: () => _showEditNameDialog(
-                              context,
-                              ref,
-                              user.fullName,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      Divider(
-                        color: isDark
-                            ? Colors.grey.shade800
-                            : Colors.grey.shade300,
-                      ),
-                      const SizedBox(height: 20),
-                      // Email (read-only)
-                      Row(
-                        children: [
-                          Icon(Icons.email, color: Colors.green, size: 24),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Email',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: isDark
-                                        ? Colors.grey.shade400
-                                        : Colors.grey.shade600,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  user.email,
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
+                                Positioned(
+                                  bottom: 0,
+                                  right: 0,
+                                  child: GestureDetector(
+                                    onTap: () => _showAvatarPicker(
+                                      context,
+                                      ref,
+                                      user.avatarId,
+                                    ),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFF9800),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: Colors.white,
+                                          width: 3,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(
+                                              0.2,
+                                            ),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Icon(
+                                        Icons.edit,
+                                        size: 18,
+                                        color: Colors.white,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -768,210 +1092,6 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-
-              const SizedBox(height: 24),
-
-              // Divider
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Container(
-                  height: 1,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.transparent,
-                        isDark ? Colors.grey.shade700 : Colors.grey.shade300,
-                        Colors.transparent,
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // About App Button
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: GestureDetector(
-                  onLongPress: () {
-                    // Demo: Show achievement notification
-                    performanceAsync.whenData((stats) {
-                      if (stats.achievements.isNotEmpty) {
-                        AchievementNotificationService.showAchievementUnlocked(
-                          context,
-                          stats.achievements.first,
-                        );
-                      }
-                    });
-                  },
-                  child: ElevatedButton(
-                    onPressed: () => _showAboutDialog(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isDark
-                          ? const Color(0xFF2563EB)
-                          : const Color(0xFF3B82F6),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 16,
-                        horizontal: 24,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      elevation: 2,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.info_outline, size: 20),
-                        const SizedBox(width: 8),
-                        Text(
-                          'About CyberGuard',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Medals & Achievements Section
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Colors.amber.shade400,
-                                Colors.amber.shade600,
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(
-                            Icons.emoji_events,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Medals & Achievements',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: isDark
-                                  ? Colors.white
-                                  : const Color(0xFF1E293B),
-                            ),
-                          ),
-                        ),
-                        TextButton.icon(
-                          onPressed: () {
-                            performanceAsync.whenData((stats) {
-                              _showAllAchievementsDialog(
-                                context,
-                                stats.achievements,
-                                isDark,
-                              );
-                            });
-                          },
-                          icon: const Icon(Icons.grid_view, size: 18),
-                          label: const Text('View All'),
-                          style: TextButton.styleFrom(
-                            foregroundColor: const Color(0xFF3B82F6),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    performanceAsync.when(
-                      data: (stats) {
-                        if (stats.achievements.isEmpty) {
-                          return Container(
-                            padding: const EdgeInsets.all(32),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? Colors.grey.shade900
-                                  : Colors.grey.shade100,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: isDark
-                                    ? Colors.grey.shade800
-                                    : Colors.grey.shade300,
-                              ),
-                            ),
-                            child: Column(
-                              children: [
-                                Icon(
-                                  Icons.emoji_events_outlined,
-                                  size: 64,
-                                  color: Colors.grey.shade400,
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'No achievements yet!',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Complete training modules to earn your first achievement',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey.shade500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }
-
-                        return SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: [
-                              ...stats.achievements.map((achievement) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(right: 12.0),
-                                  child: _ProfileAchievementCard(
-                                    achievement: achievement,
-                                    isDark: isDark,
-                                  ),
-                                );
-                              }),
-                            ],
-                          ),
-                        );
-                      },
-                      loading: () =>
-                          const Center(child: CircularProgressIndicator()),
-                      error: (e, _) => Text('Error loading achievements: $e'),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 32),
             ],
           ),
         );
@@ -1394,6 +1514,87 @@ class _TechChip extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// AllAchievementsDialog - Shows all achievements in a grid
+class _AllAchievementsDialog extends StatelessWidget {
+  final List<Achievement> achievements;
+  final bool isDark;
+
+  const _AllAchievementsDialog({
+    required this.achievements,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.amber.shade400, Colors.amber.shade600],
+                ),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(24),
+                  topRight: Radius.circular(24),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.emoji_events, color: Colors.white, size: 28),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'All Achievements',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            // Achievement Grid
+            Expanded(
+              child: GridView.builder(
+                padding: const EdgeInsets.all(20),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                  childAspectRatio: 0.85,
+                ),
+                itemCount: achievements.length,
+                itemBuilder: (context, index) {
+                  return _AchievementDetailCard(
+                    achievement: achievements[index],
+                    isDark: isDark,
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

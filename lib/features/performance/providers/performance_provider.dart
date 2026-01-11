@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import '../../../config/supabase_config.dart';
 import '../../../auth/providers/auth_provider.dart';
 
@@ -115,16 +116,6 @@ final moduleStatsProvider = FutureProvider.family<ModuleStats, String>((
 /// Fetch comprehensive performance stats
 Future<PerformanceStats> fetchUserPerformanceStats(String userId) async {
   try {
-    // Get user data
-    final userResponse = await SupabaseConfig.client
-        .from('users')
-        .select()
-        .eq('id', userId)
-        .single();
-
-    final totalScore = (userResponse['total_score'] ?? 0) as int;
-    final level = (userResponse['level'] ?? 1) as int;
-
     // Get all user progress
     final progressResponse = await SupabaseConfig.client
         .from('user_progress')
@@ -133,6 +124,16 @@ Future<PerformanceStats> fetchUserPerformanceStats(String userId) async {
         .order('attempt_date', ascending: false);
 
     final progressList = List<Map<String, dynamic>>.from(progressResponse);
+    
+    // Calculate total score from all progress records (same as profile page)
+    int totalScore = 0;
+    for (var progress in progressList) {
+      totalScore += (progress['score_awarded'] as num?)?.toInt() ?? 0;
+    }
+    
+    // Calculate level from total score (same as profile page)
+    final level = _calculateLevelFromXP(totalScore);
+
     final totalAttempts = progressList.length;
     final correctAnswers = progressList
         .where((p) => p['is_correct'] == true)
@@ -251,70 +252,100 @@ Future<ModuleStats> calculateModuleStats(
 /// Fetch user achievements
 Future<List<Achievement>> fetchUserAchievements(String userId) async {
   try {
-    // Define all possible achievements
+    // Define all 10 achievements - NEW SYSTEM
     final allAchievements = [
+      // TIER 1: BEGINNER
       Achievement(
         id: 'first_steps',
         badgeType: 'first_steps',
         title: 'First Steps',
-        description: 'Complete your first quiz',
+        description: 'Complete 1 training question',
         iconType: IconType.trophy,
       ),
       Achievement(
-        id: 'quick_learner',
-        badgeType: 'quick_learner',
-        title: 'Quick Learner',
-        description: '10 correct answers',
+        id: 'getting_started',
+        badgeType: 'getting_started',
+        title: 'Getting Started',
+        description: 'Answer 5 questions correctly',
         iconType: IconType.flash,
       ),
       Achievement(
-        id: 'expert',
-        badgeType: 'expert',
-        title: 'Security Expert',
-        description: 'Complete all modules',
-        iconType: IconType.verified,
-      ),
-      Achievement(
-        id: 'perfect_score',
-        badgeType: 'perfect_score',
-        title: 'Perfect Score',
-        description: '100% accuracy in a module',
+        id: 'module_explorer',
+        badgeType: 'module_explorer',
+        title: 'Module Explorer',
+        description: 'Try 2 different training modules',
         iconType: IconType.star,
       ),
+      
+      // TIER 2: INTERMEDIATE
       Achievement(
-        id: 'defender',
-        badgeType: 'defender',
-        title: 'Defender',
-        description: 'Reach level 5+',
-        iconType: IconType.shield,
-      ),
-      Achievement(
-        id: 'speedrunner',
-        badgeType: 'speedrunner',
-        title: 'Speedrunner',
-        description: 'Answer 5 questions in 1 minute',
+        id: 'hot_streak',
+        badgeType: 'hot_streak',
+        title: 'Hot Streak',
+        description: 'Answer 3 questions correctly in a row',
         iconType: IconType.rocket,
       ),
       Achievement(
-        id: 'diligent_student',
-        badgeType: 'diligent_student',
-        title: 'Diligent Student',
-        description: 'Watch 5 training videos',
-        iconType: IconType.star,
+        id: 'triple_threat',
+        badgeType: 'triple_threat',
+        title: 'Triple Threat',
+        description: 'Complete at least 1 question in all 3 modules',
+        iconType: IconType.verified,
       ),
+      Achievement(
+        id: 'cyber_defender',
+        badgeType: 'cyber_defender',
+        title: 'Cyber Defender',
+        description: 'Reach Level 3',
+        iconType: IconType.shield,
+      ),
+      
+      // TIER 3: ADVANCED
       Achievement(
         id: 'knowledge_seeker',
         badgeType: 'knowledge_seeker',
         title: 'Knowledge Seeker',
-        description: 'Complete 50 questions',
-        iconType: IconType.flash,
+        description: 'Answer 30 questions correctly',
+        iconType: IconType.star,
       ),
       Achievement(
-        id: 'master_guardian',
-        badgeType: 'master_guardian',
-        title: 'Master Guardian',
-        description: 'Reach level 10',
-        iconType: IconType.shield,
+        id: 'security_expert',
+        badgeType: 'security_expert',
+        title: 'Security Expert',
+        description: 'Complete 10 questions in each module',
+        iconType: IconType.verified,
+      ),
+      Achievement(
+        id: 'daily_warrior',
+        badgeType: 'daily_warrior',
+        title: 'Daily Warrior',
+        description: 'Complete 10 daily challenges',
+        iconType: IconType.flash,
+      ),
+      
+      // VIDEO ACHIEVEMENTS
+      Achievement(
+        id: 'video_beginner',
+        badgeType: 'video_beginner',
+        title: 'Video Beginner',
+        description: 'Watch your first resource video',
+        iconType: IconType.star,
+      ),
+      Achievement(
+        id: 'video_master',
+        badgeType: 'video_master',
+        title: 'Video Master',
+        description: 'Complete all resource videos',
+        iconType: IconType.verified,
+      ),
+      
+      // TIER 4: MASTERY
+      Achievement(
+        id: 'cyberguard_champion',
+        badgeType: 'cyberguard_champion',
+        title: 'CyberGuard Champion',
+        description: 'Reach Level 5',
+        iconType: IconType.trophy,
       ),
     ];
 
@@ -334,6 +365,33 @@ Future<List<Achievement>> fetchUserAchievements(String userId) async {
         .single();
 
     final userLevel = (userResponse['level'] ?? 1) as int;
+    
+    // Get daily challenge progress
+    final dailyChallengeResponse = await SupabaseConfig.client
+        .from('daily_challenge_progress')
+        .select()
+        .eq('user_id', userId)
+        .eq('completed', true);
+    
+    final dailyChallengeCount = dailyChallengeResponse.length;
+    
+    // Get video progress for video achievements
+    final videoProgressResponse = await SupabaseConfig.client
+        .from('video_progress')
+        .select()
+        .eq('user_id', userId);
+    
+    final completedVideos = videoProgressResponse
+        .where((v) => v['completed'] == true)
+        .length;
+    
+    // Get total videos count from resources table
+    final totalVideosResponse = await SupabaseConfig.client
+        .from('resources')
+        .select('id')
+        .not('media_url', 'is', null);
+    
+    final totalVideos = totalVideosResponse.length;
 
     // Check each achievement
     final unlockedAchievements = <Achievement>[];
@@ -344,26 +402,24 @@ Future<List<Achievement>> fetchUserAchievements(String userId) async {
 
       switch (achievement.badgeType) {
         case 'first_steps':
+          // Complete 1 question
           if (progress.isNotEmpty) {
             isUnlocked = true;
-            earnedDate = DateTime.parse(
-              progress.first['attempt_date'] as String,
-            );
+            earnedDate = DateTime.parse(progress.first['attempt_date'] as String);
           }
           break;
 
-        case 'quick_learner':
-          final correctCount = progress
-              .where((p) => p['is_correct'] == true)
-              .length;
-          if (correctCount >= 10) {
+        case 'getting_started':
+          // 5 correct answers
+          final correctCount = progress.where((p) => p['is_correct'] == true).length;
+          if (correctCount >= 5) {
             isUnlocked = true;
-            // Find when 10th correct answer was reached
+            // Find 5th correct answer date
             int count = 0;
             for (final p in progress) {
               if (p['is_correct'] == true) {
                 count++;
-                if (count == 10) {
+                if (count == 5) {
                   earnedDate = DateTime.parse(p['attempt_date'] as String);
                   break;
                 }
@@ -372,90 +428,106 @@ Future<List<Achievement>> fetchUserAchievements(String userId) async {
           }
           break;
 
-        case 'expert':
-          // Check if user completed all 3 modules
+        case 'module_explorer':
+          // Try 2 different modules
+          final modules = progress.map((p) => p['module_type']).toSet().length;
+          if (modules >= 2) {
+            isUnlocked = true;
+            earnedDate = DateTime.parse(progress.first['attempt_date'] as String);
+          }
+          break;
+
+        case 'hot_streak':
+          // 3 correct in a row
+          int streak = 0;
+          int maxStreak = 0;
+          for (final p in progress) {
+            if (p['is_correct'] == true) {
+              streak++;
+              if (streak > maxStreak) {
+                maxStreak = streak;
+                if (maxStreak >= 3 && !isUnlocked) {
+                  isUnlocked = true;
+                  earnedDate = DateTime.parse(p['attempt_date'] as String);
+                }
+              }
+            } else {
+              streak = 0;
+            }
+          }
+          break;
+
+        case 'triple_threat':
+          // All 3 modules
           final modules = progress.map((p) => p['module_type']).toSet().length;
           if (modules >= 3) {
             isUnlocked = true;
-            earnedDate = DateTime.parse(
-              progress.first['attempt_date'] as String,
-            );
+            earnedDate = DateTime.parse(progress.first['attempt_date'] as String);
           }
           break;
 
-        case 'perfect_score':
-          // Check for 100% accuracy in any module
-          for (final module in ['phishing', 'password', 'attack']) {
-            final moduleProgress = progress
-                .where((p) => p['module_type'] == module)
-                .toList();
-            if (moduleProgress.isNotEmpty) {
-              final accuracy =
-                  moduleProgress.where((p) => p['is_correct'] == true).length /
-                  moduleProgress.length;
-              if (accuracy == 1.0) {
-                isUnlocked = true;
-                earnedDate = DateTime.parse(
-                  moduleProgress.first['attempt_date'] as String,
-                );
-                break;
-              }
-            }
-          }
-          break;
-
-        case 'defender':
-          if (userLevel >= 5) {
+        case 'cyber_defender':
+          // Level 3
+          if (userLevel >= 3) {
             isUnlocked = true;
-          }
-          break;
-
-        case 'speedrunner':
-          // Check if 5 questions answered within 1 minute
-          if (progress.length >= 5) {
-            for (int i = 4; i < progress.length; i++) {
-              final startTime = DateTime.parse(
-                progress[i]['attempt_date'] as String,
-              );
-              final endTime = DateTime.parse(
-                progress[i - 4]['attempt_date'] as String,
-              );
-              if (endTime.difference(startTime).inSeconds <= 60) {
-                isUnlocked = true;
-                earnedDate = startTime;
-                break;
-              }
-            }
-          }
-          break;
-
-        case 'diligent_student':
-          // Check if user watched 5 videos
-          final videoProgressResponse = await SupabaseConfig.client
-              .from('video_progress')
-              .select()
-              .eq('user_id', userId)
-              .eq('completed', true);
-          if (videoProgressResponse.length >= 5) {
-            isUnlocked = true;
-            final firstVideo = videoProgressResponse.first;
-            if (firstVideo['updated_at'] != null) {
-              earnedDate = DateTime.parse(firstVideo['updated_at'] as String);
-            }
           }
           break;
 
         case 'knowledge_seeker':
-          // Check if user completed 50 questions
-          if (progress.length >= 50) {
+          // 30 correct answers
+          final correctCount = progress.where((p) => p['is_correct'] == true).length;
+          if (correctCount >= 30) {
             isUnlocked = true;
-            earnedDate = DateTime.parse(progress[49]['attempt_date'] as String);
+            // Find 30th correct answer
+            int count = 0;
+            for (final p in progress) {
+              if (p['is_correct'] == true) {
+                count++;
+                if (count == 30) {
+                  earnedDate = DateTime.parse(p['attempt_date'] as String);
+                  break;
+                }
+              }
+            }
           }
           break;
 
-        case 'master_guardian':
-          // Check if user reached level 10
-          if (userLevel >= 10) {
+        case 'security_expert':
+          // 10 questions in each module
+          final phishingCount = progress.where((p) => p['module_type'] == 'phishing').length;
+          final passwordCount = progress.where((p) => p['module_type'] == 'password').length;
+          final attackCount = progress.where((p) => p['module_type'] == 'attack').length;
+          
+          if (phishingCount >= 10 && passwordCount >= 10 && attackCount >= 10) {
+            isUnlocked = true;
+            earnedDate = DateTime.parse(progress.first['attempt_date'] as String);
+          }
+          break;
+
+        case 'daily_warrior':
+          // 10 daily challenges
+          if (dailyChallengeCount >= 10) {
+            isUnlocked = true;
+          }
+          break;
+
+        case 'video_beginner':
+          // Watch first video
+          if (completedVideos >= 1) {
+            isUnlocked = true;
+          }
+          break;
+
+        case 'video_master':
+          // Complete all videos
+          if (totalVideos > 0 && completedVideos >= totalVideos) {
+            isUnlocked = true;
+          }
+          break;
+
+        case 'cyberguard_champion':
+          // Level 5
+          if (userLevel >= 5) {
             isUnlocked = true;
           }
           break;
@@ -484,7 +556,23 @@ Future<List<Achievement>> fetchUserAchievements(String userId) async {
       return unlocked;
     }).toList();
   } catch (e) {
+    debugPrint('❌ Error fetching achievements: $e');
     // Return empty achievements list on error
     return [];
   }
+}
+
+/// Calculate level from total XP (same formula as profile page)
+int _calculateLevelFromXP(int xp) {
+  int level = 1;
+  while (_getXPRequiredForLevel(level + 1) <= xp) {
+    level++;
+  }
+  return level;
+}
+
+/// Get XP required for a specific level
+int _getXPRequiredForLevel(int level) {
+  if (level == 1) return 0;
+  return (level - 1) * 100 + ((level - 2) * (level - 1) ~/ 2) * 50;
 }

@@ -6,6 +6,10 @@ import 'package:chewie/chewie.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import '../../../config/supabase_config.dart';
 import '../providers/training_provider.dart';
+import '../../performance/providers/performance_provider.dart';
+import '../../profile/providers/profile_analytics_provider.dart';
+import '../../../core/widgets/achievement_dialog.dart';
+import '../../../core/services/achievement_detector.dart';
 
 class CyberAttackScreen extends ConsumerStatefulWidget {
   final int difficulty;
@@ -86,7 +90,9 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
   void _handleAnswer(String answer) {
     if (_isAnswered) return;
 
-    final questionsAsync = ref.read(attackQuestionsProvider);
+    final questionsAsync = ref.read(
+      attackQuestionsByDifficultyProvider(widget.difficulty),
+    );
 
     questionsAsync.whenData((questions) {
       if (questions.isEmpty || _currentIndex >= questions.length) return;
@@ -110,25 +116,103 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
       // Record progress to database
       final userId = SupabaseConfig.client.auth.currentUser?.id;
       if (userId != null) {
-        final scoreAwarded = correct
-            ? ((6 - question.difficulty) * 10) ~/ _attemptCount
-            : 0;
-        final progress = UserProgress(
-          id: 'temp',
-          userId: userId,
-          questionId: question.id,
-          isCorrect: correct,
-          scoreAwarded: scoreAwarded,
-          attemptDate: DateTime.now(),
-        );
-        recordProgress(progress).catchError((e) {
-          debugPrint('Failed to record progress: $e');
-        });
+        // Wrap in async IIFE to capture achievements before recording
+        (() async {
+          debugPrint(
+            '🔍 STEP 1: Fetching achievements BEFORE recording progress...',
+          );
+          final achievementsBefore = await ref.read(
+            userAchievementsProvider.future,
+          );
+          debugPrint(
+            '  Before: ${achievementsBefore.where((a) => a.isUnlocked).length} unlocked',
+          );
+
+          final scoreAwarded = correct
+              ? ((6 - question.difficulty) * 10) ~/ _attemptCount
+              : 0;
+          final progress = UserProgress(
+            id: 'temp',
+            userId: userId,
+            questionId: question.id,
+            isCorrect: correct,
+            scoreAwarded: scoreAwarded,
+            attemptDate: DateTime.now(),
+          );
+
+          await recordProgress(progress);
+          debugPrint('📝 Progress recorded successfully');
+
+          // Refresh providers to trigger immediate UI rebuild
+          debugPrint('🔍 STEP 2: Refreshing providers...');
+          ref.refresh(performanceProvider);
+          ref.refresh(profileAnalyticsProvider);
+          ref.refresh(attackQuestionsByDifficultyProvider(widget.difficulty));
+
+          // CRITICAL: Invalidate recent activity to show in UI
+          ref.invalidate(recentActivityProvider);
+
+          // Wait for database to settle
+          await Future.delayed(const Duration(milliseconds: 800));
+
+          debugPrint(
+            '🔍 STEP 3: Fetching achievements AFTER refresh (FRESH FROM DB)...',
+          );
+
+          try {
+            // FORCE FRESH FETCH: Get user ID and call provider function directly
+            final checkUserId = SupabaseConfig.client.auth.currentUser?.id;
+            if (checkUserId == null) {
+              debugPrint('❌ No user ID found');
+              return;
+            }
+
+            // Manually fetch fresh achievements from database
+            final achievementsAfter = await fetchUserAchievements(checkUserId);
+            debugPrint(
+              '  After: ${achievementsAfter.where((a) => a.isUnlocked).length} unlocked',
+            );
+            debugPrint(
+              '📋 Got ${achievementsAfter.length} achievements from provider',
+            );
+
+            // Detect new unlocks
+            final newAchievements = AchievementDetector.detectNewAchievements(
+              previousAchievements: achievementsBefore,
+              currentAchievements: achievementsAfter,
+            );
+
+            debugPrint('🎯 Found ${newAchievements.length} NEW achievements!');
+
+            // Show dialog for each new achievement
+            if (newAchievements.isNotEmpty && mounted) {
+              debugPrint('🎨 Showing dialogs...');
+              for (final achievement in newAchievements) {
+                debugPrint('  Showing dialog for: ${achievement.title}');
+                await AchievementDialog.show(context, achievement);
+              }
+            } else {
+              debugPrint('❌ No new achievements or not mounted');
+            }
+          } catch (e) {
+            debugPrint('❌ Achievement check error: $e');
+          }
+
+          debugPrint('✅ All updates complete');
+        })(); // Close and invoke the async IIFE
       }
     });
   }
 
   void _nextQuestion() {
+    // Clean up video controllers before moving to next question
+    _videoController?.dispose();
+    _chewieController?.dispose();
+    _youtubeController?.dispose();
+    _videoController = null;
+    _chewieController = null;
+    _youtubeController = null;
+
     setState(() {
       _isAnswered = false;
       _selectedAnswer = '';
@@ -145,7 +229,7 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Cyber Attack Analyst - Level ${widget.difficulty}'),
+        title: Text('Threat Recognition - Level ${widget.difficulty}'),
         centerTitle: true,
         elevation: 0,
         actions: [
@@ -206,10 +290,8 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
               (attackData['options'] as List<dynamic>?)?.cast<String>() ?? [];
           final mediaType = attackData['mediaType'] ?? 'none';
 
-          // Initialize media controller
-          if (_youtubeController == null &&
-              _videoController == null &&
-              mediaType != 'none') {
+          // Initialize media controller for current question
+          if (mediaType != 'none') {
             _initializeMediaController(question);
           }
 
@@ -232,7 +314,10 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.orange.shade50,
                           borderRadius: BorderRadius.circular(20),
@@ -381,7 +466,8 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
                                     Text(
                                       'Scenario:',
                                       style: Theme.of(context)
-                                          .textTheme.labelMedium
+                                          .textTheme
+                                          .labelMedium
                                           ?.copyWith(
                                             fontWeight: FontWeight.bold,
                                             color: Colors.deepOrange,
@@ -394,8 +480,7 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
                                   description.isNotEmpty
                                       ? description
                                       : 'Analyze this cyberattack scenario.',
-                                  style: Theme.of(context)
-                                      .textTheme.bodyMedium
+                                  style: Theme.of(context).textTheme.bodyMedium
                                       ?.copyWith(
                                         height: 1.5,
                                         color: Colors.grey.shade800,
@@ -409,14 +494,6 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  // Question prompt
-                  Text(
-                    'What type of attack is this?',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
                   // Answer options
                   if (options.isNotEmpty)
                     ListView.separated(
@@ -446,16 +523,16 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
                                         ? Colors.green.shade50
                                         : Colors.red.shade50
                                   : isSelected
-                                      ? Colors.blue.shade50
-                                      : Colors.white,
+                                  ? Colors.blue.shade50
+                                  : Colors.white,
                               border: Border.all(
                                 color: showResult
                                     ? resultIsCorrect
                                           ? Colors.green.shade400
                                           : Colors.red.shade400
                                     : isSelected
-                                        ? Colors.blue.shade300
-                                        : Colors.grey.shade300,
+                                    ? Colors.blue.shade300
+                                    : Colors.grey.shade300,
                                 width: showResult || isSelected ? 2 : 1,
                               ),
                               borderRadius: BorderRadius.circular(12),
@@ -468,10 +545,11 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
                                   ),
                                 if (showResult)
                                   BoxShadow(
-                                    color: (resultIsCorrect
-                                            ? Colors.green
-                                            : Colors.red)
-                                        .withOpacity(0.15),
+                                    color:
+                                        (resultIsCorrect
+                                                ? Colors.green
+                                                : Colors.red)
+                                            .withOpacity(0.15),
                                     blurRadius: 8,
                                     offset: const Offset(0, 2),
                                   ),
@@ -613,70 +691,285 @@ class _CyberAttackScreenState extends ConsumerState<CyberAttackScreen> {
     );
   }
 
-  Widget _buildCompletionScreen(int totalQuestions, BuildContext context) {
-    final maxScore = totalQuestions * 50;
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.shield, size: 80, color: Colors.deepOrange),
-          const SizedBox(height: 24),
-          Text(
-            'Analysis Complete!',
-            style: Theme.of(context).textTheme.headlineSmall,
+  Widget _buildStatItem(
+    BuildContext context,
+    IconData icon,
+    String label,
+    String value,
+    Color color,
+  ) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            shape: BoxShape.circle,
           ),
-          const SizedBox(height: 32),
-          Container(
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: Colors.orange.shade50,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.orange.shade200),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  'Your Score',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelMedium?.copyWith(color: Colors.grey),
+          child: Icon(icon, color: color, size: 24),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        Text(
+          label,
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCompletionScreen(int totalQuestions, BuildContext context) {
+    // Get actual max score based on difficulty level
+    final questionsAsync = ref.read(
+      attackQuestionsByDifficultyProvider(widget.difficulty),
+    );
+
+    int maxScore = 0;
+    questionsAsync.whenData((questions) {
+      if (questions.isNotEmpty) {
+        // Calculate max score based on actual question difficulties
+        maxScore = questions.fold(
+          0,
+          (sum, q) => sum + ((6 - q.difficulty) * 10),
+        );
+      }
+    });
+
+    // Fallback if questions not loaded
+    if (maxScore == 0) {
+      maxScore = totalQuestions * ((6 - widget.difficulty) * 10);
+    }
+
+    final percentage = maxScore > 0 ? (_score / maxScore) * 100 : 0;
+
+    // Performance rating based on score
+    String performanceTitle;
+    String performanceMessage;
+    IconData performanceIcon;
+    Color performanceColor;
+
+    if (percentage >= 90) {
+      performanceTitle = 'Outstanding!';
+      performanceMessage = 'You\'re a cyber threat analyst! 🛡️';
+      performanceIcon = Icons.military_tech;
+      performanceColor = Colors.amber;
+    } else if (percentage >= 75) {
+      performanceTitle = 'Well Done!';
+      performanceMessage = 'Your threat detection skills are impressive!';
+      performanceIcon = Icons.verified_user;
+      performanceColor = Colors.green;
+    } else if (percentage >= 60) {
+      performanceTitle = 'Good Progress!';
+      performanceMessage = 'You\'re learning to identify threats!';
+      performanceIcon = Icons.security;
+      performanceColor = Colors.blue;
+    } else {
+      performanceTitle = 'Keep Training!';
+      performanceMessage = 'More practice will boost your defense skills!';
+      performanceIcon = Icons.shield;
+      performanceColor = Colors.orange;
+    }
+
+    return SingleChildScrollView(
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Animated shield/icon
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: performanceColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: performanceColor, width: 3),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  '$_score / $maxScore',
-                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.deepOrange,
+                child: Icon(performanceIcon, size: 80, color: performanceColor),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Analysis Complete!',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                performanceTitle,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: performanceColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                performanceMessage,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+
+              // Score Card
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.deepOrange.shade50, Colors.orange.shade100],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.orange.shade300, width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.orange.withOpacity(0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      'Your Score',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: Colors.grey.shade700,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      '$_score / $maxScore',
+                      style: Theme.of(context).textTheme.displayMedium
+                          ?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.deepOrange.shade700,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.deepOrange.shade700,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '${percentage.toStringAsFixed(1)}%',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Statistics breakdown
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      'Attack Analysis Stats',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildStatItem(
+                          context,
+                          Icons.bug_report,
+                          'Scenarios',
+                          totalQuestions.toString(),
+                          Colors.deepOrange,
+                        ),
+                        _buildStatItem(
+                          context,
+                          Icons.block,
+                          'Blocked',
+                          '${(_score / 50).floor()}',
+                          Colors.green,
+                        ),
+                        _buildStatItem(
+                          context,
+                          Icons.speed,
+                          'Accuracy',
+                          '${percentage.toStringAsFixed(0)}%',
+                          Colors.blue,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              // Action buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _currentIndex = 0;
+                        _score = 0;
+                        _isAnswered = false;
+                        _selectedAnswer = '';
+                      });
+                    },
+                    icon: const Icon(Icons.restart_alt),
+                    label: const Text('Try Again'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.arrow_back),
+                label: const Text('Back to Training Hub'),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  '${((_score / maxScore) * 100).toStringAsFixed(1)}%',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          const SizedBox(height: 32),
-          ElevatedButton.icon(
-            onPressed: () {
-              setState(() {
-                _currentIndex = 0;
-                _score = 0;
-                _isAnswered = false;
-                _selectedAnswer = '';
-              });
-            },
-            icon: const Icon(Icons.restart_alt),
-            label: const Text('Try Again'),
-          ),
-          const SizedBox(height: 16),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Back to Training Hub'),
-          ),
-        ],
+        ),
       ),
     );
   }

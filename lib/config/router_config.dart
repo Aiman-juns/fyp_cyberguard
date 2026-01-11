@@ -14,6 +14,7 @@ import '../features/resources/screens/resource_detail_screen.dart';
 import '../features/news/screens/news_screen.dart';
 import '../features/news/screens/news_detail_screen.dart';
 import '../features/games/screens/games_screen.dart';
+import '../features/games/screens/hack_simulator_screen.dart';
 import '../features/assistant/screens/assistant_screen.dart';
 import '../features/performance/screens/performance_screen.dart';
 import '../features/profile/screens/profile_screen.dart';
@@ -21,6 +22,8 @@ import '../features/profile/screens/about_screen.dart';
 import '../features/admin/screens/admin_dashboard_screen.dart';
 import '../shared/widgets/custom_drawer.dart';
 import '../shared/widgets/custom_bottom_nav.dart';
+import '../shared/widgets/amazing_splash_screen.dart';
+import '../shared/widgets/security_fab.dart';
 
 /// Main Dashboard after login - Shows user features
 class UserDashboardScreen extends ConsumerStatefulWidget {
@@ -59,6 +62,7 @@ class _UserDashboardScreenState extends ConsumerState<UserDashboardScreen> {
           currentIndex: _selectedIndex,
           onTabChanged: _onItemTapped,
         ),
+        floatingActionButton: const SecurityFAB(),
       );
     }
 
@@ -79,19 +83,44 @@ class _UserDashboardScreenState extends ConsumerState<UserDashboardScreen> {
 /// GoRouter Configuration for CyberGuard
 ///
 /// Routes:
+/// - / - Splash screen
 /// - /login - Login screen
 /// - /register - Registration screen
 /// - /dashboard - User dashboard (5 features)
 /// - /admin - Admin dashboard
 class RouterConfig {
   static final GoRouter router = GoRouter(
-    initialLocation: '/login',
+    initialLocation: '/login', // Skip splash screen for faster testing
     redirect: (context, state) {
       // Phase 1: Simple routing without auth check
       // Auth checking will be added in Phase 2 with Riverpod
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/',
+        pageBuilder: (context, state) => MaterialPage(
+          key: state.pageKey,
+          child: AmazingSplashScreen(
+            brandName: 'CyberGuard',
+            tagline: 'Secure Every Step',
+            logoIcon: Icons.shield,
+            duration: const Duration(seconds: 4),
+            primaryColor: const Color(0xFF4A6FA5),
+            secondaryColor: const Color(0xFF6B7BB8),
+            accentColor: const Color(0xFF4ECDC4),
+            particleCount: 50,
+            onAnimationComplete: () {
+              // Navigate to login after splash screen
+              Future.delayed(const Duration(milliseconds: 500), () {
+                if (context.mounted) {
+                  context.go('/login');
+                }
+              });
+            },
+          ),
+        ),
+      ),
       GoRoute(
         path: '/login',
         pageBuilder: (context, state) =>
@@ -135,6 +164,10 @@ class RouterConfig {
       GoRoute(
         path: '/adware-simulator',
         builder: (context, state) => const AdwareSimulationScreen(),
+      ),
+      GoRoute(
+        path: '/hack-simulator',
+        builder: (context, state) => const HackSimulatorScreen(),
       ),
       GoRoute(
         path: '/breach-checker',

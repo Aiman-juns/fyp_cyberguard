@@ -67,12 +67,17 @@ class AuthProvider extends StateNotifier<AsyncValue<UserModel?>> {
         final userProfile = await _fetchUserProfile(user.id);
         state = AsyncValue.data(userProfile);
       } else {
-        throw AuthException('Login failed: No user returned');
+        throw AuthException('Invalid credentials');
       }
     } on AuthException catch (e) {
       state = AsyncValue.error(e, StackTrace.current);
       rethrow;
     } catch (e) {
+      // Simplify error message for better UX
+      final errorMsg = e.toString().toLowerCase();
+      if (errorMsg.contains('invalid') || errorMsg.contains('credentials')) {
+        throw AuthException('Invalid credentials');
+      }
       final error = AuthException('Login failed: $e');
       state = AsyncValue.error(error, StackTrace.current);
       rethrow;

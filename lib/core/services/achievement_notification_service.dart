@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:confetti/confetti.dart';
 import '../../features/performance/providers/performance_provider.dart';
+import 'local_notification_service.dart';
 
 class AchievementNotificationService {
   static OverlayEntry? _overlayEntry;
@@ -10,6 +11,12 @@ class AchievementNotificationService {
     BuildContext context,
     Achievement achievement,
   ) {
+    // Send push notification for background/closed app
+    LocalNotificationService.showAchievementUnlocked(
+      achievement.title,
+      achievement.description,
+    );
+
     // Initialize confetti controller
     _confettiController = ConfettiController(
       duration: const Duration(seconds: 3),

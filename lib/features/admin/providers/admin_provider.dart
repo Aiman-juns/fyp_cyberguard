@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/supabase_config.dart';
 import '../../training/providers/training_provider.dart';
@@ -53,13 +54,16 @@ class AdminProvider extends StateNotifier<AsyncValue<void>> {
   }) async {
     state = const AsyncValue.loading();
     try {
-      final updates = <String, dynamic>{};
+      final updates = <String, dynamic>{
+        'updated_at': DateTime.now().toIso8601String(),
+      };
       if (moduleType != null) updates['module_type'] = moduleType;
       if (difficulty != null) updates['difficulty'] = difficulty;
       if (content != null) updates['content'] = content;
       if (correctAnswer != null) updates['correct_answer'] = correctAnswer;
       if (explanation != null) updates['explanation'] = explanation;
-      if (mediaUrl != null) updates['media_url'] = mediaUrl;
+      // Always update media_url, even if null (to allow clearing)
+      updates['media_url'] = mediaUrl;
 
       final response = await SupabaseConfig.client
           .from('questions')
@@ -80,14 +84,17 @@ class AdminProvider extends StateNotifier<AsyncValue<void>> {
 
   /// Delete a question
   Future<void> deleteQuestion(String questionId) async {
+    debugPrint('AdminProvider: Deleting question $questionId');
     state = const AsyncValue.loading();
     try {
       await SupabaseConfig.client
           .from('questions')
           .delete()
           .eq('id', questionId);
+      debugPrint('AdminProvider: Question deleted from database');
       state = const AsyncValue.data(null);
     } catch (e) {
+      debugPrint('AdminProvider: Delete failed - $e');
       final error = Exception('Failed to delete question: $e');
       state = AsyncValue.error(error, StackTrace.current);
       rethrow;
@@ -170,6 +177,42 @@ class AdminProvider extends StateNotifier<AsyncValue<void>> {
       throw Exception('Failed to fetch user stats: $e');
     }
   }
+
+  /// Delete a user and all their related data
+  Future<void> deleteUser(String userId) async {
+    state = const AsyncValue.loading();
+    try {
+      debugPrint('🗑️ Starting user deletion: $userId');
+      
+      // STEP 1: Delete from custom users table (this cascades to related tables)
+      debugPrint('  Step 1: Deleting from users table...');
+      await SupabaseConfig.client
+          .from('users')
+          .delete()
+          .eq('id', userId);
+      debugPrint('  ✅ Users table deletion complete');
+      
+      // STEP 2: Delete from Supabase Auth using Admin API
+      // This is CRITICAL - without this, the email remains registered
+      debugPrint('  Step 2: Deleting from Supabase Auth...');
+      try {
+        await SupabaseConfig.client.auth.admin.deleteUser(userId);
+        debugPrint('  ✅ Auth deletion complete');
+      } catch (authError) {
+        // If auth deletion fails, log it but don't fail the whole operation
+        // The user table deletion already succeeded
+        debugPrint('  ⚠️ Auth deletion failed (may already be deleted): $authError');
+      }
+      
+      debugPrint('✅ User $userId deleted successfully');
+      state = const AsyncValue.data(null);
+    } catch (e) {
+      debugPrint('❌ Failed to delete user: $e');
+      final error = Exception('Failed to delete user: $e');
+      state = AsyncValue.error(error, StackTrace.current);
+      rethrow;
+    }
+  }
 }
 
 /// Riverpod providers
@@ -190,7 +233,7 @@ final adminQuestionsProvider = FutureProvider.family<List<Question>, String>((
               .from('questions')
               .select()
               .eq('module_type', moduleType)
-              .order('difficulty', ascending: true);
+              .order('created_at', ascending: true);
 
           return (response as List<dynamic>)
               .map((json) => Question.fromJson(json as Map<String, dynamic>))

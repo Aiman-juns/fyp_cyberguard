@@ -4,6 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/supabase_config.dart';
 import '../providers/training_provider.dart';
 import '../../../core/services/ai_service.dart';
+import '../../performance/providers/performance_provider.dart';
+import '../../profile/providers/profile_analytics_provider.dart';
+import '../../../core/widgets/achievement_dialog.dart';
+import '../../../core/services/achievement_detector.dart';
 
 class PasswordDojoScreen extends ConsumerStatefulWidget {
   final Question question;
@@ -135,7 +139,42 @@ class _PasswordDojoScreenState extends ConsumerState<PasswordDojoScreen> {
         scoreAwarded: (6 - widget.question.difficulty) * 10,
         attemptDate: DateTime.now(),
       );
-      recordProgress(progress).catchError((e) {
+      recordProgress(progress).then((_) async {
+        // Get achievements BEFORE refreshing
+        final achievementsBefore = await ref.read(userAchievementsProvider.future);
+        
+        // Refresh providers
+        ref.refresh(performanceProvider);
+        ref.refresh(profileAnalyticsProvider);
+        
+        // CRITICAL: Invalidate achievements to force fresh fetch
+        ref.invalidate(userAchievementsProvider);
+        
+        // CRITICAL: Invalidate recent activity to show in UI
+        ref.invalidate(recentActivityProvider);
+        
+        try {
+          // Get achievements AFTER
+          final achievementsAfter = await ref.read(userAchievementsProvider.future);
+          
+          // Detect new unlocks
+          final newAchievements = AchievementDetector.detectNewAchievements(
+            previousAchievements: achievementsBefore,
+            currentAchievements: achievementsAfter,
+          );
+          
+          // Show dialogs
+          if (newAchievements.isNotEmpty && mounted) {
+            for (final achievement in newAchievements) {
+              await AchievementDialog.show(context, achievement);
+            }
+          }
+        } catch (e) {
+          debugPrint('❌ Achievement error: $e');
+        }
+        
+        debugPrint('✅ Providers refreshed - UI should update immediately');
+      }).catchError((e) {
         debugPrint('Failed to record progress: $e');
       });
     }
@@ -184,11 +223,11 @@ class _PasswordDojoScreenState extends ConsumerState<PasswordDojoScreen> {
 
   Future<void> _roastPassword() async {
     final password = _passwordController.text;
-    
+
     if (password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a password first!')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Enter a password first!')));
       return;
     }
 
@@ -196,14 +235,12 @@ class _PasswordDojoScreenState extends ConsumerState<PasswordDojoScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
 
     try {
       final roast = await _aiService.roastPassword(password);
-      
+
       if (!mounted) return;
       Navigator.pop(context); // Close loading dialog
 
@@ -211,15 +248,8 @@ class _PasswordDojoScreenState extends ConsumerState<PasswordDojoScreen> {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Row(
-            children: [
-              Text('🔥 Password Roasted'),
-            ],
-          ),
-          content: Text(
-            roast,
-            style: const TextStyle(fontSize: 16),
-          ),
+          title: const Row(children: [Text('🔥 Password Roasted')]),
+          content: Text(roast, style: const TextStyle(fontSize: 16)),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -231,10 +261,10 @@ class _PasswordDojoScreenState extends ConsumerState<PasswordDojoScreen> {
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context); // Close loading dialog
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
@@ -344,16 +374,16 @@ class _PasswordDojoScreenState extends ConsumerState<PasswordDojoScreen> {
               ),
               const SizedBox(height: 12),
 
-              // Roast My Password button
+              // Check My Password button
               SizedBox(
                 width: double.infinity,
                 height: 55,
                 child: ElevatedButton.icon(
                   onPressed: _roastPassword,
-                  icon: const Text('🔥', style: TextStyle(fontSize: 20)),
-                  label: const Text('Roast My Password (AI)'),
+                  icon: const Text('💪', style: TextStyle(fontSize: 20)),
+                  label: const Text('Check My Password (AI)'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xFFE74C3C),
+                    backgroundColor: Color(0xFF3B82F6),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(15),
@@ -509,14 +539,84 @@ class PasswordDojoLoaderScreen extends ConsumerWidget {
           );
         }
 
-        // Find a question with matching difficulty, or use the first one
-        final selectedQuestion = questions.firstWhere(
-          (q) => q.difficulty == difficulty,
-          orElse: () => questions.first,
-        );
+        // Filter questions by difficulty
+        final difficultyQuestions = questions
+            .where((q) => q.difficulty == difficulty)
+            .toList();
 
-        return PasswordDojoScreen(question: selectedQuestion);
+        if (difficultyQuestions.isEmpty) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Password Dojo')),
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('No questions found for this difficulty'),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Back'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // Try to find an unanswered question
+        // First, fetch user progress to see which questions are already answered
+        final userId = SupabaseConfig.client.auth.currentUser?.id;
+        
+        return FutureBuilder<Question>(
+          future: _getNextQuestion(userId, difficultyQuestions),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Scaffold(
+                appBar: AppBar(title: const Text('Password Dojo')),
+                body: const Center(child: CircularProgressIndicator()),
+              );
+            }
+
+            final selectedQuestion = snapshot.data ?? difficultyQuestions.first;
+            return PasswordDojoScreen(question: selectedQuestion);
+          },
+        );
       },
     );
+  }
+
+  // Get the next unanswered question or a random one
+  Future<Question> _getNextQuestion(String? userId, List<Question> questions) async {
+    if (userId == null || questions.isEmpty) {
+      return questions.first;
+    }
+
+    try {
+      // Get question IDs that user has already answered correctly
+      final questionIds = questions.map((q) => q.id).toList();
+      final answeredResponse = await SupabaseConfig.client
+          .from('user_progress')
+          .select('question_id')
+          .eq('user_id', userId)
+          .eq('is_correct', true)
+          .inFilter('question_id', questionIds);
+
+      final answeredIds = (answeredResponse as List<dynamic>)
+          .map((row) => row['question_id'] as String)
+          .toSet();
+
+      // Filter out answered questions
+      final unansweredQuestions = questions
+          .where((q) => !answeredIds.contains(q.id))
+          .toList();
+
+      // Return first unanswered question, or first question if all are answered
+      return unansweredQuestions.isEmpty 
+          ? questions.first 
+          : unansweredQuestions.first;
+    } catch (e) {
+      debugPrint('Error fetching unanswered questions: $e');
+      return questions.first;
+    }
   }
 }

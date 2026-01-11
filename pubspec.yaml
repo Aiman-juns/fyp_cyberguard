@@ -1,4 +1,4 @@
-name: cats_flutter
+name: fyp_cyberguard
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -47,6 +47,10 @@ dependencies:
   # Media
   image_picker: ^1.0.0
   file_picker: ^8.0.0+1
+  
+  # Notifications
+  flutter_local_notifications: ^17.2.3
+  timezone: ^0.9.4
 
   # Bottom Navigation Bar
   salomon_bottom_bar: ^3.3.2
@@ -137,6 +141,9 @@ flutter:
     - .env
     - assets/videos/
     - assets/images/
+    - assets/images/icons/
+    - assets/images/certificates/
+    - assets/images/card_bg/
     - assets/sounds/
 
   # To add assets to your application, add an assets section, like this:

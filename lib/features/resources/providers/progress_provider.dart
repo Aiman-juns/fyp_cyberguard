@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../config/supabase_config.dart';
 
 class ResourceProgress {
   final String resourceId;
@@ -40,95 +41,99 @@ class ResourceProgress {
 
 class ProgressNotifier extends StateNotifier<Map<String, ResourceProgress>> {
   bool _isLoaded = false;
+  String? _currentUserId;
 
   ProgressNotifier() : super({}) {
     _loadProgress();
+    _setupAuthListener();
   }
 
   bool get isLoaded => _isLoaded;
 
+  /// Listen for auth state changes and reload progress when user changes
+  void _setupAuthListener() {
+    SupabaseConfig.client.auth.onAuthStateChange.listen((data) {
+      final newUserId = data.session?.user.id;
+      
+      debugPrint('🔄 AUTH STATE CHANGE: Old user: $_currentUserId, New user: $newUserId');
+      
+      // If user changed (login/logout/switch), reload progress
+      if (newUserId != _currentUserId) {
+        _currentUserId = newUserId;
+        debugPrint('🔄 USER CHANGED: Reloading progress...');
+        _isLoaded = false;
+        state = {}; // Clear cache immediately
+        _loadProgress();
+      }
+    });
+  }
+
+
   Future<void> _loadProgress() async {
     debugPrint(
-      '🔄 PROGRESS LOAD: Starting to load progress from SharedPreferences...',
+      '🔄 PROGRESS LOAD: Loading progress from database ONLY...',
     );
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final userId = SupabaseConfig.client.auth.currentUser?.id;
+      
+      if (userId == null) {
+        debugPrint('⚠️ PROGRESS LOAD: User not logged in');
+        state = {};
+        _isLoaded = true;
+        return;
+      }
 
-      // Load from both old format (resource_) and new format (video_progress_)
-      final allKeys = prefs.getKeys();
-      debugPrint('🔄 PROGRESS LOAD: Found ${allKeys.length} total keys');
-      debugPrint('🔄 PROGRESS LOAD: Keys = $allKeys');
+      debugPrint('🔄 PROGRESS LOAD: Loading from video_progress table for user: $userId');
+      
+      final response = await SupabaseConfig.client
+          .from('video_progress')
+          .select()
+          .eq('user_id', userId);
 
       final Map<String, ResourceProgress> loaded = {};
 
-      // Load old format: resource_{id}_completed
-      final oldFormatKeys = allKeys.where(
-        (key) => key.startsWith('resource_') && key.endsWith('_completed'),
-      );
-
-      for (final key in oldFormatKeys) {
-        final resourceId = key
-            .replaceFirst('resource_', '')
-            .replaceFirst('_completed', '');
-        final isCompleted = prefs.getBool(key) ?? false;
-        final completedLessons =
-            prefs.getInt('resource_${resourceId}_lessons') ?? 0;
-        final minutesWatched =
-            prefs.getInt('resource_${resourceId}_minutes') ?? 0;
+      for (final item in response as List<dynamic>) {
+        final resourceId = item['resource_id'] as String;
+        final percentage = (item['watch_percentage'] as num).toDouble();
+        final completed = item['completed'] as bool;
+        final duration = item['watch_duration_seconds'] as int;
 
         loaded[resourceId] = ResourceProgress(
           resourceId: resourceId,
-          isCompleted: isCompleted,
-          completedLessons: completedLessons,
-          minutesWatched: minutesWatched,
+          isCompleted: completed,
+          completedLessons: completed ? 245 : (percentage * 2.45).round(),
+          minutesWatched: (duration / 60).round(),
         );
-        debugPrint(
-          '📦 Loaded resource progress: $resourceId, completed=$isCompleted',
-        );
-      }
-
-      // Also load new format: video_progress_{id}_completed
-      final newFormatKeys = allKeys.where(
-        (key) =>
-            key.startsWith('video_progress_') && key.endsWith('_completed'),
-      );
-
-      for (final key in newFormatKeys) {
-        final resourceId = key
-            .replaceFirst('video_progress_', '')
-            .replaceFirst('_completed', '');
-
-        // Only add if not already loaded from old format
-        if (!loaded.containsKey(resourceId)) {
-          final isCompleted = prefs.getBool(key) ?? false;
-          final percentage =
-              prefs.getDouble('video_progress_${resourceId}_percentage') ?? 0.0;
-
-          if (isCompleted || percentage > 0) {
-            loaded[resourceId] = ResourceProgress(
-              resourceId: resourceId,
-              isCompleted: isCompleted,
-              completedLessons: isCompleted ? 245 : (percentage * 2.45).round(),
-              minutesWatched:
-                  prefs.getInt('video_progress_${resourceId}_duration') ?? 0,
-            );
-            debugPrint(
-              '📦 Loaded video progress: $resourceId, completed=$isCompleted, percentage=$percentage',
-            );
-          }
-        }
       }
 
       debugPrint(
-        '✅ PROGRESS LOAD: Loaded ${loaded.length} resources: ${loaded.keys.toList()}',
+        '✅ PROGRESS LOAD: Loaded ${loaded.length} resources from DB: ${loaded.keys.toList()}',
       );
       state = loaded;
       _isLoaded = true;
     } catch (e) {
-      debugPrint('❌ Error loading progress: $e');
-      _isLoaded = true; // Mark as loaded even on error
+      debugPrint('❌ Error loading progress from database: $e');
+      state = {}; // Clear state on error - no fallback
+      _isLoaded = true;
     }
   }
+
+
+  /// Force reload progress (call this when user logs in)
+  Future<void> reload() async {
+    debugPrint('🔄 PROGRESS: Force reloading progress...');
+    _isLoaded = false;
+    state = {}; // Clear current state
+    await _loadProgress();
+  }
+
+  /// Clear all progress (call this on logout)
+  void clear() {
+    debugPrint('🧹 PROGRESS: Clearing progress state...');
+    state = {};
+    _isLoaded = false;
+  }
+
 
   Future<void> _saveProgress(
     String resourceId,

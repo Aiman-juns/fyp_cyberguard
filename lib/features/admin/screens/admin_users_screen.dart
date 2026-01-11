@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/admin_provider.dart';
+import '../../../core/services/avatar_service.dart';
 
 class AdminUsersScreen extends ConsumerWidget {
   const AdminUsersScreen({Key? key}) : super(key: key);
@@ -25,10 +26,15 @@ class AdminUsersScreen extends ConsumerWidget {
         ),
       ),
       data: (users) {
-        // Filter to show only non-admin users
+        // Filter to show only non-admin users and sort alphabetically by name
         final nonAdminUsers = users
             .where((user) => user['role'] != 'admin')
-            .toList();
+            .toList()
+          ..sort((a, b) {
+            final nameA = (a['full_name'] ?? '').toString().toLowerCase();
+            final nameB = (b['full_name'] ?? '').toString().toLowerCase();
+            return nameA.compareTo(nameB);
+          });
 
         if (nonAdminUsers.isEmpty) {
           return Center(
@@ -57,11 +63,21 @@ class AdminUsersScreen extends ConsumerWidget {
             final user = nonAdminUsers[index];
             final level = user['level'] ?? 1;
             final score = user['total_score'] ?? 0;
-            final levelColor = level <= 3
+            
+            // Get avatar data if user has selected an avatar
+            final avatarId = user['avatar_id'] as String?;
+            AvatarData? avatarData;
+            
+            if (avatarId != null && avatarId.isNotEmpty && avatarId != 'null') {
+              avatarData = AvatarService.getAvatarById(avatarId);
+            }
+            
+            // Use avatar color or fallback to level-based color
+            final displayColor = avatarData?.color ?? (level <= 3
                 ? Colors.green
                 : level <= 6
                 ? Colors.blue
-                : Colors.purple;
+                : Colors.purple);
 
             return Container(
               margin: const EdgeInsets.only(bottom: 16),
@@ -69,12 +85,12 @@ class AdminUsersScreen extends ConsumerWidget {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: levelColor.withOpacity(0.3),
+                  color: const Color(0xFF3B82F6).withOpacity(0.3),
                   width: 2,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: levelColor.withOpacity(0.15),
+                    color: const Color(0xFF3B82F6).withOpacity(0.15),
                     blurRadius: 8,
                     offset: const Offset(0, 4),
                   ),
@@ -88,13 +104,13 @@ class AdminUsersScreen extends ConsumerWidget {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         gradient: LinearGradient(
-                          colors: [levelColor, levelColor.withOpacity(0.7)],
+                          colors: [displayColor, displayColor.withOpacity(0.7)],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: levelColor.withOpacity(0.3),
+                            color: displayColor.withOpacity(0.3),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -103,20 +119,7 @@ class AdminUsersScreen extends ConsumerWidget {
                       child: CircleAvatar(
                         radius: 32,
                         backgroundColor: Colors.transparent,
-                        backgroundImage: user['avatar_url'] != null
-                            ? NetworkImage(user['avatar_url'])
-                            : null,
-                        onBackgroundImageError: (_, __) {},
-                        child: user['avatar_url'] == null
-                            ? Text(
-                                user['full_name']?[0]?.toUpperCase() ?? 'U',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              )
-                            : null,
+                        child: _getUserIcon(user, avatarData),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -150,32 +153,32 @@ class AdminUsersScreen extends ConsumerWidget {
                                 decoration: BoxDecoration(
                                   gradient: LinearGradient(
                                     colors: [
-                                      levelColor.withOpacity(0.2),
-                                      levelColor.withOpacity(0.1),
+                                      const Color(0xFF3B82F6).withOpacity(0.2),
+                                      const Color(0xFF3B82F6).withOpacity(0.1),
                                     ],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                   ),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: levelColor.withOpacity(0.3),
+                                    color: const Color(0xFF3B82F6).withOpacity(0.3),
                                   ),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(
+                                    const Icon(
                                       Icons.bar_chart,
                                       size: 16,
-                                      color: levelColor,
+                                      color: Color(0xFF3B82F6),
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
                                       'Level $level',
-                                      style: TextStyle(
+                                      style: const TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.bold,
-                                        color: levelColor,
+                                        color: Color(0xFF3B82F6),
                                       ),
                                     ),
                                   ],
@@ -228,20 +231,35 @@ class AdminUsersScreen extends ConsumerWidget {
                     ),
                     Container(
                       decoration: BoxDecoration(
-                        color: levelColor.withOpacity(0.1),
+                        color: const Color(0xFF3B82F6).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: PopupMenuButton(
-                        icon: Icon(Icons.more_vert, color: levelColor),
+                        icon: const Icon(Icons.more_vert, color: Color(0xFF3B82F6)),
                         itemBuilder: (context) => [
                           PopupMenuItem(
                             onTap: () =>
                                 _showUserDetailsDialog(context, user, ref),
                             child: const Row(
                               children: [
-                                Icon(Icons.visibility, size: 20),
+                                Icon(Icons.visibility, size: 20, color: Colors.blue),
                                 SizedBox(width: 8),
                                 Text('View Details'),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            onTap: () {
+                              // Delay to allow popup to close
+                              Future.delayed(const Duration(milliseconds: 100), () {
+                                _showDeleteConfirmation(context, user, ref);
+                              });
+                            },
+                            child: const Row(
+                              children: [
+                                Icon(Icons.delete, size: 20, color: Colors.red),
+                                SizedBox(width: 8),
+                                Text('Delete User', style: TextStyle(color: Colors.red)),
                               ],
                             ),
                           ),
@@ -296,6 +314,152 @@ class AdminUsersScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// Get user icon widget based on avatar_id or fallback to first letter
+  Widget _getUserIcon(Map<String, dynamic> user, AvatarData? avatarData) {
+    if (avatarData != null) {
+      // Display the selected avatar icon
+      return Icon(
+        avatarData.icon,
+        color: Colors.white,
+        size: 36,
+      );
+    }
+    
+    // Fallback to first letter of name
+    return Text(
+      user['full_name']?[0]?.toUpperCase() ?? 'U',
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 24,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+  }
+
+  void _showDeleteConfirmation(
+    BuildContext context,
+    Map<String, dynamic> user,
+    WidgetRef ref,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Delete User'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Are you sure you want to delete this user?',
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    user['full_name'] ?? 'Unknown',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    user['email'] ?? 'No email',
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              '⚠️ This action cannot be undone!',
+              style: TextStyle(
+                color: Colors.red,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context); // Close dialog
+              await _deleteUser(context, user, ref);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteUser(
+    BuildContext context,
+    Map<String, dynamic> user,
+    WidgetRef ref,
+  ) async {
+    final userId = user['id'] as String;
+    final userName = user['full_name'] ?? 'Unknown';
+    
+    try {
+      // Delete user (no loading dialog - Supabase is fast)
+      await ref.read(adminProvider.notifier).deleteUser(userId);
+
+      // Refresh user list immediately
+      ref.invalidate(allUsersProvider);
+
+      // Show success message
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ User "$userName" deleted successfully'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      // Show error message
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error deleting user: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 }
 

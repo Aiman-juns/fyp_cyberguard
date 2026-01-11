@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
 import '../../../config/supabase_config.dart';
+import '../../../core/services/local_notification_service.dart';
 
 /// Question Models
 class Question {
@@ -128,7 +129,107 @@ Future<List<Question>> fetchQuestionsByModuleAndDifficulty(
   }
 }
 
-/// Record user progress
+/// Calculate user level based on total score
+/// Level thresholds:
+/// Level 1: 0-99 points
+/// Level 2: 100-249 points
+/// Level 3: 250-499 points
+/// Level 4: 500-999 points
+/// Level 5: 1000-1999 points
+/// Level 6: 2000-3999 points
+/// Level 7: 4000-7999 points
+/// Level 8: 8000-15999 points
+/// Level 9: 16000-31999 points
+/// Level 10: 32000+ points
+int calculateLevel(int totalScore) {
+  if (totalScore < 100) return 1;
+  if (totalScore < 250) return 2;
+  if (totalScore < 500) return 3;
+  if (totalScore < 1000) return 4;
+  if (totalScore < 2000) return 5;
+  if (totalScore < 4000) return 6;
+  if (totalScore < 8000) return 7;
+  if (totalScore < 16000) return 8;
+  if (totalScore < 32000) return 9;
+  return 10; // Max level
+}
+
+/// Update user's total score and level in Supabase
+Future<void> updateUserScoreAndLevel(String userId) async {
+  try {
+    // Get all user progress to calculate total score
+    final progressResponse = await SupabaseConfig.client
+        .from('user_progress')
+        .select('score_awarded')
+        .eq('user_id', userId);
+
+    // Calculate total score from all attempts
+    int totalScore = 0;
+    int totalCorrectAnswers = 0;
+    for (final record in progressResponse as List<dynamic>) {
+      totalScore += (record['score_awarded'] as int? ?? 0);
+      if ((record['score_awarded'] as int? ?? 0) > 0) {
+        totalCorrectAnswers++;
+      }
+    }
+
+    // Calculate level based on total score
+    final level = calculateLevel(totalScore);
+    
+    // Get previous level to detect level-ups
+    final userResponse = await SupabaseConfig.client
+        .from('users')
+        .select('level, total_score')
+        .eq('id', userId)
+        .maybeSingle();
+    
+    final previousLevel = userResponse?['level'] as int? ?? 0;
+    final previousScore = userResponse?['total_score'] as int? ?? 0;
+
+    // Update user's total_score and level in users table
+    await SupabaseConfig.client
+        .from('users')
+        .update({
+          'total_score': totalScore,
+          'level': level,
+        })
+        .eq('id', userId);
+
+    debugPrint('Updated user $userId: Score=$totalScore, Level=$level');
+    
+    // Check for milestone notifications
+    // Check for level up
+    if (previousLevel < level) {
+      debugPrint('🎉 MILESTONE: User leveled up to $level!');
+      // Notification disabled - using achievement dialogs instead
+      // LocalNotificationService.showMilestoneReached('Level $level', 'Congratulations! You\'ve reached level $level!');
+      debugPrint('🔔 NOTIFICATION: Milestone sent - Level $level');
+    }
+    
+    // Milestone: Total questions (10, 50, 100, 500)
+    final totalQuestions = progressResponse.length;
+    
+    if (totalQuestions == 10 && previousScore < 10) { // Check if it's the first time reaching this milestone
+      debugPrint('🎉 MILESTONE: 10 questions completed!');
+      // LocalNotificationService.showMilestoneReached('10 Questions Completed', 'Great start! Keep learning!');
+    } else if (totalQuestions == 50 && previousScore < 50) {
+      debugPrint('🎉 MILESTONE: 50 questions completed!');
+      // LocalNotificationService.showMilestoneReached('50 Questions Completed', 'You\'re making excellent progress!');
+    } else if (totalQuestions == 100 && previousScore < 100) {
+      debugPrint('🎉 MILESTONE: 100 questions completed!');
+      // LocalNotificationService.showMilestoneReached('100 Questions Completed', 'Amazing dedication! You\'re a cyber expert!');
+    } else if (totalQuestions == 500 && previousScore < 500) {
+      debugPrint('🎉 MILESTONE: 500 questions completed!');
+      // LocalNotificationService.showMilestoneReached('500 Questions Mastered', 'Incredible achievement! You\'re a CyberGuard master!');
+    }
+    
+  } catch (e) {
+    debugPrint('Error updating user score and level: $e');
+    throw Exception('Failed to update user stats: $e');
+  }
+}
+
+/// Record user progress and automatically update score/level
 Future<void> recordProgress(UserProgress progress) async {
   try {
     debugPrint(
@@ -136,8 +237,17 @@ Future<void> recordProgress(UserProgress progress) async {
     );
     final data = progress.toJson();
     debugPrint('Progress data: $data');
-    await SupabaseConfig.client.from('user_progress').insert(data);
-    debugPrint('Progress recorded successfully');
+    
+    // Insert progress record
+    await SupabaseConfig.client.from('user_progress').upsert(
+      data,
+      onConflict: 'user_id,question_id',
+    );
+    debugPrint('✅ Progress recorded successfully via UPSERT');
+    
+    // Automatically update user's total score and level
+    await updateUserScoreAndLevel(progress.userId);
+    debugPrint('User score and level updated successfully');
   } catch (e) {
     debugPrint('Error recording progress: $e');
     throw Exception('Failed to record progress: $e');
@@ -197,39 +307,66 @@ Future<Map<int, double>> calculateModuleProgress(
     final questions = await fetchQuestionsByModule(moduleType);
 
     // Group questions by difficulty
-    final Map<int, int> totalByDifficulty = {1: 0, 2: 0, 3: 0};
-    final Map<int, int> correctByDifficulty = {1: 0, 2: 0, 3: 0};
+    final Map<int, List<String>> questionIdsByDifficulty = {1: [], 2: [], 3: []};
+    final Map<int, Set<String>> completedQuestionsByDifficulty = {1: {}, 2: {}, 3: {}};
 
     for (final q in questions) {
-      totalByDifficulty[q.difficulty] =
-          (totalByDifficulty[q.difficulty] ?? 0) + 1;
+      questionIdsByDifficulty[q.difficulty]?.add(q.id);
     }
 
     // Fetch user progress for this module
     final userProgress = await fetchUserProgressByModule(userId, moduleType);
 
-    // Count correct answers by difficulty
+    // Track UNIQUE correct questions per difficulty
     for (final progress in userProgress) {
-      final question = questions.firstWhere((q) => q.id == progress.questionId);
       if (progress.isCorrect) {
-        correctByDifficulty[question.difficulty] =
-            (correctByDifficulty[question.difficulty] ?? 0) + 1;
+        // Find the question to get its difficulty
+        final question = questions.firstWhere(
+          (q) => q.id == progress.questionId,
+          orElse: () => questions.first,
+        );
+        // Add to set (automatically handles duplicates)
+        completedQuestionsByDifficulty[question.difficulty]?.add(progress.questionId);
       }
     }
 
-    // Calculate percentages
+    // Calculate percentages based on unique completions
     final Map<int, double> progressMap = {};
+    bool isModuleComplete = true;
+    
     for (int level = 1; level <= 3; level++) {
-      final total = totalByDifficulty[level] ?? 0;
-      final correct = correctByDifficulty[level] ?? 0;
-      progressMap[level] = total == 0 ? 0.0 : correct / total;
+      final totalQuestions = questionIdsByDifficulty[level]?.length ?? 0;
+      final completedQuestions = completedQuestionsByDifficulty[level]?.length ?? 0;
+      progressMap[level] = totalQuestions == 0 ? 0.0 : completedQuestions / totalQuestions;
+      
+      debugPrint('Module: $moduleType, Difficulty: $level, Completed: $completedQuestions/$totalQuestions = ${progressMap[level]}');
+      
+      // Check if module level is now complete
+      if ((progressMap[level] ?? 0) < 1.0) {
+        isModuleComplete = false;
+      }
+    }
+    
+    // Check if module was just completed (all difficulties at 100%)
+    if (isModuleComplete && questions.isNotEmpty) {
+      debugPrint('🎉 MODULE COMPLETE: $moduleType - All difficulties completed!');
+      // Send module completion notification
+      final moduleNames = {
+        'phishing': 'Phishing Detection',
+        'password': 'Password Security',
+        'attack': 'Threat Recognition',
+      };
+      // TODO: Add module completion notification if needed
+      debugPrint('🎉 Module completed: ${moduleNames[moduleType]}');
     }
 
     return progressMap;
   } catch (e) {
+    debugPrint('Failed to calculate module progress: $e');
     throw Exception('Failed to calculate module progress: $e');
   }
 }
+
 
 /// Riverpod Providers
 

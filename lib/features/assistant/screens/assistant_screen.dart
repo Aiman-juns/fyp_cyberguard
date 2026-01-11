@@ -195,13 +195,13 @@ class _UrlScannerTabState extends State<UrlScannerTab>
     Map<String, dynamic> analysisResults,
   ) {
     List<Map<String, String>> threats = [];
-    analysisResults.forEach((vendor, result) {
+    analysisResults.forEach((engineName, result) {
       if (result is Map<String, dynamic>) {
         final category = result['category'] as String?;
         final resultText = result['result'] as String?;
         if (category == 'malicious' || category == 'suspicious') {
           threats.add({
-            'vendor': vendor,
+            'engine': engineName,
             'category': category ?? 'unknown',
             'result': resultText ?? 'Flagged as potentially harmful',
           });
@@ -264,17 +264,41 @@ class _UrlScannerTabState extends State<UrlScannerTab>
           setState(() {
             _scanStats = lastAnalysisStats;
 
-            if (malicious + suspicious > 0) {
+            // Improved threat assessment logic
+            if (malicious >= 1) {
+              // Any malicious detection = DANGER
               _resultStatus = 'danger';
               _resultMessage =
-                  '⚠️ Warning! ${malicious + suspicious} security vendor(s) flagged this site as dangerous. Do not visit.';
+                  '🚨 DANGER! $malicious security engine(s) confirmed this site is malicious. DO NOT VISIT!';
               if (lastAnalysisResults != null) {
                 _threatDetails = _extractThreatDetails(lastAnalysisResults);
               }
-            } else if (harmless > 0) {
+            } else if (suspicious >= 3) {
+              // 3+ suspicious = WARNING
+              _resultStatus = 'warning';
+              _resultMessage =
+                  '⚠️ Warning! $suspicious security engines flagged suspicious activity. Proceed with extreme caution or avoid this site.';
+              if (lastAnalysisResults != null) {
+                _threatDetails = _extractThreatDetails(lastAnalysisResults);
+              }
+            } else if (suspicious >= 1) {
+              // 1-2 suspicious = CAUTION
+              _resultStatus = 'caution';
+              _resultMessage =
+                  '⚡ Caution: $suspicious engine(s) found something questionable, but $harmless engines say it\'s safe. Proceed carefully and verify the URL.';
+              if (lastAnalysisResults != null) {
+                _threatDetails = _extractThreatDetails(lastAnalysisResults);
+              }
+            } else if (harmless > 50) {
+              // Many harmless detections = SAFE
               _resultStatus = 'safe';
               _resultMessage =
-                  '✅ Good news! This website appears safe to visit according to our security scan.';
+                  '✅ Good news! $harmless security engines confirmed this website is safe to visit.';
+            } else if (harmless > 0) {
+              // Some harmless but low count = Likely safe
+              _resultStatus = 'safe';
+              _resultMessage =
+                  '✅ This website appears safe. $harmless engines confirmed it\'s harmless.';
             } else {
               _resultStatus = 'unknown';
               _resultMessage =
@@ -424,9 +448,22 @@ class _UrlScannerTabState extends State<UrlScannerTab>
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 12,
+                              color: Colors.green,
                             ),
                           ),
                           enabled: false,
+                        ),
+                        const PopupMenuItem<String>(
+                          value: 'https://google.com',
+                          child: Text('Google'),
+                        ),
+                        const PopupMenuItem<String>(
+                          value: 'https://github.com',
+                          child: Text('GitHub'),
+                        ),
+                        const PopupMenuItem<String>(
+                          value: 'https://microsoft.com',
+                          child: Text('Microsoft'),
                         ),
                         const PopupMenuItem<String>(
                           value: 'https://www.youtube.com/',
@@ -443,7 +480,7 @@ class _UrlScannerTabState extends State<UrlScannerTab>
                         const PopupMenuDivider(),
                         const PopupMenuItem<String>(
                           child: Text(
-                            'Unsafe URLs',
+                            'Malicious URLs (DANGER)',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 12,
@@ -453,17 +490,43 @@ class _UrlScannerTabState extends State<UrlScannerTab>
                           enabled: false,
                         ),
                         const PopupMenuItem<String>(
+                          value: 'http://malware.wicar.org/data/eicar.com',
+                          child: Text(
+                            'EICAR Test Malware',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ),
+                        const PopupMenuItem<String>(
+                          value: 'https://testsafebrowsing.appspot.com/s/malware.html',
+                          child: Text(
+                            'Google Safe Browsing Test',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ),
+                        const PopupMenuDivider(),
+                        const PopupMenuItem<String>(
+                          child: Text(
+                            'Suspicious URLs (WARNING/CAUTION)',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              color: Colors.orange,
+                            ),
+                          ),
+                          enabled: false,
+                        ),
+                        const PopupMenuItem<String>(
                           value: 'https://ww4.site/bflix/',
                           child: Text(
                             'Suspicious Streaming Site',
-                            style: TextStyle(color: Colors.red),
+                            style: TextStyle(color: Colors.orange),
                           ),
                         ),
                         const PopupMenuItem<String>(
                           value: 'https://pencurivids.blogspot.com/',
                           child: Text(
                             'Suspicious Blog Site',
-                            style: TextStyle(color: Colors.red),
+                            style: TextStyle(color: Colors.orange),
                           ),
                         ),
                       ],
@@ -624,16 +687,24 @@ class _UrlScannerTabState extends State<UrlScannerTab>
                     decoration: BoxDecoration(
                       color: _resultStatus == 'danger'
                           ? Colors.red.withOpacity(0.1)
+                          : _resultStatus == 'warning'
+                          ? Colors.deepOrange.withOpacity(0.1)
+                          : _resultStatus == 'caution'
+                          ? Colors.orange.withOpacity(0.1)
                           : _resultStatus == 'safe'
                           ? Colors.green.withOpacity(0.1)
-                          : Colors.orange.withOpacity(0.1),
+                          : Colors.grey.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: _resultStatus == 'danger'
                             ? Colors.red
+                            : _resultStatus == 'warning'
+                            ? Colors.deepOrange
+                            : _resultStatus == 'caution'
+                            ? Colors.orange
                             : _resultStatus == 'safe'
                             ? Colors.green
-                            : Colors.orange,
+                            : Colors.grey,
                         width: 2,
                       ),
                     ),
@@ -642,20 +713,32 @@ class _UrlScannerTabState extends State<UrlScannerTab>
                         Icon(
                           _resultStatus == 'danger'
                               ? Icons.dangerous
+                              : _resultStatus == 'warning'
+                              ? Icons.warning
+                              : _resultStatus == 'caution'
+                              ? Icons.error_outline
                               : _resultStatus == 'safe'
                               ? Icons.check_circle
                               : Icons.help,
                           color: _resultStatus == 'danger'
                               ? Colors.red
+                              : _resultStatus == 'warning'
+                              ? Colors.deepOrange
+                              : _resultStatus == 'caution'
+                              ? Colors.orange
                               : _resultStatus == 'safe'
                               ? Colors.green
-                              : Colors.orange,
+                              : Colors.grey,
                           size: 64,
                         ),
                         const SizedBox(height: 16),
                         Text(
                           _resultStatus == 'danger'
                               ? 'DANGEROUS!'
+                              : _resultStatus == 'warning'
+                              ? 'WARNING'
+                              : _resultStatus == 'caution'
+                              ? 'CAUTION'
                               : _resultStatus == 'safe'
                               ? 'SAFE'
                               : 'UNKNOWN',
@@ -664,9 +747,13 @@ class _UrlScannerTabState extends State<UrlScannerTab>
                             fontWeight: FontWeight.bold,
                             color: _resultStatus == 'danger'
                                 ? Colors.red
+                                : _resultStatus == 'warning'
+                                ? Colors.deepOrange
+                                : _resultStatus == 'caution'
+                                ? Colors.orange
                                 : _resultStatus == 'safe'
                                 ? Colors.green
-                                : Colors.orange,
+                                : Colors.grey,
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -699,26 +786,53 @@ class _UrlScannerTabState extends State<UrlScannerTab>
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Checked by 90+ Security Engines',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                // Famous vendor logos/names
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 4,
+                                  alignment: WrapAlignment.center,
+                                  children: [
+                                    _buildVendorChip('🛡️ Norton', Colors.yellow.shade700),
+                                    _buildVendorChip('🔒 Kaspersky', Colors.green.shade700),
+                                    _buildVendorChip('🔐 McAfee', Colors.red.shade700),
+                                    _buildVendorChip('🌐 Google', Colors.blue.shade700),
+                                    _buildVendorChip('🔰 Bitdefender', Colors.orange.shade700),
+                                  ],
+                                ),
                                 const SizedBox(height: 12),
                                 _buildStatRow(
                                   'Malicious',
                                   _scanStats!['malicious'] ?? 0,
                                   Colors.red,
+                                  'engines flagged as dangerous',
                                 ),
                                 _buildStatRow(
                                   'Suspicious',
                                   _scanStats!['suspicious'] ?? 0,
                                   Colors.orange,
+                                  'engines found questionable',
                                 ),
                                 _buildStatRow(
                                   'Harmless',
                                   _scanStats!['harmless'] ?? 0,
                                   Colors.green,
+                                  'engines confirmed safe',
                                 ),
                                 _buildStatRow(
                                   'Undetected',
                                   _scanStats!['undetected'] ?? 0,
                                   Colors.grey,
+                                  'engines have no data yet',
                                 ),
                               ],
                             ),
@@ -746,7 +860,7 @@ class _UrlScannerTabState extends State<UrlScannerTab>
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
-                                      'Threat Details',
+                                      'Detections',
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
@@ -771,7 +885,7 @@ class _UrlScannerTabState extends State<UrlScannerTab>
                                         const SizedBox(width: 8),
                                         Expanded(
                                           child: Text(
-                                            '${threat['vendor']}: ${threat['result']}',
+                                            '${threat['engine']}: ${threat['result']}',
                                             style: TextStyle(fontSize: 13),
                                           ),
                                         ),
@@ -781,7 +895,7 @@ class _UrlScannerTabState extends State<UrlScannerTab>
                                 }).toList(),
                                 if (_threatDetails!.length > 5)
                                   Text(
-                                    '+ ${_threatDetails!.length - 5} more threats detected',
+                                    '+ ${_threatDetails!.length - 5} more detections',
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontStyle: FontStyle.italic,
@@ -804,26 +918,75 @@ class _UrlScannerTabState extends State<UrlScannerTab>
     );
   }
 
-  Widget _buildStatRow(String label, int count, Color color) {
+  Widget _buildVendorChip(String name, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Text(
+        name,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatRow(String label, int count, Color color, String description) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-              ),
-              const SizedBox(width: 8),
-              Text(label),
-            ],
+          Expanded(
+            child: Row(
+              children: [
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        description,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-          Text(
-            count.toString(),
-            style: TextStyle(fontWeight: FontWeight.bold, color: color),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              count.toString(),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: color,
+              ),
+            ),
           ),
         ],
       ),

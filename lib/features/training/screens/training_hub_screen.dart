@@ -95,23 +95,19 @@ class TrainingHubScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Daily Cyber Challenge
-          const DailyChallengeCard(),
-          const SizedBox(height: 24.0),
-
           // Welcome Header Card with Quick Stats
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+                colors: [Color(0xFF10B981), Color(0xFF059669)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF3B82F6).withOpacity(0.3),
+                  color: const Color(0xFF10B981).withOpacity(0.3),
                   blurRadius: 16,
                   offset: const Offset(0, 6),
                 ),
@@ -307,6 +303,10 @@ class TrainingHubScreen extends ConsumerWidget {
               ],
             ),
           ),
+          const SizedBox(height: 24.0),
+
+          // Daily Cyber Challenge
+          const DailyChallengeCard(),
           const SizedBox(height: 28.0),
 
           // Training Modules Section Header
@@ -365,14 +365,14 @@ class TrainingHubScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 12.0),
           _ModuleCard(
-            title: 'Cyber Attack Analyst',
-            description: 'Analyze and identify cyber attack scenarios',
+            title: 'Cyber Attack Recognition',
+            description: 'Recognize and identify cyber threat scenarios',
             icon: Icons.shield,
             moduleColor: const Color(0xFFEF4444),
             userId: userId,
             onTap: () => _showLevelSelectionDialog(
               context,
-              'Cyber Attack Analyst',
+              'Cyber Attack Recognition',
               (difficulty) => CyberAttackScreen(difficulty: difficulty),
               ref,
             ),
@@ -409,7 +409,11 @@ class TrainingHubScreen extends ConsumerWidget {
                 ],
               ),
               TextButton(
-                onPressed: () {},
+                onPressed: () {
+                  if (userId != null) {
+                    _showAllActivityDialog(context, ref, userId);
+                  }
+                },
                 child: const Text(
                   'View All',
                   style: TextStyle(
@@ -437,6 +441,820 @@ class TrainingHubScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+void _showAllActivityDialog(
+  BuildContext context,
+  WidgetRef ref,
+  String userId,
+) {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          constraints: const BoxConstraints(maxHeight: 600, maxWidth: 500),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF8B5CF6), Color(0xFF7C3AED)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.history, color: Colors.white, size: 28),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'All Recent Activity',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close, color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
+              // Content
+              Flexible(
+                child: Consumer(
+                  builder: (context, ref, child) {
+                    final recentActivityAsync = ref.watch(
+                      recentActivityProvider(userId),
+                    );
+
+                    return recentActivityAsync.when(
+                      data: (activities) {
+                        if (activities.isEmpty) {
+                          return const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(40.0),
+                              child: Text(
+                                'No activity yet',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+
+                        // Group activities by module
+                        final Map<String, List<UserProgress>>
+                        groupedActivities = {};
+                        for (var activity in activities) {
+                          final moduleType =
+                              activity.question?.moduleType ?? 'unknown';
+                          if (!groupedActivities.containsKey(moduleType)) {
+                            groupedActivities[moduleType] = [];
+                          }
+                          groupedActivities[moduleType]!.add(activity);
+                        }
+
+                        return ListView(
+                          padding: const EdgeInsets.all(20),
+                          children: groupedActivities.entries.map((entry) {
+                            final moduleType = entry.key;
+                            final moduleActivities = entry.value;
+                            final moduleName = _getModuleNameHelper(moduleType);
+
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Module Header
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    bottom: 12,
+                                    top: 8,
+                                  ),
+                                  child: Text(
+                                    moduleName,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF1E293B),
+                                    ),
+                                  ),
+                                ),
+                                // Activities for this module
+                                ...moduleActivities.map((activity) {
+                                  final question = activity.question;
+                                  if (question == null)
+                                    return const SizedBox.shrink();
+
+                                  final isCorrect = activity.isCorrect;
+                                  final formattedDate = _formatDateHelper(
+                                    activity.attemptDate,
+                                  );
+
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: InkWell(
+                                      onTap: () {
+                                        Navigator.of(context).pop();
+                                        // Show question review dialog - need to pass ref
+                                        _showQuestionReviewDialogHelper(
+                                          context,
+                                          activity,
+                                          question,
+                                          isCorrect,
+                                        );
+                                      },
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color:
+                                              Theme.of(context).brightness ==
+                                                  Brightness.dark
+                                              ? const Color(0xFF1E293B)
+                                              : Colors.white,
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          border: Border.all(
+                                            color: isCorrect
+                                                ? Colors.green.withOpacity(0.3)
+                                                : Colors.red.withOpacity(0.3),
+                                            width: 2,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: isCorrect
+                                                  ? Colors.green.withOpacity(
+                                                      0.1,
+                                                    )
+                                                  : Colors.red.withOpacity(0.1),
+                                              blurRadius: 4,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(12.0),
+                                          child: Row(
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.all(
+                                                  8,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: isCorrect
+                                                      ? Colors.green
+                                                            .withOpacity(0.1)
+                                                      : Colors.red.withOpacity(
+                                                          0.1,
+                                                        ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
+                                                child: Icon(
+                                                  isCorrect
+                                                      ? Icons.check_circle
+                                                      : Icons.cancel,
+                                                  color: isCorrect
+                                                      ? Colors.green
+                                                      : Colors.red,
+                                                  size: 20,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      'Level ${question.difficulty}',
+                                                      style: const TextStyle(
+                                                        fontSize: 13,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 4),
+                                                    Text(
+                                                      formattedDate,
+                                                      style: TextStyle(
+                                                        fontSize: 11,
+                                                        color:
+                                                            Theme.of(
+                                                                  context,
+                                                                ).brightness ==
+                                                                Brightness.dark
+                                                            ? Colors
+                                                                  .grey
+                                                                  .shade400
+                                                            : Colors
+                                                                  .grey
+                                                                  .shade600,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 10,
+                                                      vertical: 4,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(
+                                                    0xFF9333EA,
+                                                  ).withOpacity(0.1),
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
+                                                child: Text(
+                                                  '+${activity.scoreAwarded}',
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Color(0xFF9333EA),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                                const SizedBox(height: 8),
+                              ],
+                            );
+                          }).toList(),
+                        );
+                      },
+                      loading: () => const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(40.0),
+                          child: CircularProgressIndicator(),
+                        ),
+                      ),
+                      error: (error, stack) => Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(40.0),
+                          child: Text(
+                            'Error loading activities',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+String _getModuleNameHelper(String moduleType) {
+  switch (moduleType) {
+    case 'phishing':
+      return '📧 Phishing Email Detection';
+    case 'password':
+      return '🔒 Password Security';
+    case 'attack':
+      return '⚠️ Cyber Attack Recognition';
+    default:
+      return '📚 Training Module';
+  }
+}
+
+String _formatDateHelper(DateTime date) {
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final yesterday = today.subtract(const Duration(days: 1));
+  final dateOnly = DateTime(date.year, date.month, date.day);
+
+  if (dateOnly == today) {
+    return 'Today ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+  } else if (dateOnly == yesterday) {
+    return 'Yesterday';
+  } else {
+    return '${date.month}/${date.day}/${date.year}';
+  }
+}
+
+void _showQuestionReviewDialogHelper(
+  BuildContext context,
+  UserProgress activity,
+  Question question,
+  bool isCorrect,
+) {
+  // Parse the question content if it's JSON
+  String questionText = question.content;
+  List<String>? options;
+  Map<String, String>? emailData;
+
+  try {
+    // Check if content looks like JSON
+    if (question.content.trim().startsWith('{')) {
+      final contentData = _parseJsonContentHelper(question.content);
+
+      if (contentData != null) {
+        if (contentData['type'] == 'email') {
+          // This is an email format
+          emailData = {
+            'senderName': contentData['senderName'] as String,
+            'senderEmail': contentData['senderEmail'] as String,
+            'subject': contentData['subject'] as String,
+            'body': contentData['body'] as String,
+          };
+          questionText = 'Is this email safe or a phishing attempt?';
+        } else if (contentData['type'] == 'question' &&
+            contentData['description'] != null) {
+          // This is the old question format
+          questionText = contentData['description'] as String;
+          if (contentData['options'] != null &&
+              contentData['options'] is List) {
+            options = List<String>.from(contentData['options'] as List);
+          }
+        }
+      }
+    }
+  } catch (e) {
+    // If parsing fails, use original content
+    questionText = question.content;
+  }
+
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 500),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: isCorrect
+                        ? [Colors.green.shade400, Colors.green.shade600]
+                        : [Colors.red.shade400, Colors.red.shade600],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      isCorrect ? Icons.check_circle : Icons.cancel,
+                      color: Colors.white,
+                      size: 32,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isCorrect ? 'Correct Answer' : 'Incorrect Answer',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'Level ${question.difficulty} • ${_getModuleNameHelper(question.moduleType)}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close, color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
+              // Content
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Question
+                      const Text(
+                        'Question',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        questionText,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      // Show email preview if this is phishing email detection
+                      if (emailData != null) ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.grey.shade300,
+                              width: 1,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // From field
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'From: ',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          emailData['senderName']!,
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        Text(
+                                          '<${emailData['senderEmail']!}>',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey.shade600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              const Divider(height: 1),
+                              const SizedBox(height: 12),
+                              // Subject field
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Subject: ',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Text(
+                                      emailData['subject']!,
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              const Divider(height: 1),
+                              const SizedBox(height: 12),
+                              // Body
+                              Text(
+                                emailData['body']!,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  height: 1.5,
+                                  color: Colors.grey.shade800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      // Show options if available
+                      if (options != null && options.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Options',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ...options.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final option = entry.value;
+                          final isCorrectOption =
+                              option == question.correctAnswer;
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: isCorrectOption
+                                  ? Colors.green.withOpacity(0.1)
+                                  : Colors.grey.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isCorrectOption
+                                    ? Colors.green.withOpacity(0.3)
+                                    : Colors.grey.withOpacity(0.2),
+                                width: isCorrectOption ? 2 : 1,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 24,
+                                  height: 24,
+                                  decoration: BoxDecoration(
+                                    color: isCorrectOption
+                                        ? Colors.green
+                                        : Colors.grey.withOpacity(0.3),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      String.fromCharCode(
+                                        65 + index,
+                                      ), // A, B, C, D
+                                      style: TextStyle(
+                                        color: isCorrectOption
+                                            ? Colors.white
+                                            : Colors.grey.shade700,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    option,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: isCorrectOption
+                                          ? FontWeight.w600
+                                          : FontWeight.normal,
+                                      color: isCorrectOption
+                                          ? Colors.green.shade700
+                                          : Colors.grey.shade800,
+                                    ),
+                                  ),
+                                ),
+                                if (isCorrectOption)
+                                  Icon(
+                                    Icons.check_circle,
+                                    color: Colors.green,
+                                    size: 20,
+                                  ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ],
+                      const SizedBox(height: 20),
+                      // Correct Answer (only show if no options or for clarity)
+                      if (options == null || options.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.green.withOpacity(0.3),
+                              width: 2,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.check_circle,
+                                color: Colors.green,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Correct Answer',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.green,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      question.correctAnswer,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (options == null || options.isEmpty)
+                        const SizedBox(height: 16),
+                      // Explanation
+                      const Text(
+                        'Explanation',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        question.explanation,
+                        style: TextStyle(
+                          fontSize: 14,
+                          height: 1.5,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      // Score info
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF9333EA).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.star,
+                              color: Color(0xFF9333EA),
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'You earned ${activity.scoreAwarded} points',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF9333EA),
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              _formatDateHelper(activity.attemptDate),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+Map<String, dynamic>? _parseJsonContentHelper(String content) {
+  try {
+    // Try to parse JSON content for phishing emails
+    final RegExp senderNamePattern = RegExp(r'"senderName"\s*:\s*"([^"]*)"');
+    final RegExp senderEmailPattern = RegExp(r'"senderEmail"\s*:\s*"([^"]*)"');
+    final RegExp subjectPattern = RegExp(r'"subject"\s*:\s*"([^"]*)"');
+    final RegExp bodyPattern = RegExp(r'"body"\s*:\s*"([^"]*)"');
+
+    final senderNameMatch = senderNamePattern.firstMatch(content);
+    final senderEmailMatch = senderEmailPattern.firstMatch(content);
+    final subjectMatch = subjectPattern.firstMatch(content);
+    final bodyMatch = bodyPattern.firstMatch(content);
+
+    // Check if this is a phishing email format
+    if (senderNameMatch != null ||
+        senderEmailMatch != null ||
+        subjectMatch != null ||
+        bodyMatch != null) {
+      final senderName = senderNameMatch?.group(1) ?? '';
+      final senderEmail = senderEmailMatch?.group(1) ?? '';
+      final subject = subjectMatch?.group(1) ?? '';
+      final body =
+          bodyMatch
+              ?.group(1)
+              ?.replaceAll(r'\n\n', '\n\n')
+              .replaceAll(r'\n', '\n') ??
+          '';
+
+      return {
+        'type': 'email',
+        'senderName': senderName,
+        'senderEmail': senderEmail,
+        'subject': subject,
+        'body': body,
+      };
+    }
+
+    // Try old format with description and options
+    final RegExp descPattern = RegExp(r'"description":"([^"]*)"');
+    final RegExp optionsPattern = RegExp(r'"options":\[([^\]]*)\]');
+
+    final descMatch = descPattern.firstMatch(content);
+    final optionsMatch = optionsPattern.firstMatch(content);
+
+    if (descMatch != null) {
+      final description = descMatch.group(1);
+      final List<String> options = [];
+
+      if (optionsMatch != null) {
+        final optionsStr = optionsMatch.group(1);
+        if (optionsStr != null) {
+          // Extract options from the string
+          final optionItems = optionsStr.split('","');
+          for (var item in optionItems) {
+            final cleanItem = item.replaceAll('"', '').trim();
+            if (cleanItem.isNotEmpty) {
+              options.add(cleanItem);
+            }
+          }
+        }
+      }
+
+      return {
+        'type': 'question',
+        'description': description,
+        'options': options,
+      };
+    }
+  } catch (e) {
+    return null;
+  }
+  return null;
 }
 
 class _ModuleCard extends ConsumerWidget {
@@ -801,7 +1619,7 @@ class LevelSelectionDialog extends ConsumerWidget {
   String _getModuleType(String moduleName) {
     if (moduleName.contains('Phishing')) return 'phishing';
     if (moduleName.contains('Password')) return 'password';
-    if (moduleName.contains('Attack')) return 'attack';
+    if (moduleName.contains('Attack') || moduleName.contains('Threat')) return 'attack';
     return '';
   }
 
@@ -927,45 +1745,41 @@ class _LevelListWithProgress extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final progressAsync = ref.watch(
-      moduleProgressProvider((userId: userId, moduleType: moduleType)),
-    );
-
-    return progressAsync.when(
-      loading: () => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: List.generate(3, (index) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 8.0),
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: _getLevelColor(index + 1),
-                child: Text(
-                  '${index + 1}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+    return FutureBuilder<Map<int, double>>(
+      // Fetch fresh progress directly from Supabase each time
+      future: _fetchProgressDirectly(userId, moduleType),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(3, (index) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: _getLevelColor(index + 1),
+                    child: Text(
+                      '${index + 1}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  title: Text('Level ${index + 1}'),
+                  trailing: const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   ),
                 ),
-              ),
-              title: Text('Level ${index + 1}'),
-              trailing: const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
+              );
+            }),
           );
-        }),
-      ),
-      error: (error, stack) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: List.generate(3, (index) {
-          final level = index + 1;
-          return _buildLevelTile(context, level, null, onLevelSelected);
-        }),
-      ),
-      data: (progressMap) {
+        }
+
+        final progressMap = snapshot.data ?? {1: 0.0, 2: 0.0, 3: 0.0};
+
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: List.generate(3, (index) {
@@ -976,6 +1790,84 @@ class _LevelListWithProgress extends ConsumerWidget {
         );
       },
     );
+  }
+
+  // Fetch progress directly from Supabase
+  Future<Map<int, double>> _fetchProgressDirectly(
+    String userId,
+    String moduleType,
+  ) async {
+    try {
+      debugPrint('Fetching fresh progress for $moduleType...');
+
+      // Get all questions for this module
+      final questionsResponse = await SupabaseConfig.client
+          .from('questions')
+          .select('id, difficulty')
+          .eq('module_type', moduleType);
+
+      final questions = questionsResponse as List<dynamic>;
+
+      // Group question IDs by difficulty
+      final Map<int, Set<String>> questionIdsByDifficulty = {
+        1: {},
+        2: {},
+        3: {},
+      };
+      for (final q in questions) {
+        final difficulty = q['difficulty'] as int;
+        final id = q['id'] as String;
+        questionIdsByDifficulty[difficulty]?.add(id);
+      }
+
+      // Get user's correct answers
+      final questionIds = questions.map((q) => q['id'] as String).toList();
+
+      if (questionIds.isEmpty) {
+        return {1: 0.0, 2: 0.0, 3: 0.0};
+      }
+
+      final progressResponse = await SupabaseConfig.client
+          .from('user_progress')
+          .select('question_id')
+          .eq('user_id', userId)
+          .eq('is_correct', true)
+          .inFilter('question_id', questionIds);
+
+      final userProgress = progressResponse as List<dynamic>;
+
+      // Track unique completed questions per difficulty
+      final Map<int, Set<String>> completedByDifficulty = {1: {}, 2: {}, 3: {}};
+
+      for (final progress in userProgress) {
+        final questionId = progress['question_id'] as String;
+        // Find which difficulty this question belongs to
+        for (final q in questions) {
+          if (q['id'] == questionId) {
+            final difficulty = q['difficulty'] as int;
+            completedByDifficulty[difficulty]?.add(questionId);
+            break;
+          }
+        }
+      }
+
+      // Calculate progress percentages
+      final Map<int, double> progressMap = {};
+      for (int level = 1; level <= 3; level++) {
+        final total = questionIdsByDifficulty[level]?.length ?? 0;
+        final completed = completedByDifficulty[level]?.length ?? 0;
+        progressMap[level] = total == 0 ? 0.0 : completed / total;
+
+        debugPrint(
+          '$moduleType Level $level: $completed/$total = ${progressMap[level]}',
+        );
+      }
+
+      return progressMap;
+    } catch (e) {
+      debugPrint('Error fetching progress: $e');
+      return {1: 0.0, 2: 0.0, 3: 0.0};
+    }
   }
 
   Widget _buildLevelTile(
@@ -1185,89 +2077,102 @@ class _RecentActivityWidget extends ConsumerWidget {
             final formattedDate = _formatDate(activity.attemptDate);
             final isCorrect = activity.isCorrect;
 
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12.0),
-              decoration: BoxDecoration(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.grey.shade800
-                    : Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isCorrect
-                      ? Colors.green.withOpacity(0.3)
-                      : Colors.red.withOpacity(0.3),
-                  width: 2,
-                ),
-                boxShadow: [
-                  BoxShadow(
+            return InkWell(
+              onTap: () {
+                if (question != null) {
+                  _showQuestionReviewDialog(
+                    context,
+                    activity,
+                    question,
+                    isCorrect,
+                  );
+                }
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 12.0),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey.shade800
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
                     color: isCorrect
-                        ? Colors.green.withOpacity(0.1)
-                        : Colors.red.withOpacity(0.1),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
+                        ? Colors.green.withOpacity(0.3)
+                        : Colors.red.withOpacity(0.3),
+                    width: 2,
                   ),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: isCorrect
-                            ? Colors.green.withOpacity(0.1)
-                            : Colors.red.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(
-                        isCorrect ? Icons.check_circle : Icons.cancel,
-                        color: isCorrect ? Colors.green : Colors.red,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            moduleName,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Level ${question?.difficulty ?? '?'} • $formattedDate',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color:
-                                  Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? Colors.grey.shade400
-                                  : Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: isCorrect
-                            ? Colors.green.withOpacity(0.1)
-                            : Colors.red.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Icon(
-                        isCorrect ? Icons.check : Icons.close,
-                        color: isCorrect ? Colors.green : Colors.red,
-                        size: 18,
-                      ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isCorrect
+                          ? Colors.green.withOpacity(0.1)
+                          : Colors.red.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
                     ),
                   ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: isCorrect
+                              ? Colors.green.withOpacity(0.1)
+                              : Colors.red.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          isCorrect ? Icons.check_circle : Icons.cancel,
+                          color: isCorrect ? Colors.green : Colors.red,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              moduleName,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Level ${question?.difficulty ?? '?'} • $formattedDate',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color:
+                                    Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? Colors.grey.shade400
+                                    : Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: isCorrect
+                              ? Colors.green.withOpacity(0.1)
+                              : Colors.red.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Icon(
+                          isCorrect ? Icons.check : Icons.close,
+                          color: isCorrect ? Colors.green : Colors.red,
+                          size: 18,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -1303,6 +2208,508 @@ class _RecentActivityWidget extends ConsumerWidget {
     } else {
       return '${date.month}/${date.day}/${date.year}';
     }
+  }
+
+  Map<String, dynamic>? _parseJsonContent(String content) {
+    try {
+      // Try to parse JSON content for phishing emails
+      // Format: {"senderName":"...","senderEmail":"...","subject":"...","body":"..."}
+      final RegExp senderNamePattern = RegExp(r'"senderName"\s*:\s*"([^"]*)"');
+      final RegExp senderEmailPattern = RegExp(
+        r'"senderEmail"\s*:\s*"([^"]*)"',
+      );
+      final RegExp subjectPattern = RegExp(r'"subject"\s*:\s*"([^"]*)"');
+      final RegExp bodyPattern = RegExp(r'"body"\s*:\s*"([^"]*)"');
+
+      final senderNameMatch = senderNamePattern.firstMatch(content);
+      final senderEmailMatch = senderEmailPattern.firstMatch(content);
+      final subjectMatch = subjectPattern.firstMatch(content);
+      final bodyMatch = bodyPattern.firstMatch(content);
+
+      // Check if this is a phishing email format
+      if (senderNameMatch != null ||
+          senderEmailMatch != null ||
+          subjectMatch != null ||
+          bodyMatch != null) {
+        final senderName = senderNameMatch?.group(1) ?? '';
+        final senderEmail = senderEmailMatch?.group(1) ?? '';
+        final subject = subjectMatch?.group(1) ?? '';
+        final body =
+            bodyMatch
+                ?.group(1)
+                ?.replaceAll(r'\n\n', '\n\n')
+                .replaceAll(r'\n', '\n') ??
+            '';
+
+        return {
+          'type': 'email',
+          'senderName': senderName,
+          'senderEmail': senderEmail,
+          'subject': subject,
+          'body': body,
+        };
+      }
+
+      // Try old format with description and options
+      final RegExp descPattern = RegExp(r'"description":"([^"]*)"');
+      final RegExp optionsPattern = RegExp(r'"options":\[([^\]]*)\]');
+
+      final descMatch = descPattern.firstMatch(content);
+      final optionsMatch = optionsPattern.firstMatch(content);
+
+      if (descMatch != null) {
+        final description = descMatch.group(1);
+        final List<String> options = [];
+
+        if (optionsMatch != null) {
+          final optionsStr = optionsMatch.group(1);
+          if (optionsStr != null) {
+            // Extract options from the string
+            final optionItems = optionsStr.split('","');
+            for (var item in optionItems) {
+              final cleanItem = item.replaceAll('"', '').trim();
+              if (cleanItem.isNotEmpty) {
+                options.add(cleanItem);
+              }
+            }
+          }
+        }
+
+        return {
+          'type': 'question',
+          'description': description,
+          'options': options,
+        };
+      }
+    } catch (e) {
+      return null;
+    }
+    return null;
+  }
+
+  void _showQuestionReviewDialog(
+    BuildContext context,
+    UserProgress activity,
+    Question question,
+    bool isCorrect,
+  ) {
+    // Parse the question content if it's JSON
+    String questionText = question.content;
+    List<String>? options;
+    Map<String, String>? emailData;
+
+    try {
+      // Check if content looks like JSON
+      if (question.content.trim().startsWith('{')) {
+        final contentData = _parseJsonContent(question.content);
+
+        if (contentData != null) {
+          if (contentData['type'] == 'email') {
+            // This is an email format
+            emailData = {
+              'senderName': contentData['senderName'] as String,
+              'senderEmail': contentData['senderEmail'] as String,
+              'subject': contentData['subject'] as String,
+              'body': contentData['body'] as String,
+            };
+            questionText = 'Is this email safe or a phishing attempt?';
+          } else if (contentData['type'] == 'question' &&
+              contentData['description'] != null) {
+            // This is the old question format
+            questionText = contentData['description'] as String;
+            if (contentData['options'] != null &&
+                contentData['options'] is List) {
+              options = List<String>.from(contentData['options'] as List);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // If parsing fails, use original content
+      questionText = question.content;
+    }
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 500),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: isCorrect
+                          ? [Colors.green.shade400, Colors.green.shade600]
+                          : [Colors.red.shade400, Colors.red.shade600],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      topRight: Radius.circular(20),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isCorrect ? Icons.check_circle : Icons.cancel,
+                        color: Colors.white,
+                        size: 32,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              isCorrect ? 'Correct Answer' : 'Incorrect Answer',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'Level ${question.difficulty} • ${_getModuleName(question.moduleType)}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close, color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ),
+                // Content
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Question
+                        const Text(
+                          'Question',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          questionText,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        // Show email preview if this is phishing email detection
+                        if (emailData != null) ...[
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.grey.shade300,
+                                width: 1,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // From field
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'From: ',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF64748B),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            emailData['senderName']!,
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          Text(
+                                            '<${emailData['senderEmail']!}>',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey.shade600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                const Divider(height: 1),
+                                const SizedBox(height: 12),
+                                // Subject field
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Subject: ',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF64748B),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        emailData['subject']!,
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                const Divider(height: 1),
+                                const SizedBox(height: 12),
+                                // Body
+                                Text(
+                                  emailData['body']!,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    height: 1.5,
+                                    color: Colors.grey.shade800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        // Show options if available
+                        if (options != null && options.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Options',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          ...options.asMap().entries.map((entry) {
+                            final index = entry.key;
+                            final option = entry.value;
+                            final isCorrectOption =
+                                option == question.correctAnswer;
+
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: isCorrectOption
+                                    ? Colors.green.withOpacity(0.1)
+                                    : Colors.grey.withOpacity(0.05),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: isCorrectOption
+                                      ? Colors.green.withOpacity(0.3)
+                                      : Colors.grey.withOpacity(0.2),
+                                  width: isCorrectOption ? 2 : 1,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 24,
+                                    height: 24,
+                                    decoration: BoxDecoration(
+                                      color: isCorrectOption
+                                          ? Colors.green
+                                          : Colors.grey.withOpacity(0.3),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        String.fromCharCode(
+                                          65 + index,
+                                        ), // A, B, C, D
+                                        style: TextStyle(
+                                          color: isCorrectOption
+                                              ? Colors.white
+                                              : Colors.grey.shade700,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      option,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: isCorrectOption
+                                            ? FontWeight.w600
+                                            : FontWeight.normal,
+                                        color: isCorrectOption
+                                            ? Colors.green.shade700
+                                            : Colors.grey.shade800,
+                                      ),
+                                    ),
+                                  ),
+                                  if (isCorrectOption)
+                                    Icon(
+                                      Icons.check_circle,
+                                      color: Colors.green,
+                                      size: 20,
+                                    ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ],
+                        const SizedBox(height: 20),
+                        // Correct Answer (only show if no options or for clarity)
+                        if (options == null || options.isEmpty)
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.green.withOpacity(0.3),
+                                width: 2,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.check_circle,
+                                  color: Colors.green,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Correct Answer',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.green,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        question.correctAnswer,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        if (options == null || options.isEmpty)
+                          const SizedBox(height: 16),
+                        // Explanation
+                        const Text(
+                          'Explanation',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          question.explanation,
+                          style: TextStyle(
+                            fontSize: 14,
+                            height: 1.5,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        // Score info
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF9333EA).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.star,
+                                color: Color(0xFF9333EA),
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'You earned ${activity.scoreAwarded} points',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF9333EA),
+                                ),
+                              ),
+                              const Spacer(),
+                              Text(
+                                _formatDate(activity.attemptDate),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 }
 

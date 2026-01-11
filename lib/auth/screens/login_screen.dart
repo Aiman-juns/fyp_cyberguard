@@ -51,9 +51,48 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Login failed: $e')));
+          // Parse error message for user-friendly display
+          String errorMessage = 'Incorrect email or password';
+          final errorStr = e.toString().toLowerCase();
+          
+          if (errorStr.contains('invalid') || 
+              errorStr.contains('credentials') || 
+              errorStr.contains('password') ||
+              errorStr.contains('email')) {
+            errorMessage = 'Incorrect email or password';
+          } else if (errorStr.contains('network')) {
+            errorMessage = 'Network error. Please check your connection';
+          } else {
+            errorMessage = 'Login failed. Please try again';
+          }
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.error_outline, color: Colors.white),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      errorMessage,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.red.shade600,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              margin: EdgeInsets.all(16),
+              duration: Duration(seconds: 4),
+            ),
+          );
         }
       } finally {
         if (mounted) setState(() => _isLoading = false);

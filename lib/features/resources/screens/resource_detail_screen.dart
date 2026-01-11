@@ -11,6 +11,10 @@ import '../providers/video_progress_provider.dart';
 import '../providers/progress_provider.dart';
 import '../models/note_model.dart';
 import '../models/video_progress_model.dart';
+import '../../performance/providers/performance_provider.dart';
+import '../../profile/providers/profile_analytics_provider.dart';
+import '../../../core/widgets/achievement_dialog.dart';
+import '../../../core/services/achievement_detector.dart';
 
 class ResourceDetailScreen extends ConsumerStatefulWidget {
   final String resourceId;
@@ -137,23 +141,15 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
 
                   print('🔍 Loading progress for: $progressId');
 
-                  // Wait for progress to load from database/local storage
-                  await ref
-                      .read(videoProgressProvider(progressId).notifier)
-                      .getProgress(progressId);
-
-                  // Small delay to ensure state is updated
-                  await Future.delayed(const Duration(milliseconds: 100));
-
-                  // Now read the loaded progress
-                  final progressAsync = ref.read(
-                    videoProgressProvider(progressId),
+                  // Load progress from FutureProvider
+                  final progressAsync = await ref.read(
+                    videoProgressProvider(progressId).future,
                   );
 
-                  print('🔍 Progress state: ${progressAsync.runtimeType}');
+                  print('🔍 Progress loaded: $progressAsync');
 
-                  // Handle the AsyncValue properly
-                  final progress = progressAsync.valueOrNull;
+                  // Use the loaded progress
+                  final progress = progressAsync;
 
                   if (progress != null && progress.watchPercentage > 0) {
                     final duration = _videoController!.value.duration;
@@ -217,13 +213,13 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
           final progressId = widget.attackTypeId != null
               ? '${widget.resourceId}_${widget.attackTypeId}'
               : widget.resourceId;
-          await ref
-              .read(videoProgressProvider(progressId).notifier)
-              .updateProgress(
-                resourceId: progressId,
-                watchPercentage: watchPercentage,
-                watchDurationSeconds: position.inSeconds,
-              );
+          await VideoProgressService.updateProgress(
+            resourceId: progressId,
+            watchPercentage: watchPercentage,
+            watchDurationSeconds: position.inSeconds,
+          );
+          // Invalidate to reload fresh data
+          ref.invalidate(videoProgressProvider(progressId));
         } catch (e) {
           print('Error updating video progress: $e');
         }
@@ -447,30 +443,6 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
                           ),
                   ),
                   
-                  // Back Button (Always Visible)
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: SafeArea(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.5),
-                          shape: BoxShape.circle,
-                        ),
-                        child: IconButton(
-                          icon: const Icon(Icons.arrow_back, color: Colors.white),
-                          onPressed: () {
-                            SystemChrome.setPreferredOrientations([
-                              DeviceOrientation.portraitUp,
-                              DeviceOrientation.portraitDown,
-                            ]);
-                            context.pop();
-                          },
-                        ),
-                      ),
-                    ),
-                  ),
-              
                   // Auto-hiding Overlay Header
                   Positioned(
                     top: 0,
@@ -699,6 +671,30 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
                     ),
                   ),
                 ),
+          
+          // Back Button (Always Visible - placed last to be on top)
+          Positioned(
+            top: 8,
+            left: 8,
+            child: SafeArea(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.5),
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  onPressed: () {
+                    SystemChrome.setPreferredOrientations([
+                      DeviceOrientation.portraitUp,
+                      DeviceOrientation.portraitDown,
+                    ]);
+                    context.pop();
+                  },
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -792,27 +788,54 @@ class _ResourceDetailScreenState extends ConsumerState<ResourceDetailScreen>
                   child: ElevatedButton.icon(
                     onPressed: () async {
                       try {
+                        // Get achievements BEFORE marking complete
+                        final achievementsBefore = await ref.read(userAchievementsProvider.future);
+                        
                         // Calculate the correct progress ID
                         final progressId = widget.attackTypeId != null
                             ? '${resource.id}_${widget.attackTypeId}'
                             : resource.id;
 
-                        // Update video progress in database
-                        await ref
-                            .read(videoProgressProvider(progressId).notifier)
-                            .markCompleted(progressId);
+                        // Update video progress in database - mark as 100% complete
+                        await VideoProgressService.updateProgress(
+                          resourceId: progressId,
+                          watchPercentage: 100.0,
+                          watchDurationSeconds:
+                              _videoController?.value.duration.inSeconds ?? 0,
+                        );
 
                         // ALSO update the resource progress provider (for Resources list screen)
                         ref
                             .read(progressProvider.notifier)
                             .markAsComplete(progressId);
 
-                        // Force refresh the video progress provider to update UI
+                        // Force refresh providers
                         ref.invalidate(videoProgressProvider(progressId));
+                        ref.refresh(performanceProvider);
+                        ref.refresh(profileAnalyticsProvider);
+                        
+                        // CRITICAL: Invalidate achievements to force fresh fetch
+                        ref.invalidate(userAchievementsProvider);
+
+                        // Get achievements AFTER marking complete
+                        final achievementsAfter = await ref.read(userAchievementsProvider.future);
+                        
+                        // Detect new unlocks
+                        final newAchievements = AchievementDetector.detectNewAchievements(
+                          previousAchievements: achievementsBefore,
+                          currentAchievements: achievementsAfter,
+                        );
 
                         // Trigger UI rebuild
                         if (mounted) {
                           setState(() {});
+                        }
+
+                        // Show achievement dialogs first
+                        if (newAchievements.isNotEmpty && context.mounted) {
+                          for (final achievement in newAchievements) {
+                            await AchievementDialog.show(context, achievement);
+                          }
                         }
 
                         // Show success message

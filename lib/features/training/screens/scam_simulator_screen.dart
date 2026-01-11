@@ -3,6 +3,8 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 import '../../../core/services/ai_service.dart';
 import 'package:flutter/gestures.dart';
 import 'package:intl/intl.dart';
+import 'dart:math' as math;
+import 'dart:math' as math;
 
 class ScamSimulatorScreen extends StatefulWidget {
   final String scenario;
@@ -28,6 +30,9 @@ class _ScamSimulatorScreenState extends State<ScamSimulatorScreen>
   late AnimationController _quickRepliesAnimationController;
   late Animation<double> _tipsAnimation;
   late Animation<double> _quickRepliesAnimation;
+  late AnimationController _thinkingController;
+  late AnimationController _glowController;
+  late AnimationController _morphController;
 
   @override
   void initState() {
@@ -47,6 +52,18 @@ class _ScamSimulatorScreenState extends State<ScamSimulatorScreen>
     _quickRepliesAnimation = CurvedAnimation(
       parent: _quickRepliesAnimationController,
       curve: Curves.easeInOut,
+    );
+    _thinkingController = AnimationController(
+      duration: const Duration(milliseconds: 2000),
+      vsync: this,
+    );
+    _glowController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+    _morphController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
     );
     _initializeChat();
   }
@@ -203,8 +220,16 @@ class _ScamSimulatorScreenState extends State<ScamSimulatorScreen>
 
     _messageController.clear();
 
+    // Start thinking animation
+    _thinkingController.repeat();
+    _glowController.repeat(reverse: true);
+
     // Get AI response
     final response = await _aiService.sendChatMessage(_chatSession, text);
+
+    // Stop thinking animation
+    _thinkingController.stop();
+    _glowController.stop();
 
     setState(() {
       _messages.add(
@@ -213,6 +238,11 @@ class _ScamSimulatorScreenState extends State<ScamSimulatorScreen>
       _isLoading = false;
       _updateQuickReplies();
     });
+
+    // Trigger morphing animation for new AI message
+    _morphController.forward().then((_) {
+      _morphController.reverse();
+    });
   }
 
   @override
@@ -220,6 +250,9 @@ class _ScamSimulatorScreenState extends State<ScamSimulatorScreen>
     _messageController.dispose();
     _tipsAnimationController.dispose();
     _quickRepliesAnimationController.dispose();
+    _thinkingController.dispose();
+    _glowController.dispose();
+    _morphController.dispose();
     super.dispose();
   }
 
@@ -357,11 +390,15 @@ class _ScamSimulatorScreenState extends State<ScamSimulatorScreen>
                 ? Center(child: CircularProgressIndicator(color: primaryColor))
                 : ListView.builder(
                     padding: const EdgeInsets.all(16),
-                    itemCount: _messages.length,
+                    itemCount: _messages.length + (_isLoading ? 1 : 0),
                     itemBuilder: (context, index) {
+                      if (index == _messages.length && _isLoading) {
+                        return _buildThinkingBubble(isDiscord);
+                      }
                       final message = _messages[index];
-                      return _buildMessageBubble(
+                      return _buildMorphingBubble(
                         message,
+                        index == _messages.length - 1,
                         primaryColor,
                         isDark,
                         isDiscord,
@@ -369,35 +406,6 @@ class _ScamSimulatorScreenState extends State<ScamSimulatorScreen>
                     },
                   ),
           ),
-
-          // Loading indicator
-          if (_isLoading)
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Row(
-                children: [
-                  const SizedBox(width: 16),
-                  SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: primaryColor,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Typing...',
-                    style: TextStyle(
-                      color: isDark
-                          ? Colors.grey.shade400
-                          : Colors.grey.shade600,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
 
           // Collapsible Quick Reply Chips
           if (_quickReplies.isNotEmpty && !_isLoading)
@@ -895,6 +903,299 @@ class _ScamSimulatorScreenState extends State<ScamSimulatorScreen>
     );
   }
 
+  Widget _buildThinkingBubble(bool isDiscord) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: isDiscord
+                  ? const Color(0xFF5865F2)
+                  : const Color(0xFF0066CC),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isDiscord ? Colors.white24 : Colors.white30,
+                width: 2,
+              ),
+            ),
+            child: Icon(
+              isDiscord ? Icons.security : Icons.account_balance,
+              color: Colors.white,
+              size: 16,
+            ),
+          ),
+          const SizedBox(width: 8),
+          AnimatedBuilder(
+            animation: Listenable.merge([_thinkingController, _glowController]),
+            builder: (context, child) {
+              return IntrinsicWidth(
+                child: IntrinsicHeight(
+                  child: CustomPaint(
+                    painter: _ThinkingBubblePainter(
+                      thinkingProgress: _thinkingController.value,
+                      glowIntensity: _glowController.value,
+                      isDiscord: isDiscord,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildThinkingDots(),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildThinkingDots() {
+    return AnimatedBuilder(
+      animation: _thinkingController,
+      builder: (context, child) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(3, (index) {
+            final delay = index * 0.2;
+            final progress = (_thinkingController.value - delay).clamp(0.0, 1.0);
+            final scale = math.sin(progress * math.pi) * 0.5 + 0.5;
+            
+            return Container(
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              child: Transform.scale(
+                scale: 0.5 + scale * 0.5,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [
+                        const Color(0xFF00F5FF).withOpacity(0.5 + scale * 0.5),
+                        const Color(0xFF0080FF).withOpacity(0.5 + scale * 0.5),
+                      ],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF00F5FF).withOpacity(scale * 0.5),
+                        blurRadius: 8,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+        );
+      },
+    );
+  }
+
+  Widget _buildMorphingBubble(
+    ChatMessage message,
+    bool isLatest,
+    Color primaryColor,
+    bool isDark,
+    bool isDiscord,
+  ) {
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 600),
+      tween: Tween(begin: 0.0, end: 1.0),
+      curve: Curves.elasticOut,
+      builder: (context, scale, child) {
+        return Transform.scale(
+          scale: scale,
+          child: Opacity(
+            opacity: scale,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                mainAxisAlignment: message.isUser
+                    ? MainAxisAlignment.end
+                    : MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (!message.isUser) ...[
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: isDiscord
+                            ? const Color(0xFF5865F2)
+                            : const Color(0xFF0066CC),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isDiscord ? Colors.white24 : Colors.white30,
+                          width: 2,
+                        ),
+                      ),
+                      child: Icon(
+                        isDiscord ? Icons.security : Icons.account_balance,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Flexible(
+                    child: AnimatedBuilder(
+                      animation: _morphController,
+                      builder: (context, child) {
+                        return IntrinsicWidth(
+                          child: IntrinsicHeight(
+                            child: CustomPaint(
+                              painter: _MorphingBubblePainter(
+                                isUser: message.isUser,
+                                morphProgress: isLatest && !message.isUser
+                                    ? _morphController.value
+                                    : 0.0,
+                                glowIntensity: isLatest && !message.isUser ? 0.8 : 0.0,
+                                isDiscord: isDiscord,
+                                isDark: isDark,
+                              ),
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                constraints: BoxConstraints(
+                                  maxWidth: MediaQuery.of(context).size.width * 0.75,
+                                ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (!message.isUser) ...[
+                                  Row(
+                                    children: [
+                                      if (isDiscord) ...[
+                                        Container(
+                                          width: 20,
+                                          height: 20,
+                                          decoration: const BoxDecoration(
+                                            color: Color(0xFF5865F2),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            Icons.shield,
+                                            color: Colors.white,
+                                            size: 12,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        const Text(
+                                          'DiscordAdmin',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                            color: Color(0xFF5865F2),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 4,
+                                            vertical: 1,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF5865F2),
+                                            borderRadius: BorderRadius.circular(3),
+                                          ),
+                                          child: const Text(
+                                            'BOT',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ] else ...[
+                                        const Icon(
+                                          Icons.verified,
+                                          color: Color(0xFF0066CC),
+                                          size: 16,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        const Text(
+                                          'Maybank Security Team',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                            color: Color(0xFF0066CC),
+                                          ),
+                                        ),
+                                      ],
+                                      const Spacer(),
+                                      Text(
+                                        DateFormat('HH:mm').format(message.timestamp),
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey.shade500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                ],
+                                _buildMessageText(
+                                  message.text,
+                                  message.isUser,
+                                  isDark,
+                                  isDiscord,
+                                ),
+                              ],
+                            ),
+                          ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  if (message.isUser) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: isDiscord ? Colors.purple : Colors.blue,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isDiscord
+                              ? Colors.purple.shade300
+                              : Colors.blue.shade300,
+                          width: 2,
+                        ),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'U',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   AppBar _buildDiscordAppBar() {
     return AppBar(
       backgroundColor: const Color(0xFF2F3136),
@@ -1021,4 +1322,159 @@ class ChatMessage {
     required this.isUser,
     required this.timestamp,
   });
+}
+
+class _MorphingBubblePainter extends CustomPainter {
+  final bool isUser;
+  final double morphProgress;
+  final double glowIntensity;
+  final bool isDiscord;
+  final bool isDark;
+
+  _MorphingBubblePainter({
+    required this.isUser,
+    required this.morphProgress,
+    required this.glowIntensity,
+    required this.isDiscord,
+    required this.isDark,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+
+    // Create morphing path
+    final path = Path();
+    final baseRadius = 18.0;
+    final morphAmount = morphProgress * 8.0;
+    
+    // Dynamic corner radii based on morph progress
+    final topLeft = baseRadius + math.sin(morphProgress * math.pi * 2) * morphAmount;
+    final topRight = baseRadius + math.cos(morphProgress * math.pi * 2) * morphAmount;
+    final bottomLeft = baseRadius + math.sin(morphProgress * math.pi * 2 + math.pi) * morphAmount;
+    final bottomRight = baseRadius + math.cos(morphProgress * math.pi * 2 + math.pi) * morphAmount;
+
+    path.addRRect(
+      RRect.fromRectAndCorners(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+        topLeft: Radius.circular(topLeft),
+        topRight: Radius.circular(topRight),
+        bottomLeft: isUser ? Radius.circular(bottomLeft) : const Radius.circular(4),
+        bottomRight: isUser ? const Radius.circular(4) : Radius.circular(bottomRight),
+      ),
+    );
+
+    // Glow effect for AI messages
+    if (glowIntensity > 0 && !isUser) {
+      final glowPaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0 + glowIntensity * 3.0
+        ..color = (isDiscord ? const Color(0xFF5865F2) : const Color(0xFF0080FF))
+            .withOpacity(glowIntensity * 0.6)
+        ..maskFilter = MaskFilter.blur(BlurStyle.outer, glowIntensity * 4.0);
+      
+      canvas.drawPath(path, glowPaint);
+    }
+
+    // Main bubble gradient
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+    paint.shader = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: isUser
+          ? [
+              (isDiscord ? const Color(0xFF5865F2) : const Color(0xFF0066CC)).withOpacity(0.9),
+              (isDiscord ? const Color(0xFF5865F2) : const Color(0xFF0066CC)).withOpacity(0.7),
+            ]
+          : [
+              (isDiscord
+                  ? (isDark ? const Color(0xFF40444B) : const Color(0xFF2F3136))
+                  : (isDark ? Colors.grey.shade800 : Colors.white)).withOpacity(0.95),
+              (isDiscord
+                  ? (isDark ? const Color(0xFF40444B) : const Color(0xFF2F3136))
+                  : (isDark ? Colors.grey.shade800 : Colors.white)).withOpacity(0.85),
+            ],
+    ).createShader(rect);
+
+    canvas.drawPath(path, paint);
+
+    // Inner glow for AI bubbles during morphing
+    if (!isUser && glowIntensity > 0) {
+      final innerGlowPaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.0
+        ..color = (isDiscord ? const Color(0xFF5865F2) : const Color(0xFF00F5FF))
+            .withOpacity(glowIntensity * 0.3);
+      
+      canvas.drawPath(path, innerGlowPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+class _ThinkingBubblePainter extends CustomPainter {
+  final double thinkingProgress;
+  final double glowIntensity;
+  final bool isDiscord;
+
+  _ThinkingBubblePainter({
+    required this.thinkingProgress,
+    required this.glowIntensity,
+    required this.isDiscord,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+
+    // Create pulsating bubble
+    final path = Path();
+    final baseRadius = 18.0;
+    final pulseAmount = math.sin(thinkingProgress * math.pi * 4) * 3.0;
+    final radius = baseRadius + pulseAmount;
+
+    path.addRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+        Radius.circular(radius),
+      ),
+    );
+
+    // Animated glow
+    final glowPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0 + glowIntensity * 4.0
+      ..color = (isDiscord ? const Color(0xFF5865F2) : const Color(0xFF00F5FF))
+          .withOpacity(glowIntensity * 0.7)
+      ..maskFilter = MaskFilter.blur(BlurStyle.outer, glowIntensity * 6.0);
+    
+    canvas.drawPath(path, glowPaint);
+
+    // Main bubble
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+    paint.shader = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        const Color(0xFF40444B).withOpacity(0.9),
+        const Color(0xFF2F3136).withOpacity(0.8),
+      ],
+    ).createShader(rect);
+
+    canvas.drawPath(path, paint);
+
+    // Inner pulse effect
+    final innerPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0
+      ..color = (isDiscord ? const Color(0xFF5865F2) : const Color(0xFF00F5FF))
+          .withOpacity(thinkingProgress * 0.5);
+    
+    canvas.drawPath(path, innerPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/supabase_config.dart';
 import '../providers/training_provider.dart';
+import '../../performance/providers/performance_provider.dart';
+import '../../profile/providers/profile_analytics_provider.dart';
+import '../../../core/widgets/achievement_dialog.dart';
+import '../../../core/services/achievement_detector.dart';
 
 class PhishingScreen extends ConsumerStatefulWidget {
   final int difficulty;
@@ -55,17 +59,60 @@ class _PhishingScreenState extends ConsumerState<PhishingScreen>
         // Record progress to database
         final userId = SupabaseConfig.client.auth.currentUser?.id;
         if (userId != null) {
-          final progress = UserProgress(
-            id: 'temp',
-            userId: userId,
-            questionId: question.id,
-            isCorrect: correct,
-            scoreAwarded: correct ? (6 - question.difficulty) * 10 : 0,
-            attemptDate: DateTime.now(),
-          );
-          recordProgress(progress).catchError((e) {
-            debugPrint('Failed to record progress: $e');
-          });
+          // Wrap in async IIFE to capture achievements before recording
+          (() async {
+            final achievementsBefore = await ref.read(
+              userAchievementsProvider.future,
+            );
+
+            final progress = UserProgress(
+              id: 'temp',
+              userId: userId,
+              questionId: question.id,
+              isCorrect: correct,
+              scoreAwarded: correct ? (6 - question.difficulty) * 10 : 0,
+              attemptDate: DateTime.now(),
+            );
+
+            await recordProgress(progress);
+
+            // Refresh providers
+            ref.refresh(performanceProvider);
+            ref.refresh(profileAnalyticsProvider);
+            ref.refresh(
+              phishingQuestionsByDifficultyProvider(widget.difficulty),
+            );
+
+            // CRITICAL: Invalidate achievements to force fresh fetch
+            ref.invalidate(userAchievementsProvider);
+
+            // CRITICAL: Invalidate recent activity to show in UI
+            ref.invalidate(recentActivityProvider);
+
+            try {
+              // Get achievements AFTER refresh
+              final achievementsAfter = await ref.read(
+                userAchievementsProvider.future,
+              );
+
+              // Detect new unlocks
+              final newAchievements = AchievementDetector.detectNewAchievements(
+                previousAchievements: achievementsBefore,
+                currentAchievements: achievementsAfter,
+              );
+
+              // Show dialog for each
+              if (newAchievements.isNotEmpty && mounted) {
+                for (final achievement in newAchievements) {
+                  await AchievementDialog.show(context, achievement);
+                }
+              }
+            } catch (e) {
+              debugPrint('❌ Achievement error: $e');
+            }
+
+            debugPrint('✅ Providers refreshed - UI should update immediately');
+          })(); // Close and invoke the async IIFE
         }
 
         // Move to next question after delay
@@ -271,69 +318,284 @@ class _PhishingScreenState extends ConsumerState<PhishingScreen>
     );
   }
 
-  Widget _buildCompletionScreen(int totalQuestions, BuildContext context) {
-    final maxScore = totalQuestions * 50; // Max 50 points per question
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.check_circle_outline, size: 80, color: Colors.green),
-          const SizedBox(height: 24),
-          Text(
-            'Training Complete!',
-            style: Theme.of(context).textTheme.headlineSmall,
+  Widget _buildStatItem(
+    BuildContext context,
+    IconData icon,
+    String label,
+    String value,
+    Color color,
+  ) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            shape: BoxShape.circle,
           ),
-          const SizedBox(height: 32),
-          Container(
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.blue.shade200),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  'Your Score',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelMedium?.copyWith(color: Colors.grey),
+          child: Icon(icon, color: color, size: 24),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        Text(
+          label,
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCompletionScreen(int totalQuestions, BuildContext context) {
+    // Get actual max score based on difficulty level
+    final questionsAsync = ref.read(
+      phishingQuestionsByDifficultyProvider(widget.difficulty),
+    );
+
+    int maxScore = 0;
+    questionsAsync.whenData((questions) {
+      if (questions.isNotEmpty) {
+        // Calculate max score based on actual question difficulties
+        maxScore = questions.fold(
+          0,
+          (sum, q) => sum + ((6 - q.difficulty) * 10),
+        );
+      }
+    });
+
+    // Fallback if questions not loaded
+    if (maxScore == 0) {
+      maxScore = totalQuestions * ((6 - widget.difficulty) * 10);
+    }
+
+    final percentage = maxScore > 0 ? (_score / maxScore) * 100 : 0;
+
+    // Performance rating based on score
+    String performanceTitle;
+    String performanceMessage;
+    IconData performanceIcon;
+    Color performanceColor;
+
+    if (percentage >= 90) {
+      performanceTitle = 'Excellent Work!';
+      performanceMessage = 'You\'re a phishing detection expert! 🎯';
+      performanceIcon = Icons.emoji_events;
+      performanceColor = Colors.amber;
+    } else if (percentage >= 75) {
+      performanceTitle = 'Great Job!';
+      performanceMessage = 'You\'re getting really good at spotting threats!';
+      performanceIcon = Icons.check_circle;
+      performanceColor = Colors.green;
+    } else if (percentage >= 60) {
+      performanceTitle = 'Good Effort!';
+      performanceMessage = 'Keep practicing to sharpen your skills!';
+      performanceIcon = Icons.thumbs_up_down;
+      performanceColor = Colors.blue;
+    } else {
+      performanceTitle = 'Keep Learning!';
+      performanceMessage = 'Practice makes perfect. Try again!';
+      performanceIcon = Icons.school;
+      performanceColor = Colors.orange;
+    }
+
+    return SingleChildScrollView(
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Animated trophy/icon
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: performanceColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: performanceColor, width: 3),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  '$_score / $maxScore',
-                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue,
+                child: Icon(performanceIcon, size: 80, color: performanceColor),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Training Complete!',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                performanceTitle,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: performanceColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                performanceMessage,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+
+              // Score Card
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.blue.shade50, Colors.blue.shade100],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.blue.shade200, width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.blue.withOpacity(0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      'Your Score',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: Colors.grey.shade700,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      '$_score / $maxScore',
+                      style: Theme.of(context).textTheme.displayMedium
+                          ?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue.shade700,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade700,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '${percentage.toStringAsFixed(1)}%',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Statistics breakdown
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      'Performance Stats',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildStatItem(
+                          context,
+                          Icons.quiz,
+                          'Questions',
+                          totalQuestions.toString(),
+                          Colors.blue,
+                        ),
+                        _buildStatItem(
+                          context,
+                          Icons.check_circle,
+                          'Correct',
+                          '${(_score / 50).floor()}',
+                          Colors.green,
+                        ),
+                        _buildStatItem(
+                          context,
+                          Icons.trending_up,
+                          'Accuracy',
+                          '${percentage.toStringAsFixed(0)}%',
+                          Colors.orange,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              // Action buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _currentIndex = 0;
+                        _score = 0;
+                        _isAnswered = false;
+                      });
+                    },
+                    icon: const Icon(Icons.restart_alt),
+                    label: const Text('Try Again'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.arrow_back),
+                label: const Text('Back to Training Hub'),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  '${((_score / maxScore) * 100).toStringAsFixed(1)}%',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          const SizedBox(height: 32),
-          ElevatedButton.icon(
-            onPressed: () {
-              setState(() {
-                _currentIndex = 0;
-                _score = 0;
-                _isAnswered = false;
-              });
-            },
-            icon: const Icon(Icons.restart_alt),
-            label: const Text('Try Again'),
-          ),
-          const SizedBox(height: 16),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Back to Training Hub'),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -477,16 +739,22 @@ class EmailSimulationCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         emailData['subject'] as String? ?? 'No Subject',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 17,
-                          color: Colors.black87,
-                        ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 17,
+                              color: Colors.black87,
+                            ),
                       ),
                     ],
                   ),
                 ),
-                Divider(height: 1, color: Colors.grey.shade200, indent: 16, endIndent: 16),
+                Divider(
+                  height: 1,
+                  color: Colors.grey.shade200,
+                  indent: 16,
+                  endIndent: 16,
+                ),
                 // Email Body with padding
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),

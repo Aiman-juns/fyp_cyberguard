@@ -786,6 +786,11 @@ class _InfectionSimulatorScreenState extends State<InfectionSimulatorScreen>
 
   // STATE 4: RANSOMWARE
   Widget _buildRansomwareState() {
+    // Show full-screen deletion effect when files are deleted
+    if (_filesDeleted) {
+      return _buildFileDeletionScreen();
+    }
+
     return Container(
       color: Colors.red.shade900,
       child: SafeArea(
@@ -892,113 +897,26 @@ class _InfectionSimulatorScreenState extends State<InfectionSimulatorScreen>
                   ),
                 ),
                 const SizedBox(height: 24),
-                // Show different UI based on whether files are deleted
-                if (!_filesDeleted) ...[
-                  ElevatedButton(
-                    onPressed: _skipToFileDeletion,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 16,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                // Show skip button
+                ElevatedButton(
+                  onPressed: _skipToFileDeletion,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 16,
                     ),
-                    child: const Text(
-                      'SKIP TO WHAT HAPPENS',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                ] else ...[
-                  // Show file deletion effect
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    margin: const EdgeInsets.only(bottom: 20),
-                    decoration: BoxDecoration(
-                      color: Colors.black,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.red, width: 3),
-                    ),
-                    child: Column(
-                      children: [
-                        const Icon(
-                          Icons.delete_forever,
-                          color: Colors.red,
-                          size: 64,
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          '💀 FILES DELETED 💀',
-                          style: TextStyle(
-                            color: Colors.red,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 2,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'All your personal data has been\npermanently erased.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
-                        ),
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.red.shade900.withOpacity(0.3),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '❌ 1,247 photos deleted',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontFamily: 'Courier',
-                                ),
-                              ),
-                              Text(
-                                '❌ 856 contacts deleted',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontFamily: 'Courier',
-                                ),
-                              ),
-                              Text(
-                                '❌ 43 documents deleted',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontFamily: 'Courier',
-                                ),
-                              ),
-                              Text(
-                                '❌ Banking apps wiped',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontFamily: 'Courier',
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ).animate().fadeIn(duration: 500.ms).shake(duration: 300.ms),
-                  const SizedBox(height: 8),
-                ],
+                  child: const Text(
+                    'SKIP TO WHAT HAPPENS',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 ElevatedButton(
                   onPressed: _endSimulation,
                   style: ElevatedButton.styleFrom(
@@ -1023,6 +941,230 @@ class _InfectionSimulatorScreenState extends State<InfectionSimulatorScreen>
         ),
       ),
     );
+  }
+
+  // Full-screen file deletion effect
+  Widget _buildFileDeletionScreen() {
+    return Container(
+      color: Colors.black,
+      child: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: [
+                const SizedBox(height: 40),
+                // Warning icon with animation
+                const Icon(
+                      Icons.warning_amber_rounded,
+                      color: Colors.red,
+                      size: 100,
+                    )
+                    .animate(onPlay: (controller) => controller.repeat())
+                    .shake(duration: 500.ms),
+
+                const SizedBox(height: 24),
+
+                // Critical failure message
+                const Text(
+                      '⚠️ CRITICAL SYSTEM FAILURE ⚠️',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 2,
+                      ),
+                    )
+                    .animate(onPlay: (controller) => controller.repeat())
+                    .fadeIn(duration: 500.ms)
+                    .then()
+                    .fadeOut(duration: 500.ms),
+
+                const SizedBox(height: 16),
+
+                const Text(
+                  'RANSOMWARE ACTIVATED - DELETING ALL FILES',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+
+                // Terminal-style deletion log (larger)
+                Container(
+                  height: 300,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade900,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.red.shade800, width: 2),
+                  ),
+                  child: SingleChildScrollView(
+                    reverse: true,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildDeletionLog(
+                          'C:\\Users\\Documents\\Photos\\Family_2024.jpg',
+                          0,
+                        ),
+                        _buildDeletionLog(
+                          'C:\\Users\\Documents\\Photos\\Vacation.jpg',
+                          100,
+                        ),
+                        _buildDeletionLog(
+                          'C:\\Users\\Documents\\Work\\Report.docx',
+                          200,
+                        ),
+                        _buildDeletionLog(
+                          'C:\\Users\\Downloads\\Banking_App.apk',
+                          300,
+                        ),
+                        _buildDeletionLog(
+                          'C:\\Users\\Contacts\\contacts.db',
+                          400,
+                        ),
+                        _buildDeletionLog(
+                          'C:\\Users\\Documents\\Passwords.txt',
+                          500,
+                        ),
+                        _buildDeletionLog(
+                          'C:\\Users\\Music\\favorite_songs.mp3',
+                          600,
+                        ),
+                        _buildDeletionLog(
+                          'C:\\System\\Config\\system32.dll',
+                          700,
+                        ),
+                        _buildDeletionLog('C:\\Windows\\explorer.exe', 800),
+                        _buildDeletionLog(
+                          'ERROR: SYSTEM CORRUPTION DETECTED',
+                          900,
+                          isError: true,
+                        ),
+                        _buildDeletionLog(
+                          'ERROR: BOOT SECTOR DAMAGED',
+                          1000,
+                          isError: true,
+                        ),
+                        _buildDeletionLog(
+                          'FATAL: DEVICE INOPERABLE',
+                          1100,
+                          isError: true,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Deletion progress bars
+                _buildProgressBar('Personal Files', 0.95, Colors.red),
+                const SizedBox(height: 12),
+                _buildProgressBar('System Files', 0.73, Colors.orange),
+                const SizedBox(height: 12),
+                _buildProgressBar('Applications', 0.88, Colors.red.shade700),
+
+                const SizedBox(height: 24),
+
+                // Statistics
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade900.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.red, width: 2),
+                  ),
+                  child: Column(
+                    children: [
+                      _buildStatRow(
+                        'Files Deleted:',
+                        '1,247 files',
+                        Icons.delete_forever,
+                      ),
+                      const SizedBox(height: 8),
+                      _buildStatRow('Data Lost:', '8.4 GB', Icons.storage),
+                      const SizedBox(height: 8),
+                      _buildStatRow('Apps Compromised:', '23 apps', Icons.apps),
+                      const SizedBox(height: 8),
+                      _buildStatRow(
+                        'Recovery:',
+                        'IMPOSSIBLE',
+                        Icons.block,
+                        isRed: true,
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+
+                // System failure message
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.red, width: 2),
+                  ),
+                  child: const Column(
+                    children: [
+                      Icon(Icons.error_outline, color: Colors.red, size: 48),
+                      SizedBox(height: 12),
+                      Text(
+                        '💀 ALL DATA PERMANENTLY ERASED 💀',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Your device is now completely unusable.\nAll personal data has been destroyed.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.white70, fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+
+                // End simulation button
+                ElevatedButton(
+                  onPressed: _endSimulation,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 48,
+                      vertical: 20,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'END SIMULATION',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ).animate().fadeIn(duration: 500.ms);
   }
 
   // STATE 5: THE LESSON
@@ -1317,6 +1459,85 @@ class _InfectionSimulatorScreenState extends State<InfectionSimulatorScreen>
           ),
           const SizedBox(height: 12),
           Text(content, style: const TextStyle(fontSize: 14, height: 1.5)),
+        ],
+      ),
+    );
+  }
+
+  // Helper method to build deletion log entry
+  Widget _buildDeletionLog(String filePath, int delay, {bool isError = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Text(
+        isError ? filePath : 'DELETING: $filePath',
+        style: TextStyle(
+          color: isError ? Colors.red : Colors.green.shade400,
+          fontSize: 11,
+          fontFamily: 'Courier',
+        ),
+      ),
+    ).animate().fadeIn(delay: delay.ms, duration: 200.ms);
+  }
+
+  // Helper method to build progress bar
+  Widget _buildProgressBar(String label, double progress, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white70,
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: progress,
+            backgroundColor: Colors.grey.shade800,
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+            minHeight: 8,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          '${(progress * 100).toInt()}% Complete',
+          style: const TextStyle(color: Colors.white54, fontSize: 10),
+        ),
+      ],
+    );
+  }
+
+  // Helper method to build stat row
+  Widget _buildStatRow(
+    String label,
+    String value,
+    IconData icon, {
+    bool isRed = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, color: isRed ? Colors.red : Colors.white70, size: 16),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
+          ),
+          const Spacer(),
+          Text(
+            value,
+            style: TextStyle(
+              color: isRed ? Colors.red : Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Courier',
+            ),
+          ),
         ],
       ),
     );

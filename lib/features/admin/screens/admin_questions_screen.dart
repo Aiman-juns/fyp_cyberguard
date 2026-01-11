@@ -3,6 +3,9 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:video_player/video_player.dart';
+import 'package:chewie/chewie.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import '../providers/admin_provider.dart';
 import '../../training/providers/training_provider.dart';
 import '../../../config/supabase_config.dart';
@@ -17,6 +20,61 @@ class AdminQuestionsScreen extends ConsumerStatefulWidget {
 
 class _AdminQuestionsScreenState extends ConsumerState<AdminQuestionsScreen> {
   String _selectedModule = 'phishing';
+  
+  // Video controllers for preview
+  VideoPlayerController? _previewVideoController;
+  ChewieController? _previewChewieController;
+  YoutubePlayerController? _previewYoutubeController;
+
+  @override
+  void dispose() {
+    _disposeVideoControllers();
+    super.dispose();
+  }
+
+  void _disposeVideoControllers() {
+    _previewVideoController?.dispose();
+    _previewChewieController?.dispose();
+    _previewYoutubeController?.dispose();
+    _previewVideoController = null;
+    _previewChewieController = null;
+    _previewYoutubeController = null;
+  }
+
+  void _initializePreviewVideoController(String mediaType, String? mediaUrl) {
+    // Clean up existing controllers
+    _disposeVideoControllers();
+
+    if (mediaUrl == null || mediaUrl.isEmpty) return;
+
+    if (mediaType == 'youtube') {
+      // Extract YouTube video ID
+      String videoId = mediaUrl;
+      if (mediaUrl.contains('youtube.com')) {
+        final uri = Uri.parse(mediaUrl);
+        videoId = uri.queryParameters['v'] ?? mediaUrl;
+      } else if (mediaUrl.contains('youtu.be')) {
+        videoId = mediaUrl.split('/').last;
+      }
+
+      _previewYoutubeController = YoutubePlayerController(
+        initialVideoId: videoId,
+        flags: const YoutubePlayerFlags(autoPlay: false, mute: false),
+      );
+    } else if (mediaType == 'video') {
+      _previewVideoController = VideoPlayerController.networkUrl(Uri.parse(mediaUrl));
+      _previewVideoController!.initialize().then((_) {
+        setState(() {
+          _previewChewieController = ChewieController(
+            videoPlayerController: _previewVideoController!,
+            autoPlay: false,
+            looping: false,
+            aspectRatio: _previewVideoController!.value.aspectRatio,
+          );
+        });
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -144,20 +202,7 @@ class _AdminQuestionsScreenState extends ConsumerState<AdminQuestionsScreen> {
                         ],
                       ),
                     )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: questions.length,
-                      itemBuilder: (context, index) {
-                        final question = questions[index];
-                        return _QuestionCard(
-                          question: question,
-                          onEdit: () =>
-                              _showEditQuestionDialog(context, question),
-                          onDelete: () =>
-                              _showDeleteConfirmDialog(context, question.id),
-                        );
-                      },
-                    ),
+                  : _buildGroupedQuestionsList(questions),
             ),
             // Add button
             Padding(
@@ -217,16 +262,28 @@ class _AdminQuestionsScreenState extends ConsumerState<AdminQuestionsScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
+              debugPrint('=== Deleting Question ===');
+              debugPrint('Question ID: $questionId');
+              debugPrint('Module: $_selectedModule');
+              
               try {
                 await ref
                     .read(adminProvider.notifier)
                     .deleteQuestion(questionId);
+                    
+                debugPrint('Question deleted successfully from database');
                 ref.invalidate(adminQuestionsProvider(_selectedModule));
+                debugPrint('Provider invalidated');
+                
                 if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Question deleted')),
+                    const SnackBar(
+                      content: Text('✅ Question deleted successfully'),
+                      backgroundColor: Colors.orange,
+                    ),
                   );
+                  debugPrint('UI updated');
                 }
               } catch (e) {
                 if (context.mounted) {
@@ -244,38 +301,210 @@ class _AdminQuestionsScreenState extends ConsumerState<AdminQuestionsScreen> {
       ),
     );
   }
+
+  Widget _buildGroupedQuestionsList(List<Question> questions) {
+    // Sort questions by difficulty
+    final sortedQuestions = List<Question>.from(questions)
+      ..sort((a, b) => a.difficulty.compareTo(b.difficulty));
+
+    // Group by difficulty
+    final Map<int, List<Question>> grouped = {};
+    for (var q in sortedQuestions) {
+      grouped.putIfAbsent(q.difficulty, () => []).add(q);
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: grouped.length,
+      itemBuilder: (context, groupIndex) {
+        final difficulty = grouped.keys.elementAt(groupIndex);
+        final difficultyQuestions = grouped[difficulty]!;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Simple difficulty header
+            if (groupIndex > 0) const SizedBox(height: 24),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                'Difficulty $difficulty',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: difficulty == 1
+                      ? Colors.green
+                      : difficulty == 2
+                          ? Colors.orange
+                          : Colors.red,
+                ),
+              ),
+            ),
+            // Questions
+            ...difficultyQuestions.asMap().entries.map((entry) {
+              final question = entry.value;
+              return _QuestionCard(
+                questionNumber: entry.key + 1,
+                question: question,
+                onEdit: () => _showEditQuestionDialog(context, question),
+                onDelete: () => _showDeleteConfirmDialog(context, question.id),
+              );
+            }),
+          ],
+        );
+      },
+    );
+  }
 }
 
-class _QuestionCard extends StatelessWidget {
+class _QuestionCard extends StatefulWidget {
+  final int questionNumber;
   final Question question;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   const _QuestionCard({
+    required this.questionNumber,
     required this.question,
     required this.onEdit,
     required this.onDelete,
   });
 
   @override
+  State<_QuestionCard> createState() => _QuestionCardState();
+}
+
+class _QuestionCardState extends State<_QuestionCard> {
+  // Video controllers for preview
+  VideoPlayerController? _previewVideoController;
+  ChewieController? _previewChewieController;
+  YoutubePlayerController? _previewYoutubeController;
+  String _selectedModule = '';
+  bool _isVideoLoading = false;
+  String? _videoError;
+
+  @override
+  void dispose() {
+    _disposeVideoControllers();
+    super.dispose();
+  }
+
+  void _disposeVideoControllers() {
+    _previewVideoController?.dispose();
+    _previewChewieController?.dispose();
+    _previewYoutubeController?.dispose();
+    _previewVideoController = null;
+    _previewChewieController = null;
+    _previewYoutubeController = null;
+  }
+
+  void _initializePreviewVideoController(String mediaType, String? mediaUrl) async {
+    // Clean up existing controllers
+    _disposeVideoControllers();
+
+    if (mediaUrl == null || mediaUrl.isEmpty) return;
+
+    setState(() {
+      _isVideoLoading = true;
+      _videoError = null;
+    });
+
+    if (mediaType == 'youtube') {
+      // Extract YouTube video ID
+      String videoId = mediaUrl;
+      if (mediaUrl.contains('youtube.com')) {
+        final uri = Uri.parse(mediaUrl);
+        videoId = uri.queryParameters['v'] ?? mediaUrl;
+      } else if (mediaUrl.contains('youtu.be')) {
+        videoId = mediaUrl.split('/').last;
+      }
+
+      try {
+        _previewYoutubeController = YoutubePlayerController(
+          initialVideoId: videoId,
+          flags: const YoutubePlayerFlags(autoPlay: false, mute: false),
+        );
+        setState(() {
+          _isVideoLoading = false;
+        });
+      } catch (e) {
+        setState(() {
+          _isVideoLoading = false;
+          _videoError = 'Failed to load YouTube video';
+        });
+      }
+    } else if (mediaType == 'video') {
+      try {
+        _previewVideoController = VideoPlayerController.networkUrl(Uri.parse(mediaUrl));
+        
+        // Add timeout for initialization
+        await _previewVideoController!.initialize().timeout(
+          const Duration(seconds: 15),
+          onTimeout: () {
+            throw Exception('Video loading timeout');
+          },
+        );
+        
+        if (mounted) {
+          setState(() {
+            _previewChewieController = ChewieController(
+              videoPlayerController: _previewVideoController!,
+              autoPlay: false,
+              looping: false,
+              aspectRatio: _previewVideoController!.value.aspectRatio,
+            );
+            _isVideoLoading = false;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _isVideoLoading = false;
+            _videoError = 'Failed to load video: ${e.toString()}';
+          });
+        }
+        debugPrint('Video initialization error: $e');
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final difficultyColor = question.difficulty == 1
+    // Determine module type from question content
+    try {
+      if (widget.question.content.isNotEmpty) {
+        final content = json.decode(widget.question.content);
+        if (content is Map && content.containsKey('options')) {
+          _selectedModule = 'attack';
+        } else if (content is Map && content.containsKey('emailDetails')) {
+          _selectedModule = 'phishing';
+        } else {
+          _selectedModule = 'password';
+        }
+      }
+    } catch (e) {
+      _selectedModule = '';
+    }
+
+    final difficultyColor = widget.question.difficulty == 1
         ? Colors.green
-        : question.difficulty == 2
+        : widget.question.difficulty == 2
         ? Colors.orange
         : Colors.red;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: difficultyColor.withOpacity(0.3), width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: difficultyColor.withOpacity(0.15),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
+    return GestureDetector(
+      onTap: () => _showQuestionPreview(context),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: difficultyColor.withOpacity(0.3), width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: difficultyColor.withOpacity(0.15),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -287,7 +516,10 @@ class _QuestionCard extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
@@ -306,14 +538,28 @@ class _QuestionCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: Icon(
-                    question.difficulty == 1
-                        ? Icons.sentiment_satisfied
-                        : question.difficulty == 2
-                        ? Icons.sentiment_neutral
-                        : Icons.sentiment_very_dissatisfied,
-                    color: Colors.white,
-                    size: 24,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '#${widget.questionNumber}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        widget.question.difficulty == 1
+                            ? Icons.sentiment_satisfied
+                            : widget.question.difficulty == 2
+                            ? Icons.sentiment_neutral
+                            : Icons.sentiment_very_dissatisfied,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -331,7 +577,7 @@ class _QuestionCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          'Difficulty ${question.difficulty}',
+                          'Difficulty ${widget.question.difficulty}',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
@@ -340,7 +586,7 @@ class _QuestionCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      _buildQuestionPreview(context, question),
+                      _buildQuestionPreview(context, widget.question),
                     ],
                   ),
                 ),
@@ -353,7 +599,7 @@ class _QuestionCard extends StatelessWidget {
                     icon: Icon(Icons.more_vert, color: Colors.grey.shade700),
                     itemBuilder: (context) => [
                       PopupMenuItem(
-                        onTap: onEdit,
+                        onTap: widget.onEdit,
                         child: const Row(
                           children: [
                             Icon(Icons.edit, size: 20),
@@ -363,7 +609,7 @@ class _QuestionCard extends StatelessWidget {
                         ),
                       ),
                       PopupMenuItem(
-                        onTap: onDelete,
+                        onTap: widget.onDelete,
                         child: const Row(
                           children: [
                             Icon(Icons.delete, size: 20, color: Colors.red),
@@ -391,7 +637,7 @@ class _QuestionCard extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Answer: ${question.correctAnswer}',
+                      'Answer: ${widget.question.correctAnswer}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Colors.green.shade900,
                         fontWeight: FontWeight.w500,
@@ -404,7 +650,646 @@ class _QuestionCard extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
+  }
+
+  void _showQuestionPreview(BuildContext context) {
+    // Initialize video controller if needed for attack module
+    if (_selectedModule == 'attack' && widget.question.content.isNotEmpty) {
+      try {
+        final attackData = json.decode(widget.question.content) as Map<String, dynamic>;
+        final mediaType = attackData['mediaType'] ?? 'none';
+        _initializePreviewVideoController(mediaType, widget.question.mediaUrl);
+      } catch (e) {
+        debugPrint('Error initializing video: $e');
+      }
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.indigo.shade700, Colors.indigo.shade500],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.visibility, color: Colors.white),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Question Preview',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () {
+                        _disposeVideoControllers();
+                        Navigator.pop(context);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              // Content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: _buildPreviewContent(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPreviewContent() {
+    if (widget.question.moduleType == 'phishing') {
+      return _buildPhishingPreview();
+    } else if (widget.question.moduleType == 'password') {
+      return _buildPasswordPreview();
+    } else if (widget.question.moduleType == 'attack') {
+      return _buildAttackPreview();
+    }
+    return const Text('Preview not available');
+  }
+
+  Widget _buildPhishingPreview() {
+    try {
+      final emailData = json.decode(widget.question.content) as Map<String, dynamic>;
+      final senderName = emailData['senderName'] ?? 'Unknown';
+      final senderEmail = emailData['senderEmail'] ?? 'unknown@email.com';
+      final subject = emailData['subject'] ?? 'No Subject';
+      final body = emailData['body'] ?? '';
+
+      return Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Email Header
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.blue.shade600, Colors.blue.shade400],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor: Colors.white.withOpacity(0.3),
+                    child: Text(
+                      senderName[0].toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          senderName,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        Text(
+                          senderEmail,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Subject
+            Container(
+              padding: const EdgeInsets.all(16),
+              color: Colors.grey.shade50,
+              child: Row(
+                children: [
+                  const Icon(Icons.subject, size: 20, color: Colors.grey),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      subject,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            // Body
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                body,
+                style: const TextStyle(fontSize: 14, height: 1.5),
+              ),
+            ),
+            // Explanation Section
+            Container(
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.lightbulb, color: Colors.blue.shade700, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Correct Answer: ${widget.question.correctAnswer}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade900,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    widget.question.explanation,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.blue.shade900,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      return Text('Error parsing phishing question: $e');
+    }
+  }
+
+  Widget _buildPasswordPreview() {
+    try {
+      final passwordData = json.decode(widget.question.content) as Map<String, dynamic>;
+      final minLength = passwordData['minLength'] ?? 8;
+      final uppercase = passwordData['uppercase'] ?? true;
+      final lowercase = passwordData['lowercase'] ?? true;
+      final numbers = passwordData['numbers'] ?? true;
+      final special = passwordData['special'] ?? true;
+
+      return Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.lock, color: Colors.blue.shade700, size: 28),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Password Requirements',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              _buildRequirement('Minimum $minLength characters', minLength > 0),
+              _buildRequirement('Uppercase letters (A-Z)', uppercase),
+              _buildRequirement('Lowercase letters (a-z)', lowercase),
+              _buildRequirement('Numbers (0-9)', numbers),
+              _buildRequirement('Special characters (!@#\$%)', special),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.green.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.check_circle, color: Colors.green.shade700, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Correct Answer: ${widget.question.correctAnswer}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green.shade900,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      widget.question.explanation,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.green.shade900,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    } catch (e) {
+      return Text('Error parsing password question: $e');
+    }
+  }
+
+  Widget _buildRequirement(String text, bool required) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Icon(
+            required ? Icons.check_circle : Icons.cancel,
+            color: required ? Colors.green : Colors.grey,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 14,
+                color: required ? Colors.black87 : Colors.grey,
+                decoration: required ? null : TextDecoration.lineThrough,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAttackPreview() {
+    try {
+      final attackData = json.decode(widget.question.content) as Map<String, dynamic>;
+      final description = attackData['description'] ?? '';
+      final options = (attackData['options'] as List<dynamic>?)?.cast<String>() ?? [];
+      final mediaType = attackData['mediaType'] ?? 'none';
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Media Section
+          if (mediaType == 'image' && widget.question.mediaUrl != null && widget.question.mediaUrl!.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  widget.question.mediaUrl!,
+                  width: double.infinity,
+                  height: 200,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      height: 200,
+                      color: Colors.grey.shade200,
+                      child: const Center(
+                        child: Icon(Icons.image_not_supported, size: 50),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            )
+          else if (mediaType == 'video' && widget.question.mediaUrl != null && widget.question.mediaUrl!.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: _videoError != null
+                    ? Container(
+                        height: 200,
+                        color: Colors.red.shade50,
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.error_outline, color: Colors.red, size: 48),
+                              const SizedBox(height: 12),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                child: Text(
+                                  _videoError!,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: Colors.red.shade700),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              ElevatedButton.icon(
+                                onPressed: () => _initializePreviewVideoController('video', widget.question.mediaUrl),
+                                icon: const Icon(Icons.refresh, size: 18),
+                                label: const Text('Retry'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red,
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : _previewChewieController != null && _previewVideoController!.value.isInitialized
+                        ? AspectRatio(
+                            aspectRatio: _previewVideoController!.value.aspectRatio,
+                            child: Chewie(controller: _previewChewieController!),
+                          )
+                        : Container(
+                            height: 200,
+                            color: Colors.grey.shade200,
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const CircularProgressIndicator(),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'Loading video...',
+                                    style: TextStyle(color: Colors.grey.shade600),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+              ),
+            )
+          else if (mediaType == 'youtube' && widget.question.mediaUrl != null && widget.question.mediaUrl!.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              child: _previewYoutubeController != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: YoutubePlayer(
+                        controller: _previewYoutubeController!,
+                        showVideoProgressIndicator: true,
+                      ),
+                    )
+                  : Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.red.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.play_circle_filled, color: Colors.red, size: 40),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'YouTube Video',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                Text(
+                                  widget.question.mediaUrl!,
+                                  style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+            ),
+          // Scenario Card
+          Card(
+            elevation: 4,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      border: Border.all(color: Colors.orange.shade200, width: 1.5),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.info_outline, size: 20, color: Colors.deepOrange),
+                            const SizedBox(width: 12),
+                            const Text(
+                              'Scenario:',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.deepOrange,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          description,
+                          style: const TextStyle(fontSize: 14, height: 1.5),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Choose your answer:',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Options
+                  ...options.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final option = entry.value;
+                    final optionLabel = String.fromCharCode(65 + index); // A, B, C, D
+                    final isCorrect = widget.question.correctAnswer == option;
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: isCorrect ? Colors.green.shade50 : Colors.grey.shade50,
+                        border: Border.all(
+                          color: isCorrect ? Colors.green : Colors.grey.shade300,
+                          width: isCorrect ? 2 : 1,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: isCorrect ? Colors.green : Colors.grey.shade300,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: Text(
+                                optionLabel,
+                                style: TextStyle(
+                                  color: isCorrect ? Colors.white : Colors.black87,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              option,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: isCorrect ? FontWeight.w600 : FontWeight.normal,
+                              ),
+                            ),
+                          ),
+                          if (isCorrect)
+                            Icon(Icons.check_circle, color: Colors.green, size: 24),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                  const SizedBox(height: 20),
+                  // Explanation
+                  if (widget.question.explanation.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.lightbulb, color: Colors.blue.shade700, size: 20),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Explanation:',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            widget.question.explanation,
+                            style: const TextStyle(fontSize: 13, height: 1.4),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Colors.grey.shade600, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            'No explanation provided',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey.shade600,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    } catch (e) {
+      return Text('Error parsing attack question: $e');
+    }
   }
 
   Widget _buildQuestionPreview(BuildContext context, Question question) {
@@ -1304,7 +2189,8 @@ class _QuestionDialogContentState
                   ),
                 ],
               ),
-            ] else if (!isPasswordModule) ...[
+            ] else if (!isPasswordModule && !isAttackModule) ...[
+              // Only show for modules that don't have their own answer selection
               TextField(
                 controller: answerController,
                 decoration: const InputDecoration(labelText: 'Correct Answer'),
@@ -1380,6 +2266,11 @@ class _QuestionDialogContentState
             try {
               final content = _getContentValue();
 
+              debugPrint('=== Creating Question ===');
+              debugPrint('Module Type: ${widget.moduleType}');
+              debugPrint('Difficulty: $difficulty');
+              debugPrint('Content: $content');
+
               // Determine correct answer based on module type
               String correctAnswer;
               if (isPhishingModule) {
@@ -1399,7 +2290,11 @@ class _QuestionDialogContentState
                 correctAnswer = answerController.text;
               }
 
+              debugPrint('Correct Answer: $correctAnswer');
+              debugPrint('Explanation: ${explanationController.text}');
+
               if (widget.question == null) {
+                debugPrint('Creating new widget.question...');
                 await ref
                     .read(adminProvider.notifier)
                     .createQuestion(
@@ -1407,15 +2302,14 @@ class _QuestionDialogContentState
                       difficulty: difficulty,
                       content: content,
                       correctAnswer: correctAnswer,
-                      explanation: isAttackModule
-                          ? ''
-                          : explanationController.text,
+                      explanation: explanationController.text,
                       mediaUrl:
                           (mediaType == 'none' ||
                               mediaUrlController.text.isEmpty)
                           ? null
                           : mediaUrlController.text,
                     );
+                debugPrint('Question created successfully!');
               } else {
                 await ref
                     .read(adminProvider.notifier)
@@ -1424,9 +2318,7 @@ class _QuestionDialogContentState
                       difficulty: difficulty,
                       content: content,
                       correctAnswer: correctAnswer,
-                      explanation: isAttackModule
-                          ? ''
-                          : explanationController.text,
+                      explanation: explanationController.text,
                       mediaUrl:
                           (mediaType == 'none' ||
                               mediaUrlController.text.isEmpty)
@@ -1436,6 +2328,7 @@ class _QuestionDialogContentState
               }
 
               // Invalidate the cache to refresh the questions list
+              debugPrint('Invalidating providers...');
               if (mounted) {
                 ref.invalidate(adminQuestionsProvider(widget.moduleType));
 
@@ -1451,16 +2344,27 @@ class _QuestionDialogContentState
                   ref.invalidate(attackQuestionsByDifficultyProvider);
                 }
 
+                debugPrint('Providers invalidated successfully');
+
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
                       widget.question == null
-                          ? 'Question created'
-                          : 'Question updated',
+                          ? '✅ Question created successfully!'
+                          : '✅ Question updated! Exit and re-preview to see changes.',
                     ),
+                    backgroundColor: Colors.green,
+                    duration: const Duration(seconds: 3),
                   ),
                 );
+                
+                debugPrint('Closing dialog...');
                 Navigator.pop(context);
+                
+                // Force a rebuild by refreshing the provider
+                await Future.delayed(const Duration(milliseconds: 100));
+                ref.refresh(adminQuestionsProvider(widget.moduleType));
+                debugPrint('Provider refreshed!');
               }
             } catch (e) {
               if (mounted) {
@@ -1597,3 +2501,4 @@ class _EmailPreviewCard extends StatelessWidget {
     );
   }
 }
+

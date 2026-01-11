@@ -17,6 +17,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  
+  // Focus nodes for auto-navigation
+  final _emailFocusNode = FocusNode();
+  final _passwordFocusNode = FocusNode();
+  
   bool _obscurePassword = true;
   bool _isLoading = false;
 
@@ -25,6 +30,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _fullNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _emailFocusNode.dispose();
+    _passwordFocusNode.dispose();
     super.dispose();
   }
 
@@ -40,7 +47,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               _fullNameController.text.trim(),
             );
         if (mounted) {
-          context.go('/');
+          context.go('/dashboard'); // Go directly to dashboard after registration
         }
       } catch (e) {
         if (mounted) {
@@ -181,6 +188,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               // Full Name field
                               TextFormField(
                                 controller: _fullNameController,
+                                textInputAction: TextInputAction.next,
+                                onFieldSubmitted: (_) => _emailFocusNode.requestFocus(),
                                 decoration: InputDecoration(
                                   hintText: 'Full Name',
                                   hintStyle: TextStyle(
@@ -225,7 +234,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               // Email field
                               TextFormField(
                                 controller: _emailController,
+                                focusNode: _emailFocusNode,
                                 keyboardType: TextInputType.emailAddress,
+                                textInputAction: TextInputAction.next,
+                                onFieldSubmitted: (_) => _passwordFocusNode.requestFocus(),
                                 decoration: InputDecoration(
                                   hintText: 'Email',
                                   hintStyle: TextStyle(
@@ -273,7 +285,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               // Password field
                               TextFormField(
                                 controller: _passwordController,
+                                focusNode: _passwordFocusNode,
                                 obscureText: _obscurePassword,
+                                textInputAction: TextInputAction.done,
+                                onFieldSubmitted: (_) => _handleRegister(ref),
                                 decoration: InputDecoration(
                                   hintText: 'Password',
                                   hintStyle: TextStyle(

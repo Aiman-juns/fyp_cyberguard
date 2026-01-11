@@ -8,9 +8,9 @@ import '../../../config/supabase_config.dart';
 import '../../resources/providers/resources_provider.dart';
 import '../../resources/providers/progress_provider.dart';
 import '../../training/providers/training_provider.dart';
-import '../../../shared/widgets/security_fab.dart';
 import '../providers/daily_challenge_provider.dart';
 import '../../performance/providers/performance_provider.dart';
+import 'global_search_screen.dart';
 import 'dart:math' as math;
 
 class HomeScreen extends ConsumerWidget {
@@ -41,25 +41,30 @@ class HomeScreen extends ConsumerWidget {
                     padding: const EdgeInsets.all(16.0),
                     child: Row(
                       children: [
-                        // User Avatar
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: avatar.color,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: avatar.color.withOpacity(0.3),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Icon(
-                            avatar.icon,
-                            color: Colors.white,
-                            size: 24,
+                        // User Avatar - Click to open drawer
+                        GestureDetector(
+                          onTap: () {
+                            Scaffold.of(context).openDrawer();
+                          },
+                          child: Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: avatar.color,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: avatar.color.withOpacity(0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              avatar.icon,
+                              color: Colors.white,
+                              size: 24,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -73,18 +78,16 @@ class HomeScreen extends ConsumerWidget {
                             ),
                           ),
                         ),
-                        // Search Icon (inactive)
+                        // Search Icon - Open Global Search
                         IconButton(
                           icon: Icon(Icons.search),
                           onPressed: () {
-                            // No action
-                          },
-                        ),
-                        // Settings Icon
-                        IconButton(
-                          icon: Icon(Icons.settings),
-                          onPressed: () {
-                            Scaffold.of(context).openDrawer();
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const GlobalSearchScreen(),
+                              ),
+                            );
                           },
                         ),
                       ],
@@ -113,26 +116,28 @@ class HomeScreen extends ConsumerWidget {
                       ),
                       child: Stack(
                         children: [
-                          // Watermark Icon
-                          Positioned(
-                            right: -20,
-                            bottom: -20,
-                            child: Icon(
-                              Icons.shield_outlined,
-                              size: 120,
-                              color: Colors.white.withOpacity(0.08),
-                            ),
-                          ),
                           // Decorative circles
                           Positioned(
-                            right: 40,
-                            top: 10,
+                            right: 100,
+                            top: -20,
                             child: Container(
-                              width: 60,
-                              height: 60,
+                              width: 80,
+                              height: 80,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: Colors.white.withOpacity(0.1),
+                                color: Colors.white.withOpacity(0.08),
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            right: 20,
+                            bottom: -30,
+                            child: Container(
+                              width: 100,
+                              height: 100,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white.withOpacity(0.05),
                               ),
                             ),
                           ),
@@ -141,6 +146,7 @@ class HomeScreen extends ConsumerWidget {
                             left: 24,
                             top: 0,
                             bottom: 0,
+                            right: 120,
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -164,6 +170,29 @@ class HomeScreen extends ConsumerWidget {
                               ],
                             ),
                           ),
+                          // Shield Icon on the right
+                          Positioned(
+                            right: 16,
+                            top: 0,
+                            bottom: 0,
+                            child: Center(
+                              child: Image.asset(
+                                'assets/images/icons/shield.png',
+                                width: 100,
+                                height: 100,
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) {
+                                  // Fallback to icon if image not found
+                                  print('Shield image error: $error');
+                                  return Icon(
+                                    Icons.shield,
+                                    size: 80,
+                                    color: Colors.white.withOpacity(0.9),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -175,16 +204,17 @@ class HomeScreen extends ConsumerWidget {
                   Consumer(
                     builder: (context, ref, child) {
                       // Get streak from daily challenge
-                      final dailyChallenge = ref.watch(dailyChallengeProvider);
-                      final streakCount = dailyChallenge.streakCount;
-
-                      // Get achievements count
-                      final achievementsAsync = ref.watch(
-                        userAchievementsProvider,
+                      final dailyChallengeAsync = ref.watch(dailyChallengeProvider);
+                      final streakCount = dailyChallengeAsync.when(
+                        data: (state) => state.streakCount,
+                        loading: () => 0,
+                        error: (_, __) => 0,
                       );
-                      final badgeCount = achievementsAsync.when(
-                        data: (achievements) =>
-                            achievements.where((a) => a.isUnlocked).length,
+
+                      // Get achievements count from performanceProvider
+                      final performanceAsync = ref.watch(performanceProvider);
+                      final badgeCount = performanceAsync.when(
+                        data: (stats) => stats.achievements.where((a) => a.isUnlocked).length,
                         loading: () => 0,
                         error: (_, __) => 0,
                       );
@@ -759,7 +789,6 @@ class HomeScreen extends ConsumerWidget {
           error: (error, _) => Center(child: Text('Error: $error')),
         ),
       ),
-      floatingActionButton: const SecurityFAB(),
     );
   }
 
