@@ -31,7 +31,7 @@ class AiService {
     if (_isTestingMode) {
       print('🧪 AI TESTING MODE: Using mock responses (no API calls)');
       _apiKey = 'TESTING_MODE';
-      _model = GenerativeModel(model: 'gemini-2.5-flash', apiKey: 'dummy');
+      _model = GenerativeModel(model: 'gemini-2.5-flash-lite', apiKey: 'dummy');
       return;
     }
 
@@ -54,7 +54,7 @@ class AiService {
     }
 
     _apiKey = apiKey;
-    _model = GenerativeModel(model: 'gemini-2.5-flash', apiKey: _apiKey);
+    _model = GenerativeModel(model: 'gemini-2.5-flash-lite', apiKey: _apiKey);
   }
 
   /// Production constructor - reads API key from secure storage
@@ -76,7 +76,7 @@ class AiService {
   /// Internal constructor with explicit API key
   AiService._internal(String apiKey) : _isTestingMode = false {
     _apiKey = apiKey;
-    _model = GenerativeModel(model: 'gemini-2.5-flash', apiKey: _apiKey);
+    _model = GenerativeModel(model: 'gemini-2.5-flash-lite', apiKey: _apiKey);
   }
 
   /// Try to switch to backup API key
